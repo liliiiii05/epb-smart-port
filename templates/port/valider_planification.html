@@ -1,0 +1,1425 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Validation du planning proposé | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    /* ========== STYLES PRINCIPAUX ========== */
+    :root {
+        --primary: #0066a0;
+        --primary-dark: #004b7c;
+        --primary-light: #2c9cd4;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --info: #3b82f6;
+        --light: #ffffff;
+        --dark: #1a2c3c;
+        --gray-100: #f8fafc;
+        --gray-200: #e9ecef;
+        --gray-300: #dee2e6;
+        --gray-600: #6c757d;
+        --gray-700: #495057;
+        --border-radius: 1rem;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        --transition: all 0.2s ease;
+    }
+
+    body.dark-mode {
+        --primary: #3b82f6;
+        --primary-dark: #2563eb;
+        --primary-light: #60a5fa;
+        --success: #34d399;
+        --warning: #fbbf24;
+        --danger: #f87171;
+        --info: #60a5fa;
+        --light: #1e293b;
+        --dark: #f1f5f9;
+        --gray-100: #0f172a;
+        --gray-200: #1e293b;
+        --gray-300: #334155;
+        --gray-600: #94a3b8;
+        --gray-700: #cbd5e1;
+        background: #0f172a !important;
+    }
+
+    /* Tooltip personnalisé */
+    [data-tooltip] {
+        position: relative;
+        cursor: help;
+        border-bottom: 1px dashed currentColor;
+    }
+    [data-tooltip]:before {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 0.5rem 0.8rem;
+        background: #1a2c3c;
+        color: white;
+        font-size: 0.7rem;
+        font-weight: normal;
+        white-space: nowrap;
+        border-radius: 0.5rem;
+        z-index: 1000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+        margin-bottom: 8px;
+        font-family: inherit;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    [data-tooltip]:hover:before {
+        opacity: 1;
+    }
+    [data-tooltip]:after {
+        content: '';
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 5px;
+        border-style: solid;
+        border-color: #1a2c3c transparent transparent transparent;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+        margin-bottom: 3px;
+    }
+    [data-tooltip]:hover:after {
+        opacity: 1;
+    }
+    body.dark-mode [data-tooltip]:before {
+        background: #334155;
+    }
+    body.dark-mode [data-tooltip]:after {
+        border-color: #334155 transparent transparent transparent;
+    }
+
+    /* Styles pour les badges d'équipements */
+    .equip-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        align-items: center;
+        max-width: 250px;
+    }
+    .equip-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+        color: var(--primary);
+        padding: 0.2rem 0.6rem;
+        border-radius: 2rem;
+        font-size: 0.65rem;
+        font-weight: 500;
+        margin: 0.1rem;
+        border: 1px solid rgba(59,130,246,0.2);
+        transition: all 0.2s ease;
+        cursor: help;
+        white-space: nowrap;
+    }
+    .equip-badge:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+        background: linear-gradient(135deg, #e0e7ff, #d1dbf5);
+    }
+    body.dark-mode .equip-badge {
+        background: linear-gradient(135deg, #1e293b, #0f172a);
+        color: #60a5fa;
+        border-color: rgba(96,165,250,0.3);
+    }
+    body.dark-mode .equip-badge:hover {
+        background: linear-gradient(135deg, #334155, #1e293b);
+    }
+    .equip-name {
+        max-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .equip-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--gray-200);
+        color: var(--gray-700);
+        padding: 0.15rem 0.45rem;
+        border-radius: 2rem;
+        font-size: 0.6rem;
+        font-weight: 600;
+        margin-left: 0.2rem;
+        cursor: help;
+    }
+    body.dark-mode .equip-count {
+        background: #334155;
+        color: #94a3b8;
+    }
+    .icon-tooltip {
+        cursor: help;
+        margin-left: 0.3rem;
+        color: var(--gray-600);
+        transition: color 0.2s;
+    }
+    .icon-tooltip:hover {
+        color: var(--primary);
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        border-radius: 1.5rem;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: var(--shadow-md);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .page-header::before {
+        content: '✓';
+        position: absolute;
+        bottom: -20px;
+        right: -20px;
+        font-size: 100px;
+        opacity: 0.1;
+    }
+
+    .header-text h1 {
+        font-size: 1.6rem;
+        margin-bottom: 0.25rem;
+        font-weight: 700;
+    }
+
+    .header-text p {
+        margin-bottom: 0;
+        opacity: 0.9;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.2rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: var(--light);
+        border-radius: var(--border-radius);
+        padding: 1rem;
+        text-align: center;
+        box-shadow: var(--shadow-sm);
+        transition: var(--transition);
+        border: 1px solid var(--gray-200);
+        cursor: pointer;
+        position: relative;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--primary);
+        line-height: 1.2;
+    }
+
+    .stat-label {
+        font-size: 0.7rem;
+        color: var(--gray-600);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-top: 0.3rem;
+    }
+
+    .stats-card {
+        background: var(--light);
+        border-radius: var(--border-radius);
+        padding: 1rem;
+        text-align: center;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--gray-200);
+        height: 100%;
+        transition: var(--transition);
+        cursor: pointer;
+    }
+
+    .info-card {
+        background: var(--gray-100);
+        border-radius: var(--border-radius);
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid var(--primary);
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        border: 1px solid var(--gray-300);
+    }
+
+    .alert-warning {
+        background: #fef3c7;
+        border-left: 4px solid var(--warning);
+        border-radius: 0.8rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        color: #92400e;
+    }
+
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--dark);
+        margin: 1.5rem 0 1rem;
+        border-left: 4px solid var(--primary);
+        padding-left: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+        border-radius: var(--border-radius);
+    }
+
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--light);
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 1.5rem;
+        font-size: 0.8rem;
+    }
+
+    .table th {
+        background: var(--primary);
+        color: white;
+        font-weight: 600;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 0.8rem 0.6rem;
+        border: none;
+        white-space: nowrap;
+    }
+
+    .table td {
+        padding: 0.6rem 0.6rem;
+        border-bottom: 1px solid var(--gray-200);
+        color: var(--gray-700);
+        vertical-align: middle;
+    }
+
+    .debut-cell, .fin-cell {
+        color: var(--primary);
+        font-weight: 600;
+    }
+
+    .badge-shift {
+        background: rgba(0,102,160,0.1);
+        color: var(--primary);
+        padding: 0.15rem 0.5rem;
+        border-radius: 2rem;
+        font-size: 0.6rem;
+        font-weight: 500;
+        display: inline-block;
+        margin: 0.1rem;
+    }
+
+    .progress-cell {
+        min-width: 90px;
+        text-align: center;
+    }
+
+    .progress-wrapper {
+        background: var(--gray-200);
+        border-radius: 0.5rem;
+        height: 1.5rem;
+        overflow: hidden;
+        margin-bottom: 0.2rem;
+        position: relative;
+    }
+
+    .progress-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 0.3rem;
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 700;
+    }
+
+    .progress-fill-07 { background: #3b82f6; }
+    .progress-fill-13 { background: #10b981; }
+    .progress-fill-19 { background: #f59e0b; }
+    .progress-fill-01 { background: #64748b; }
+
+    .detail-temps {
+        font-size: 0.65rem;
+        color: var(--gray-600);
+        line-height: 1.3;
+        white-space: nowrap;
+    }
+
+    .duree-value {
+        font-weight: 700;
+        color: var(--primary);
+    }
+
+    .btn {
+        padding: 0.5rem 1.5rem;
+        border-radius: 2rem;
+        font-weight: 600;
+        transition: var(--transition);
+        border: none;
+        cursor: pointer;
+        font-size: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-warning { background: var(--warning); color: white; }
+    .btn-secondary { background: var(--gray-200); color: var(--gray-700); border: 1px solid var(--gray-300); }
+    .btn-outline-primary { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+    .btn-outline-secondary { background: transparent; border: 1px solid var(--gray-300); color: var(--gray-700); }
+    .btn-outline-success { background: transparent; border: 1px solid var(--success); color: var(--success); }
+
+    .action-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 2rem;
+        margin-bottom: 3rem;
+        flex-wrap: wrap;
+    }
+
+    .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .search-input {
+        padding: 0.4rem 0.8rem;
+        border-radius: 2rem;
+        border: 1px solid var(--gray-300);
+        font-size: 0.8rem;
+        width: 200px;
+        background: var(--light);
+        color: var(--dark);
+    }
+
+    .dark-mode-toggle {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: var(--primary);
+        color: white;
+        border: none;
+        cursor: pointer;
+        box-shadow: var(--shadow-md);
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .info-note {
+        background: rgba(59,130,246,0.1);
+        border-radius: 0.5rem;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.7rem;
+        color: var(--primary-dark);
+        margin-bottom: 1rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        border: 1px solid rgba(59,130,246,0.2);
+    }
+
+    #customModal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content-custom {
+        background: var(--light);
+        width: 450px;
+        max-width: 90%;
+        padding: 1.5rem;
+        border-radius: 1rem;
+        box-shadow: var(--shadow-lg);
+        border: 1px solid var(--gray-300);
+    }
+
+    .modal-content-custom h4 {
+        margin-bottom: 1rem;
+        color: var(--dark);
+    }
+
+    .modal-content-custom .form-control {
+        width: 100%;
+        padding: 0.5rem;
+        margin-bottom: 1rem;
+        border: 1px solid var(--gray-300);
+        border-radius: 0.5rem;
+        background: var(--light);
+        color: var(--dark);
+    }
+
+    .modal-content-custom label {
+        color: var(--dark);
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        display: block;
+    }
+
+    .modal-buttons {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+
+    .attente-badge {
+        animation: pulse 0.5s ease;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            text-align: center;
+        }
+        .stats-grid {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        }
+        .toolbar {
+            flex-direction: column;
+        }
+        .table th, .table td {
+            font-size: 0.7rem;
+            padding: 0.4rem;
+        }
+        .equip-name {
+            max-width: 60px;
+        }
+        .equip-badge {
+            padding: 0.15rem 0.4rem;
+            font-size: 0.55rem;
+        }
+        [data-tooltip]:before {
+            font-size: 0.6rem;
+            white-space: normal;
+            max-width: 200px;
+        }
+    }
+</style>
+
+<div class="container">
+    <!-- Header -->
+    <div class="page-header animate-card">
+        <div class="header-text">
+            <h1><i class="fas fa-check-circle me-2"></i> Validation du planning proposé</h1>
+            <p data-tooltip="Cette page présente les affectations générées par l'algorithme d'optimisation avant validation finale">Officier du port – Vérifiez les affectations avant validation</p>
+        </div>
+        <div class="d-flex gap-2">
+            <span class="badge px-3 py-2" style="background: rgba(255,255,255,0.2); color: white;" data-tooltip="Date et heure actuelles du système">
+                <i class="fas fa-calendar-alt me-1"></i> {% now "d/m/Y H:i" %}
+            </span>
+            {% if alertes_validation %}
+            <span class="badge bg-danger px-3 py-2" data-tooltip="Des incohérences ont été détectées. Vérifiez les détails ci-dessous.">
+                <i class="fas fa-exclamation-triangle me-1"></i> {{ alertes_validation|length }} alerte(s)
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Alertes de validation -->
+    {% if alertes_validation %}
+    <div class="alert-warning animate-card">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>⚠️ Incohérences détectées avant validation :</strong>
+        <ul class="mb-0 mt-2">
+            {% for alerte in alertes_validation %}
+            <li data-tooltip="Veuillez corriger ces problèmes avant validation">{{ alerte }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- Statistiques globales -->
+    <div class="row g-3 mb-4 animate-card">
+        <div class="col-md-6">
+            <div class="stats-card" data-tooltip="Moyenne des temps d'attente de tous les navires (attente rade + attente équipements)">
+                <h6 class="text-muted mb-2"><i class="fas fa-hourglass-half"></i> Attente moyenne globale</h6>
+                <h3 class="mb-0">{{ attente_moyenne_globale|floatformat:1|default:"0" }}h</h3>
+                <small class="text-muted">moyenne sur tous les navires</small>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stats-card" data-tooltip="Moyenne des temps de traitement à quai (manœuvre + opérations + formalités)">
+                <h6 class="text-muted mb-2"><i class="fas fa-tachometer-alt"></i> Traitement moyen global</h6>
+                <h3 class="text-primary mb-0">{{ traitement_moyen_global|floatformat:1|default:"0" }}h</h3>
+                <small class="text-muted">moyenne sur tous les navires</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques principales -->
+    <div class="stats-grid animate-card">
+        <div class="stat-card" data-tooltip="Nombre total de navires planifiés dans cette session">
+            <div class="stat-value">{{ nb_navires|default:0 }}</div>
+            <div class="stat-label">Navires planifiés</div>
+        </div>
+        <div class="stat-card" data-tooltip="Score total d'optimisation (plus le score est bas, meilleure est la planification)">
+            <div class="stat-value">{{ score_total|floatformat:1|default:"0" }}</div>
+            <div class="stat-label">Score total</div>
+            <i class="fas fa-question-circle icon-tooltip" data-tooltip="Score = Traitement + Attente × 1 + Pénalités buffer"></i>
+        </div>
+        <div class="stat-card" data-tooltip="Somme des temps d'attente de tous les navires (en heures)">
+            <div class="stat-value">{{ attente_totale|floatformat:1|default:"0" }}h</div>
+            <div class="stat-label">Attente totale</div>
+        </div>
+        <div class="stat-card" data-tooltip="Moyenne des temps d'attente par navire">
+            <div class="stat-value">{{ attente_moyenne|floatformat:1|default:"0" }}h</div>
+            <div class="stat-label">Attente moyenne</div>
+        </div>
+    </div>
+
+    <!-- Paramètres -->
+    <div class="info-card animate-card">
+        <div class="param" data-tooltip="L'incertitude simule les variations possibles des temps de traitement">
+            <strong>⚙️ Incertitude :</strong> {% if incertitude %}Activée (amplitude {{ amplitude|floatformat:0 }}%){% else %}Désactivée{% endif %}
+        </div>
+        <div class="param" data-tooltip="Buffer de sécurité ajouté au début et à la fin de chaque opération">
+            <strong>🛡️ Buffer :</strong> {{ buffer_pct|floatformat:0 }}%
+        </div>
+        <div class="param" data-tooltip="Horizon de planification de la CPN (navires attendus dans les prochaines heures)">
+            <strong>📅 Horizon CPN :</strong> {{ heure_limite|default:"24 heures" }}
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar animate-card">
+        <div class="btn-group">
+            <button class="btn btn-outline-secondary toggle-column" data-column="progress" data-tooltip="Afficher/Masquer les barres de progression par shift">
+                <i class="fas fa-chart-bar"></i> Masquer barres
+            </button>
+            <button class="btn btn-outline-secondary toggle-column" data-column="shifts" data-tooltip="Afficher/Masquer les shifts couverts">
+                <i class="fas fa-tags"></i> Masquer shifts
+            </button>
+            <button class="btn btn-outline-success" id="exportCSV" data-tooltip="Exporter le planning au format CSV">
+                <i class="fas fa-file-excel"></i> Exporter CSV
+            </button>
+        </div>
+        <div>
+            <input type="text" id="tableSearch" class="search-input" placeholder="🔍 Filtrer navire..." data-tooltip="Rechercher un navire par nom">
+        </div>
+    </div>
+
+    <!-- Diagramme Gantt -->
+    <div class="section-title animate-card">
+        <i class="fas fa-chart-gantt"></i> Planning des navires par shift (diagramme Gantt)
+        <i class="fas fa-question-circle icon-tooltip" data-tooltip="Chaque barre représente un shift (matin, soir, nuit, double nuit). Survolez pour voir les détails"></i>
+    </div>
+    <div class="card animate-card">
+        <div class="card-body">
+            <div id="gantt-chart" style="height: 500px;"></div>
+            <div class="text-muted text-center mt-2 small" data-tooltip="Placez la souris sur une barre pour voir les détails complets">
+                <i class="fas fa-info-circle"></i> Survolez une barre pour voir les détails du shift (début, fin, durée, tonnage)
+            </div>
+        </div>
+    </div>
+
+    <!-- Navires en rade -->
+    {% if affectations_rade %}
+    <div class="section-title animate-card">
+        <i class="fas fa-anchor"></i> Navires en rade
+        <i class="fas fa-question-circle icon-tooltip" data-tooltip="Navires actuellement en rade qui seront affectés à quai"></i>
+    </div>
+    <div class="info-note animate-card">
+        <i class="fas fa-info-circle"></i>
+        <span data-tooltip="Temps passé en rade avant l'accostage">⏳ Attente rade = temps passé en rade avant accostage</span>
+        <span data-tooltip="Temps total à quai = manœuvre (1h) + opérations + formalités (2h)">⚓ Temps à quai = manœuvre + opérations + formalités</span>
+        <span data-tooltip="Les shifts sont définis sur 24h : 07h-13h, 13h-19h, 19h-01h, 01h-07h">🔄 Les shifts sont définis sur 24h</span>
+    </div>
+    <div class="table-responsive animate-card">
+        <table class="table" id="tableRade">
+            <thead>
+                <tr>
+                    <th data-tooltip="Nom du navire et sa priorité (étoile = prioritaire)">Navire</th>
+                    <th data-tooltip="Type de navire (cargo, pétrolier, etc.)">Type</th>
+                    <th data-tooltip="Quai d'affectation">Quai</th>
+                    <th data-tooltip="Date et heure d'accostage">Début</th>
+                    <th data-tooltip="Date et heure de fin estimée">Fin</th>
+                    <th data-tooltip="Temps d'attente en rade avant accostage">Attente</th>
+                    <th data-tooltip="Débit estimé (tonnes/heure)">Débit est.</th>
+                    <th data-tooltip="Nombre d'équipements requis">Nb équip.</th>
+                    <th data-tooltip="Temps d'attente dû aux équipements">Attente équip.</th>
+                    <th data-tooltip="Durée totale du traitement à quai">Traitement</th>
+                    <th data-tooltip="Détail du temps à quai">Détail</th>
+                    <th data-tooltip="Contribution au score d'optimisation">Score</th>
+                    <th class="progress-column" data-tooltip="Répartition du temps par shift (couleurs: matin 🔵, soir 🟢, nuit 🟠, double nuit ⚪)">Progression</th>
+                    <th class="shift-column" data-tooltip="Shifts de travail couverts pendant l'opération">Shifts</th>
+                    <th data-tooltip="Équipements nécessaires pour le déchargement/chargement">Équipements</th>
+                    <th data-tooltip="Actions disponibles">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in affectations_rade %}
+                <tr class="navire-row" data-navire="{{ a.navire_nom|lower }}" data-id="{{ a.navire_id }}">
+                    <td class="fw-bold">
+                        {{ a.navire_nom }}
+                        {% if a.priorites_speciale and a.priorites_speciale != "Standard" %}
+                        <i class="fas fa-star text-warning" data-tooltip="Navire prioritaire ({{ a.priorites_speciale }})"></i>
+                        {% endif %}
+                        {% if a.raison_attente %}
+                        <i class="fas fa-info-circle icon-tooltip" data-tooltip="{{ a.raison_attente }}"></i>
+                        {% endif %}
+                    </td>
+                    <td data-tooltip="Type: {{ a.type_navire }}">{{ a.type_navire|capfirst }}</td>
+                    <td data-tooltip="Poste/Quai d'affectation">{{ a.quai_nom }}</td>
+                    <td class="debut-cell" data-tooltip="Début d'accostage prévu"><strong>{{ a.debut_datetime|date:"d/m H:i"|default:"-" }}</strong></td>
+                    <td class="fin-cell" data-tooltip="Fin estimée des opérations">{{ a.fin_datetime|date:"d/m H:i"|default:"-" }}</td>
+                    <td class="attente-cell {% if a.attente > 48 %}text-danger fw-bold{% elif a.attente > 24 %}text-warning{% else %}text-success{% endif %}" data-tooltip="Temps d'attente en rade avant accostage">
+                        {% if a.attente > 48 %}<i class="fas fa-exclamation-triangle me-1"></i>{% elif a.attente > 24 %}<i class="fas fa-clock me-1"></i>{% else %}<i class="fas fa-check-circle me-1"></i>{% endif %}
+                        {{ a.attente|floatformat:1 }}h
+                    </td>
+                    <td data-tooltip="Taux de déchargement/chargement estimé (tonnes/heure)">{{ a.debit_estime|floatformat:1|default:"—" }}</td>
+                    <td data-tooltip="Nombre d'équipements de manutention requis">{{ a.nb_equipements|default:"—" }}</td>
+                    <td data-tooltip="Temps d'attente supplémentaire dû à la disponibilité des équipements">{% if a.attente_equipements %}{{ a.attente_equipements|floatformat:1 }}h{% else %}—{% endif %}</td>
+                    <td class="duree-value" data-tooltip="Durée totale à quai (manœuvre + opérations + formalités)">{{ a.traitement|floatformat:1 }}h</td>
+                    <td class="detail-temps" data-tooltip="Détail du temps à quai">
+                        <i class="fas fa-ship me-1" data-tooltip="Manœuvre (1h)"></i> {{ a.manoeuvre|floatformat:1 }}h<br>
+                        <i class="fas fa-cogs me-1" data-tooltip="Opérations de chargement/déchargement"></i> {{ a.operations|floatformat:1 }}h<br>
+                        <i class="fas fa-file-signature me-1" data-tooltip="Formalités douanières et administratives (2h)"></i> {{ a.formalites|floatformat:1 }}h
+                    </td>
+                    <td data-tooltip="Contribution au score total (plus bas = meilleur)">{{ a.score_contribution|floatformat:1 }}</td>
+                    <td class="progress-cell progress-column">
+                        <div class="progress-wrapper" data-tooltip="Shift Matin (07h-13h)">
+                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.07h_13h|default:0 a.traitement 100 %}%; background: #3b82f6;">
+                                {{ a.temps_par_shift.07h_13h|default:0|floatformat:1 }}h
+                            </div>
+                        </div>
+                        <div class="progress-wrapper mt-1" data-tooltip="Shift Soir (13h-19h)">
+                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.13h_19h|default:0 a.traitement 100 %}%; background: #10b981;">
+                                {{ a.temps_par_shift.13h_19h|default:0|floatformat:1 }}h
+                            </div>
+                        </div>
+                        <div class="progress-wrapper mt-1" data-tooltip="Shift Nuit (19h-01h)">
+                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.19h_01h|default:0 a.traitement 100 %}%; background: #f59e0b;">
+                                {{ a.temps_par_shift.19h_01h|default:0|floatformat:1 }}h
+                            </div>
+                        </div>
+                        <div class="progress-wrapper mt-1" data-tooltip="Shift Double nuit (01h-07h)">
+                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.01h_07h|default:0 a.traitement 100 %}%; background: #64748b;">
+                                {{ a.temps_par_shift.01h_07h|default:0|floatformat:1 }}h
+                            </div>
+                        </div>
+                    </td>
+                    <td class="shift-column">{% for shift in a.shifts_couverts %}<span class="badge-shift" data-tooltip="Shift couvert">{{ shift }}</span>{% endfor %}</td>
+                    <!-- Colonne Équipements avec TOUS les équipements -->
+                    <td class="equip-list">
+                        {% if a.equipements %}
+                            <div class="equip-container">
+                                {% for eq in a.equipements %}
+                                    <span class="equip-badge" data-tooltip="{{ eq }}">
+                                        <i class="fas fa-tools me-1"></i>
+                                        <span class="equip-name">{{ eq|truncatechars:20 }}</span>
+                                    </span>
+                                {% endfor %}
+                                {% if a.equipements|length > 5 %}
+                                    <span class="equip-count" data-tooltip="Total: {{ a.equipements|length }} équipements">
+                                        +{{ a.equipements|length|add:"-5" }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <span class="text-muted" data-tooltip="Ce navire dispose de ses propres grues de bord">
+                                <i class="fas fa-ship me-1"></i> Grues bord
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="action-buttons-cell">
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'mode_manuel' %}?navire={{ a.navire_id }}" class="btn btn-outline-primary btn-sm" data-tooltip="Intervention manuelle sur ce navire" target="_blank">Manuel</a>
+                            <button type="button" class="btn btn-warning btn-sm" data-id="{{ a.navire_id }}" data-nom="{{ a.navire_nom }}" data-tooltip="Ajouter une note d'attente pour ce navire">Attente</button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Navires attendus -->
+    {% if affectations_attente %}
+    <div class="section-title animate-card">
+        <i class="fas fa-hourglass-half"></i> Navires attendus
+        <i class="fas fa-question-circle icon-tooltip" data-tooltip="Navires en attente d'arrivée (ETA)"></i>
+    </div>
+    <div class="info-note animate-card">
+        <i class="fas fa-info-circle"></i>
+        <span data-tooltip="Temps estimé entre l'ETA (Estimated Time of Arrival) et l'accostage">⏳ Attente rade = temps estimé entre l'ETA et l'accostage</span>
+        <span data-tooltip="Temps total à quai = manœuvre (1h) + opérations + formalités (2h)">⚓ Temps à quai = manœuvre + opérations + formalités</span>
+    </div>
+    <div class="table-responsive animate-card">
+        <table class="table" id="tableAttente">
+            <thead>
+                <tr>
+                    <th data-tooltip="Nom du navire et sa priorité (étoile = prioritaire)">Navire</th>
+                    <th data-tooltip="Type de navire">Type</th>
+                    <th data-tooltip="ETA - Estimated Time of Arrival (date et heure d'arrivée prévue)">ETA</th>
+                    <th data-tooltip="Quai d'affectation">Quai</th>
+                    <th data-tooltip="Date et heure d'accostage prévue">Début</th>
+                    <th data-tooltip="Date et heure de fin estimée">Fin</th>
+                    <th data-tooltip="Temps d'attente estimé entre l'ETA et l'accostage">Attente</th>
+                    <th data-tooltip="Débit estimé (tonnes/heure)">Débit est.</th>
+                    <th data-tooltip="Nombre d'équipements requis">Nb équip.</th>
+                    <th data-tooltip="Temps d'attente dû aux équipements">Attente équip.</th>
+                    <th data-tooltip="Durée totale du traitement à quai">Traitement</th>
+                    <th data-tooltip="Détail du temps à quai">Détail</th>
+                    <th data-tooltip="Contribution au score d'optimisation">Score</th>
+                    <th class="progress-column" data-tooltip="Répartition du temps par shift">Progression</th>
+                    <th class="shift-column" data-tooltip="Shifts de travail couverts">Shifts</th>
+                    <th data-tooltip="Équipements nécessaires">Équipements</th>
+                    <th data-tooltip="Actions disponibles">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in affectations_attente %}
+                <tr class="navire-row" data-navire="{{ a.navire_nom|lower }}" data-id="{{ a.navire_id }}">
+                    <td class="fw-bold">
+                        {{ a.navire_nom }}
+                        {% if a.priorites_speciale and a.priorites_speciale != "Standard" %}
+                        <i class="fas fa-star text-warning" data-tooltip="Navire prioritaire ({{ a.priorites_speciale }})"></i>
+                        {% endif %}
+                        {% if a.raison_attente %}
+                        <i class="fas fa-info-circle icon-tooltip" data-tooltip="{{ a.raison_attente }}"></i>
+                        {% endif %}
+                    </div>
+                    <td data-tooltip="Type: {{ a.type_navire }}">{{ a.type_navire|capfirst }}</div>
+                    <td data-tooltip="Date et heure d'arrivée estimée (ETA)">{{ a.arrivee_datetime|date:"d/m H:i"|default:"-" }}</div>
+                    <td data-tooltip="Poste/Quai d'affectation">{{ a.quai_nom }}</div>
+                    <td class="debut-cell" data-tooltip="Début d'accostage prévu"><strong>{{ a.debut_datetime|date:"d/m H:i"|default:"-" }}</strong></div>
+                    <td class="fin-cell" data-tooltip="Fin estimée des opérations">{{ a.fin_datetime|date:"d/m H:i"|default:"-" }}</div>
+                    <td class="attente-cell {% if a.attente > 48 %}text-danger fw-bold{% elif a.attente > 24 %}text-warning{% else %}text-success{% endif %}" data-tooltip="Temps d'attente estimé entre ETA et accostage">
+                        {% if a.attente > 48 %}<i class="fas fa-exclamation-triangle me-1"></i>{% elif a.attente > 24 %}<i class="fas fa-clock me-1"></i>{% else %}<i class="fas fa-check-circle me-1"></i>{% endif %}
+                        {{ a.attente|floatformat:1 }}h
+                    </div>
+                    <td data-tooltip="Taux de déchargement/chargement estimé">{{ a.debit_estime|floatformat:1|default:"—" }}</div>
+                    <td data-tooltip="Nombre d'équipements requis">{{ a.nb_equipements|default:"—" }}</div>
+                    <td data-tooltip="Temps d'attente dû aux équipements">{% if a.attente_equipements %}{{ a.attente_equipements|floatformat:1 }}h{% else %}—{% endif %}</div>
+                    <td class="duree-value" data-tooltip="Durée totale à quai">{{ a.traitement|floatformat:1 }}h</div>
+                    <td class="detail-temps" data-tooltip="Détail du temps à quai">
+                        <i class="fas fa-ship me-1" data-tooltip="Manœuvre (1h)"></i> {{ a.manoeuvre|floatformat:1 }}h<br>
+                        <i class="fas fa-cogs me-1" data-tooltip="Opérations"></i> {{ a.operations|floatformat:1 }}h<br>
+                        <i class="fas fa-file-signature me-1" data-tooltip="Formalités (2h)"></i> {{ a.formalites|floatformat:1 }}h
+                    </div>
+                    <td data-tooltip="Contribution au score">{{ a.score_contribution|floatformat:1 }}</div>
+                    <td class="progress-cell progress-column">
+                        <div class="progress-wrapper" data-tooltip="Shift Matin (07h-13h)">
+                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.07h_13h|default:0 a.traitement 100 %}%; background: #3b82f6;">
+                                {{ a.temps_par_shift.07h_13h|default:0|floatformat:1 }}h
+                            </div>
+                        </div>
+                        <div class="progress-wrapper mt-1" data-tooltip="Shift Soir (13h-19h)">
+                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.13h_19h|default:0 a.traitement 100 %}%; background: #10b981;">
+                                {{ a.temps_par_shift.13h_19h|default:0|floatformat:1 }}h
+                            </div>
+                        </div>
+                        <div class="progress-wrapper mt-1" data-tooltip="Shift Nuit (19h-01h)">
+                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.19h_01h|default:0 a.traitement 100 %}%; background: #f59e0b;">
+                                {{ a.temps_par_shift.19h_01h|default:0|floatformat:1 }}h
+                            </div>
+                        </div>
+                        <div class="progress-wrapper mt-1" data-tooltip="Shift Double nuit (01h-07h)">
+                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.01h_07h|default:0 a.traitement 100 %}%; background: #64748b;">
+                                {{ a.temps_par_shift.01h_07h|default:0|floatformat:1 }}h
+                            </div>
+                        </div>
+                    </div>
+                    <td class="shift-column">{% for shift in a.shifts_couverts %}<span class="badge-shift" data-tooltip="Shift couvert">{{ shift }}</span>{% endfor %}</div>
+                    <!-- Colonne Équipements avec TOUS les équipements -->
+                    <td class="equip-list">
+                        {% if a.equipements %}
+                            <div class="equip-container">
+                                {% for eq in a.equipements %}
+                                    <span class="equip-badge" data-tooltip="{{ eq }}">
+                                        <i class="fas fa-tools me-1"></i>
+                                        <span class="equip-name">{{ eq|truncatechars:20 }}</span>
+                                    </span>
+                                {% endfor %}
+                                {% if a.equipements|length > 5 %}
+                                    <span class="equip-count" data-tooltip="Total: {{ a.equipements|length }} équipements">
+                                        +{{ a.equipements|length|add:"-5" }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <span class="text-muted" data-tooltip="Ce navire dispose de ses propres grues de bord">
+                                <i class="fas fa-ship me-1"></i> Grues bord
+                            </span>
+                        {% endif %}
+                    </div>
+                    <td class="action-buttons-cell">
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'mode_manuel' %}?navire={{ a.navire_id }}" class="btn btn-outline-primary btn-sm" data-tooltip="Intervention manuelle sur ce navire" target="_blank">Manuel</a>
+                            <button type="button" class="btn btn-warning btn-sm" data-id="{{ a.navire_id }}" data-nom="{{ a.navire_nom }}" data-tooltip="Ajouter une note d'attente pour ce navire">Attente</button>
+                        </div>
+                    </div>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if not affectations_rade and not affectations_attente %}
+    <div class="alert-info animate-card"><i class="fas fa-info-circle"></i><span>Aucune affectation proposée pour cette session. Veuillez relancer l'optimisation.</span></div>
+    {% endif %}
+
+    <!-- Actions -->
+    <form method="post" class="animate-card">
+        {% csrf_token %}
+        <div class="action-buttons">
+            <button type="submit" name="action" value="accepter" class="btn btn-success" data-tooltip="Valider et appliquer le planning aux navires">
+                <i class="fas fa-check-circle"></i> Accepter et appliquer
+            </button>
+            <a href="{% url 'dashboard' %}" class="btn btn-danger" data-tooltip="Annuler la planification sans enregistrer">
+                <i class="fas fa-times-circle"></i> Annuler
+            </a>
+            <a href="{% url 'cpn' %}" class="btn btn-secondary" data-tooltip="Retour à la CPN pour modifier les sélections">
+                <i class="fas fa-arrow-left"></i> Retour à la CPN
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Modale personnalisée -->
+<div id="customModal">
+    <div class="modal-content-custom">
+        <h4><i class="fas fa-clock text-warning me-2"></i> Signaler une attente</h4>
+        <form id="attenteForm">
+            {% csrf_token %}
+            <input type="hidden" name="navire_id" id="modalNavireId">
+            <div class="mb-3">
+                <label data-tooltip="Nom du navire concerné">Navire concerné</label>
+                <input type="text" id="modalNavireNom" class="form-control" readonly disabled>
+            </div>
+            <div class="mb-3">
+                <label data-tooltip="Shift de travail concerné par l'attente">Shift concerné</label>
+                <select name="shift" class="form-control" required>
+                    <option value="matin" data-tooltip="07h-13h">Matin (07h-13h)</option>
+                    <option value="soir" data-tooltip="13h-19h">Soir (13h-19h)</option>
+                    <option value="nuit" data-tooltip="19h-01h">Nuit (19h-01h)</option>
+                    <option value="double_nuit" data-tooltip="01h-07h">Double nuit (01h-07h)</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label data-tooltip="Durée de l'attente en heures (ex: 2.5 pour 2h30)">Durée de l'attente (heures)</label>
+                <input type="number" step="0.5" name="duree_attente" class="form-control" required min="0" placeholder="Ex: 2.5">
+            </div>
+            <div class="mb-3">
+                <label data-tooltip="Raison de l'attente (optionnel)">Commentaire (optionnel)</label>
+                <textarea name="commentaire" class="form-control" rows="2" placeholder="Ex: documents manquants, panne de benne, grève..."></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" id="closeModal" class="btn btn-secondary" data-tooltip="Annuler">Annuler</button>
+                <button type="submit" class="btn btn-primary" data-tooltip="Enregistrer et replanifier">Enregistrer et replanifier</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Dark Mode Toggle -->
+<button class="dark-mode-toggle" id="darkModeToggle" data-tooltip="Activer/Désactiver le mode sombre"><i class="fas fa-moon"></i></button>
+
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+    // Dark Mode
+    (function() {
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+            var toggle = document.getElementById('darkModeToggle');
+            if (toggle) toggle.innerHTML = '<i class="fas fa-sun"></i>';
+        }
+    })();
+
+    var darkModeToggle = document.getElementById('darkModeToggle');
+    if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', function() {
+            document.body.classList.toggle('dark-mode');
+            var isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+            darkModeToggle.innerHTML = isDark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+        });
+    }
+
+    // Filtre de recherche
+    var searchInput = document.getElementById('tableSearch');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function() {
+            var filter = this.value.toLowerCase();
+            var tables = ['tableRade', 'tableAttente'];
+            tables.forEach(function(tableId) {
+                var table = document.getElementById(tableId);
+                if (table) {
+                    var rows = table.querySelectorAll('tbody tr');
+                    rows.forEach(function(row) {
+                        var navire = row.getAttribute('data-navire');
+                        if (navire && navire.includes(filter)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // Toggle colonnes
+    var progressHidden = false;
+    var shiftsHidden = false;
+    document.querySelectorAll('.toggle-column').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var colName = this.dataset.column;
+            if (colName === 'progress') {
+                progressHidden = !progressHidden;
+                document.querySelectorAll('.progress-column').forEach(function(cell) {
+                    cell.style.display = progressHidden ? 'none' : '';
+                });
+                this.innerHTML = progressHidden ? '<i class="fas fa-chart-bar"></i> Afficher barres' : '<i class="fas fa-chart-bar"></i> Masquer barres';
+            } else if (colName === 'shifts') {
+                shiftsHidden = !shiftsHidden;
+                document.querySelectorAll('.shift-column').forEach(function(cell) {
+                    cell.style.display = shiftsHidden ? 'none' : '';
+                });
+                this.innerHTML = shiftsHidden ? '<i class="fas fa-tags"></i> Afficher shifts' : '<i class="fas fa-tags"></i> Masquer shifts';
+            }
+        });
+    });
+
+    // Export CSV
+    document.getElementById('exportCSV')?.addEventListener('click', function() {
+        var csv = [];
+        var rows = document.querySelectorAll('#tableRade tr, #tableAttente tr');
+        rows.forEach(function(row) {
+            var rowData = [];
+            row.querySelectorAll('th, td').forEach(function(cell) {
+                rowData.push('"' + cell.innerText.replace(/"/g, '""') + '"');
+            });
+            csv.push(rowData.join(','));
+        });
+        var blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'planning_{{ now|date:"Ymd_His" }}.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    // Diagramme Gantt
+    document.addEventListener('DOMContentLoaded', function() {
+        var seriesData = {{ gantt_series|safe }};
+        var container = document.getElementById('gantt-chart');
+        if (!seriesData || seriesData.length === 0) {
+            if (container) container.innerHTML = '<div class="alert alert-warning">Aucune donnée de planning disponible pour le diagramme Gantt.</div>';
+            return;
+        }
+        
+        var options = {
+            series: seriesData,
+            chart: {
+                type: 'rangeBar',
+                height: 500,
+                toolbar: { show: true },
+                animations: { enabled: true },
+                background: 'transparent'
+            },
+            plotOptions: {
+                bar: {
+                    horizontal: true,
+                    barHeight: '70%',
+                    rangeBarGroupRows: true
+                }
+            },
+            xaxis: {
+                type: 'datetime',
+                title: { text: 'Date et heure' },
+                labels: { datetimeUTC: false, format: 'dd/MM HH:mm' }
+            },
+            yaxis: {
+                title: { text: 'Navires' },
+                labels: { style: { fontSize: '12px' } }
+            },
+            tooltip: {
+                x: { format: 'dd/MM/yyyy HH:mm' },
+                custom: function({ seriesIndex, dataPointIndex, w }) {
+                    var point = w.config.series[seriesIndex].data[dataPointIndex];
+                    if (!point || !point.y) return '';
+                    var start = new Date(point.y[0]);
+                    var end = new Date(point.y[1]);
+                    var shiftName = point.shiftName || 'Shift inconnu';
+                    var duration = point.duration || ((end - start) / (1000 * 3600)).toFixed(1);
+                    var tonnage = point.tonnage ? '<br><strong>Tonnage:</strong> ' + point.tonnage.toLocaleString() + ' t' : '';
+                    
+                    var startHour = start.getHours().toString().padStart(2, '0');
+                    var startMinute = start.getMinutes().toString().padStart(2, '0');
+                    var endHour = end.getHours().toString().padStart(2, '0');
+                    var endMinute = end.getMinutes().toString().padStart(2, '0');
+                    var startDate = start.getDate().toString().padStart(2, '0') + '/' + (start.getMonth()+1).toString().padStart(2, '0');
+                    var endDate = end.getDate().toString().padStart(2, '0') + '/' + (end.getMonth()+1).toString().padStart(2, '0');
+                    
+                    return '<div style="padding: 10px; background: var(--light); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border: 1px solid var(--gray-300);">' +
+                        '<strong style="color: var(--primary);">' + point.x + '</strong><br>' +
+                        '<hr style="margin: 5px 0;">' +
+                        '<span style="color: var(--warning);">📅 Shift: ' + shiftName + '</span><br>' +
+                        '<span>🕐 Début: ' + startDate + ' ' + startHour + ':' + startMinute + '</span><br>' +
+                        '<span>🏁 Fin: ' + endDate + ' ' + endHour + ':' + endMinute + '</span><br>' +
+                        '<span>⏱️ Durée: ' + duration + ' heures</span>' +
+                        tonnage +
+                        '</div>';
+                }
+            },
+            title: {
+                text: 'Planning des navires par shift',
+                align: 'center',
+                style: {
+                    color: document.body.classList.contains('dark-mode') ? '#e2e8f0' : '#1a2c3c'
+                }
+            },
+            theme: {
+                mode: document.body.classList.contains('dark-mode') ? 'dark' : 'light'
+            }
+        };
+        
+        try {
+            var chart = new ApexCharts(container, options);
+            chart.render();
+        } catch(e) {
+            console.error("Erreur ApexCharts:", e);
+            if (container) container.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement du graphique: ' + e.message + '</div>';
+        }
+    });
+
+    // Gestion des attentes en AJAX
+    (function() {
+        var modal = document.getElementById('customModal');
+        var form = document.getElementById('attenteForm');
+        var navireIdInput = document.getElementById('modalNavireId');
+        var navireNomInput = document.getElementById('modalNavireNom');
+        
+        var messageDiv = document.getElementById('modalAjaxMessage');
+        if (!messageDiv && modal) {
+            messageDiv = document.createElement('div');
+            messageDiv.id = 'modalAjaxMessage';
+            messageDiv.style.display = 'none';
+            messageDiv.style.padding = '8px';
+            messageDiv.style.marginBottom = '12px';
+            messageDiv.style.borderRadius = '6px';
+            messageDiv.style.fontSize = '14px';
+            var modalButtons = document.querySelector('.modal-buttons');
+            if (modalButtons) {
+                modalButtons.parentNode.insertBefore(messageDiv, modalButtons);
+            }
+        }
+        
+        document.querySelectorAll('.btn-warning').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                var navireId = this.getAttribute('data-id');
+                var navireNom = this.getAttribute('data-nom');
+                if (navireIdInput) navireIdInput.value = navireId;
+                if (navireNomInput) navireNomInput.value = navireNom;
+                if (messageDiv) {
+                    messageDiv.style.display = 'none';
+                    messageDiv.innerHTML = '';
+                }
+                if (modal) modal.style.display = 'flex';
+            });
+        });
+        
+        var closeBtn = document.getElementById('closeModal');
+        if (closeBtn && modal) {
+            closeBtn.addEventListener('click', function() {
+                modal.style.display = 'none';
+                if (form) form.reset();
+                if (messageDiv) {
+                    messageDiv.style.display = 'none';
+                    messageDiv.innerHTML = '';
+                }
+            });
+        }
+        
+        if (modal) {
+            window.addEventListener('click', function(e) {
+                if (e.target == modal) {
+                    modal.style.display = 'none';
+                    if (form) form.reset();
+                    if (messageDiv) {
+                        messageDiv.style.display = 'none';
+                        messageDiv.innerHTML = '';
+                    }
+                }
+            });
+        }
+        
+        function showMessage(type, text) {
+            if (!messageDiv) return;
+            messageDiv.style.display = 'block';
+            messageDiv.style.backgroundColor = type === 'success' ? '#10b981' : '#ef4444';
+            messageDiv.style.color = 'white';
+            messageDiv.innerHTML = '<i class="fas fa-' + (type === 'success' ? 'check-circle' : 'exclamation-triangle') + ' me-2"></i>' + text;
+            setTimeout(function() {
+                if (messageDiv && messageDiv.style.display !== 'none') {
+                    messageDiv.style.display = 'none';
+                }
+            }, 3000);
+        }
+        
+        function formatDateTime(heureDecimal) {
+            var dateRef = new Date();
+            dateRef.setHours(0, 0, 0, 0);
+            var date = new Date(dateRef);
+            var heures = Math.floor(heureDecimal);
+            var minutes = Math.floor((heureDecimal - heures) * 60);
+            var jours = Math.floor(heureDecimal / 24);
+            date.setDate(date.getDate() + jours);
+            date.setHours(heures % 24, minutes, 0, 0);
+            var jour = date.getDate().toString().padStart(2, '0');
+            var mois = (date.getMonth() + 1).toString().padStart(2, '0');
+            var hh = date.getHours().toString().padStart(2, '0');
+            var mm = date.getMinutes().toString().padStart(2, '0');
+            return jour + '/' + mois + ' ' + hh + ':' + mm;
+        }
+        
+        function updateTableRow(data) {
+            var rows = document.querySelectorAll('#tableRade tbody tr, #tableAttente tbody tr');
+            for (var i = 0; i < rows.length; i++) {
+                var row = rows[i];
+                var attenteBtn = row.querySelector('.btn-warning');
+                if (attenteBtn && attenteBtn.getAttribute('data-id') == data.navire_id) {
+                    var cells = row.cells;
+                    if (cells.length >= 10) {
+                        var debutCell = cells[3];
+                        debutCell.innerHTML = formatDateTime(data.nouveau_debut);
+                        
+                        var finCell = cells[4];
+                        finCell.innerHTML = formatDateTime(data.nouvelle_fin);
+                        
+                        var attenteCell = cells[5];
+                        var currentAttenteText = attenteCell.innerText.replace('h', '').trim();
+                        var currentAttente = parseFloat(currentAttenteText) || 0;
+                        var nouvelleAttente = currentAttente + data.duree_ajoutee;
+                        var attenteClass = nouvelleAttente > 48 ? 'text-danger fw-bold' : (nouvelleAttente > 24 ? 'text-warning' : 'text-success');
+                        var attenteIcon = nouvelleAttente > 48 ? 'fa-exclamation-triangle' : (nouvelleAttente > 24 ? 'fa-clock' : 'fa-check-circle');
+                        attenteCell.innerHTML = '<i class="fas ' + attenteIcon + ' me-1"></i> ' + nouvelleAttente.toFixed(1) + 'h';
+                        attenteCell.className = attenteClass;
+                        
+                        var traitementCell = cells[9];
+                        traitementCell.innerHTML = data.traitement.toFixed(1) + 'h';
+                        
+                        var detailCell = cells[10];
+                        var manoeuvre = 1.0;
+                        var operations = data.traitement - manoeuvre - 2.0;
+                        var formalites = 2.0;
+                        detailCell.innerHTML = '⚙️ ' + manoeuvre.toFixed(1) + 'h<br>🚢 ' + operations.toFixed(1) + 'h<br>📋 ' + formalites.toFixed(1) + 'h';
+                        
+                        var scoreCell = cells[11];
+                        var nouveauScore = data.traitement + nouvelleAttente;
+                        scoreCell.innerHTML = nouveauScore.toFixed(1);
+                        
+                        var navireCell = cells[0];
+                        var existingBadge = navireCell.querySelector('.attente-badge');
+                        if (!existingBadge) {
+                            var badge = document.createElement('span');
+                            badge.className = 'badge bg-warning ms-2 attente-badge';
+                            badge.style.fontSize = '0.6rem';
+                            badge.innerHTML = '⏰ +' + data.duree_ajoutee.toFixed(1) + 'h';
+                            navireCell.appendChild(badge);
+                        } else {
+                            existingBadge.innerHTML = '⏰ +' + data.duree_ajoutee.toFixed(1) + 'h';
+                        }
+                        
+                        row.classList.add('has-attente');
+                        
+                        var naviresAttente = JSON.parse(localStorage.getItem('navires_attente') || '{}');
+                        naviresAttente[data.navire_id] = {
+                            duree: data.duree_ajoutee,
+                            date: new Date().toISOString(),
+                            debut: data.nouveau_debut,
+                            fin: data.nouvelle_fin,
+                            attente: nouvelleAttente,
+                            traitement: data.traitement
+                        };
+                        localStorage.setItem('navires_attente', JSON.stringify(naviresAttente));
+                        
+                        row.style.backgroundColor = 'rgba(245, 158, 11, 0.3)';
+                        setTimeout(function() { row.style.backgroundColor = ''; }, 1000);
+                    }
+                    break;
+                }
+            }
+        }
+        
+        function restaurerAttentes() {
+            var naviresAttente = JSON.parse(localStorage.getItem('navires_attente') || '{}');
+            var rows = document.querySelectorAll('#tableRade tbody tr, #tableAttente tbody tr');
+            rows.forEach(function(row) {
+                var attenteBtn = row.querySelector('.btn-warning');
+                if (attenteBtn) {
+                    var navireId = attenteBtn.getAttribute('data-id');
+                    var attenteData = naviresAttente[navireId];
+                    if (attenteData) {
+                        row.classList.add('has-attente');
+                        var navireCell = row.cells[0];
+                        var existingBadge = navireCell.querySelector('.attente-badge');
+                        if (!existingBadge) {
+                            var badge = document.createElement('span');
+                            badge.className = 'badge bg-warning ms-2 attente-badge';
+                            badge.style.fontSize = '0.6rem';
+                            badge.innerHTML = '⏰ +' + attenteData.duree + 'h';
+                            navireCell.appendChild(badge);
+                        }
+                        var debutCell = row.cells[3];
+                        var finCell = row.cells[4];
+                        var attenteCell = row.cells[5];
+                        if (debutCell && attenteData.debut) {
+                            debutCell.innerHTML = formatDateTime(attenteData.debut);
+                            finCell.innerHTML = formatDateTime(attenteData.fin);
+                            attenteCell.innerHTML = attenteData.attente.toFixed(1) + 'h';
+                        }
+                    }
+                }
+            });
+        }
+        
+        function ajouterBoutonReset() {
+            var toolbar = document.querySelector('.toolbar .btn-group');
+            if (toolbar && !document.getElementById('resetAttenteBtn')) {
+                var resetBtn = document.createElement('button');
+                resetBtn.id = 'resetAttenteBtn';
+                resetBtn.className = 'btn btn-outline-danger';
+                resetBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Réinitialiser attentes';
+                resetBtn.addEventListener('click', function() {
+                    if (confirm('Supprimer toutes les notes d\'attente ? Cette action est irréversible.')) {
+                        localStorage.removeItem('navires_attente');
+                        location.reload();
+                    }
+                });
+                toolbar.appendChild(resetBtn);
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            restaurerAttentes();
+            ajouterBoutonReset();
+        });
+        
+        function getCookie(name) {
+            var cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                var cookies = document.cookie.split(';');
+                for (var i = 0; i < cookies.length; i++) {
+                    var cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var navireId = navireIdInput ? parseInt(navireIdInput.value) : null;
+                var shiftSelect = document.querySelector('select[name="shift"]');
+                var dureeInput = document.querySelector('input[name="duree_attente"]');
+                var commentaireInput = document.querySelector('textarea[name="commentaire"]');
+                var shift = shiftSelect ? shiftSelect.value : 'matin';
+                var duree = dureeInput ? parseFloat(dureeInput.value) : 0;
+                var commentaire = commentaireInput ? commentaireInput.value : '';
+                if (!navireId) { showMessage('error', 'Navire non identifié'); return; }
+                if (!duree || duree <= 0) { showMessage('error', 'Veuillez saisir une durée valide (> 0)'); return; }
+                var submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
+                }
+                fetch('/port/ajax/ajouter-note-attente/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    body: JSON.stringify({ navire_id: navireId, shift: shift, duree_attente: duree, commentaire: commentaire })
+                })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        updateTableRow(data);
+                        showMessage('success', data.message);
+                        setTimeout(function() {
+                            if (modal) modal.style.display = 'none';
+                            if (form) form.reset();
+                            if (messageDiv) { messageDiv.style.display = 'none'; messageDiv.innerHTML = ''; }
+                        }, 1500);
+                    } else {
+                        showMessage('error', data.error || 'Erreur lors de l\'enregistrement');
+                    }
+                })
+                .catch(function(error) { console.error('Erreur:', error); showMessage('error', 'Erreur de connexion au serveur'); })
+                .finally(function() { if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = 'Enregistrer et replanifier'; } });
+            });
+        }
+    })();
+</script>
+{% endblock %}

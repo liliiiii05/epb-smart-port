@@ -1,0 +1,35 @@
+# Environnement virtuel
+env_epb/
+venv/
+env/
+
+# Fichiers sensibles
+.env
+.env.local
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Base de données
+*.sqlite3
+db.sqlite3
+
+# Fichiers statiques (production)
+staticfiles/
+media/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Fichiers système
+.DS_Store
+Thumbs.db

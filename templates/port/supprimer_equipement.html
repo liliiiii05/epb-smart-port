@@ -1,0 +1,281 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Supprimer {{ equipement.type }} | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    /* ========== VARIABLES MODERNISÉES ========== */
+    :root {
+        --epb-primary: #003366;
+        --epb-primary-dark: #002244;
+        --epb-primary-light: #1a4d8c;
+        --epb-secondary: #ff6600;
+        --epb-secondary-dark: #cc5200;
+        --epb-gray-bg: #f8fafc;
+        --epb-card-bg: rgba(255, 255, 255, 0.92);
+        --epb-border: #e2e8f0;
+        --epb-success: #10b981;
+        --epb-warning: #f59e0b;
+        --epb-danger: #ef4444;
+        --epb-info: #3b82f6;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.dark-mode {
+        --epb-gray-bg: #0f172a;
+        --epb-card-bg: rgba(30, 41, 59, 0.92);
+        --epb-border: #334155;
+    }
+
+    .delete-equip-page {
+        background: var(--epb-gray-bg);
+        min-height: 100vh;
+        padding: 2rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .container-custom {
+        max-width: 500px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    /* En-tête */
+    .page-header {
+        background: linear-gradient(135deg, var(--epb-danger) 0%, #b91c1c 100%);
+        border-radius: 1.5rem;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: var(--shadow-lg);
+        position: relative;
+        overflow: hidden;
+        animation: fadeSlideUp 0.5s ease-out;
+        text-align: center;
+    }
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -5%;
+        width: 250px;
+        height: 250px;
+        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+    .page-header h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.25rem;
+        font-weight: 700;
+    }
+    .page-header p {
+        margin-bottom: 0;
+        opacity: 0.9;
+        font-size: 0.95rem;
+    }
+
+    /* Carte glassmorphism */
+    .form-card {
+        background: var(--epb-card-bg);
+        backdrop-filter: blur(12px);
+        border-radius: 1rem;
+        border: 1px solid var(--epb-border);
+        box-shadow: var(--shadow-md);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        transition: var(--transition);
+        animation: fadeSlideUp 0.5s ease-out;
+    }
+    .form-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+    .card-header-custom {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--epb-border);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(0,0,0,0.02);
+    }
+    .card-header-custom i {
+        font-size: 1.2rem;
+        color: var(--epb-danger);
+    }
+    .card-header-custom h5 {
+        margin: 0;
+        font-weight: 600;
+        color: var(--epb-primary);
+    }
+    body.dark-mode .card-header-custom h5 {
+        color: var(--epb-secondary);
+    }
+    .card-body-custom {
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    /* Message de confirmation */
+    .warning-message {
+        background: rgba(239, 68, 68, 0.1);
+        border-left: 4px solid var(--epb-danger);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--epb-danger);
+        font-size: 0.9rem;
+        text-align: left;
+    }
+    .warning-message i {
+        font-size: 1.5rem;
+    }
+    .equip-name {
+        font-weight: 700;
+        color: var(--epb-primary);
+        background: rgba(0,0,0,0.05);
+        padding: 0.2rem 0.5rem;
+        border-radius: 0.5rem;
+        display: inline-block;
+    }
+    body.dark-mode .equip-name {
+        color: var(--epb-secondary);
+        background: rgba(255,255,255,0.1);
+    }
+
+    /* Boutons */
+    .btn-group-custom {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .btn-danger {
+        background: linear-gradient(135deg, var(--epb-danger), #b91c1c);
+        border: none;
+        padding: 0.7rem 1.8rem;
+        border-radius: 2rem;
+        font-weight: 600;
+        color: white;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        cursor: pointer;
+    }
+    .btn-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        filter: brightness(1.05);
+    }
+    .btn-cancel {
+        background: linear-gradient(135deg, #6c757d, #495057);
+        border: none;
+        padding: 0.7rem 1.8rem;
+        border-radius: 2rem;
+        font-weight: 600;
+        color: white;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    .btn-cancel:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        background: linear-gradient(135deg, #5a6268, #343a40);
+        color: white;
+    }
+
+    /* Animation */
+    @keyframes fadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive */
+    @media (max-width: 576px) {
+        .page-header {
+            padding: 1rem 1.5rem;
+        }
+        .page-header h1 {
+            font-size: 1.4rem;
+        }
+        .card-body-custom {
+            padding: 1rem;
+        }
+        .btn-group-custom {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .btn-danger, .btn-cancel {
+            justify-content: center;
+        }
+    }
+</style>
+
+<div class="delete-equip-page">
+    <div class="container-custom">
+        <!-- En-tête rouge pour suppression -->
+        <div class="page-header">
+            <h1><i class="fas fa-trash-alt me-2"></i> Supprimer un équipement</h1>
+            <p>Cette action est définitive et irréversible</p>
+        </div>
+
+        <!-- Carte de confirmation -->
+        <div class="form-card">
+            <div class="card-header-custom">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h5>Confirmation de suppression</h5>
+            </div>
+            <div class="card-body-custom">
+                <div class="warning-message">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Êtes-vous sûr de vouloir supprimer l'équipement <span class="equip-name">{{ equipement.type }}</span> ?</span>
+                </div>
+                <p class="text-danger mb-3">
+                    <i class="fas fa-skull-crosswalk me-1"></i> Cette action est irréversible.
+                </p>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="btn-group-custom">
+                        <button type="submit" class="btn-danger">
+                            <i class="fas fa-check-circle"></i> Oui, supprimer
+                        </button>
+                        <a href="{% url 'liste_equipements' %}" class="btn-cancel">
+                            <i class="fas fa-times-circle"></i> Annuler
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Conserver le thème sombre
+    document.addEventListener('DOMContentLoaded', function() {
+        const storedTheme = localStorage.getItem('theme');
+        if (storedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+    });
+</script>
+{% endblock %}

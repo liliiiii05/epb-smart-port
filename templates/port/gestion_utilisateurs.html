@@ -1,0 +1,494 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Gestion des utilisateurs | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --primary: #0066a0;
+        --primary-dark: #004b7c;
+        --primary-light: #2c9cd4;
+        --success: #2a9d8f;
+        --warning: #e9c46a;
+        --danger: #e76f51;
+        --info: #48b5e0;
+        --dark: #1a2c3c;
+        --gray-600: #5f7d95;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        border-radius: 1.5rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .page-header::before {
+        content: '👥';
+        position: absolute;
+        bottom: -20px;
+        right: -20px;
+        font-size: 120px;
+        opacity: 0.1;
+        pointer-events: none;
+    }
+
+    .date-display {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 2rem;
+        padding: 0.5rem 1.2rem;
+        color: white !important;
+        font-weight: 500;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.2rem;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        transition: transform 0.2s;
+        border-left: 4px solid var(--primary);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--primary);
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--gray-600);
+        margin-top: 0.5rem;
+    }
+
+    .btn-custom {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        border: none;
+        padding: 0.5rem 1.2rem;
+        border-radius: 2rem;
+        transition: all 0.3s;
+    }
+
+    .btn-custom:hover {
+        transform: scale(1.02);
+        color: white;
+    }
+
+    .table-custom {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table-custom th {
+        background: #f8fafc;
+        padding: 1rem;
+        font-weight: 600;
+        color: var(--dark);
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .table-custom td {
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+    }
+
+    .table-custom tr:hover {
+        background: #f8fafc;
+    }
+
+    .badge-role {
+        display: inline-block;
+        padding: 0.25rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    .badge-admin { background: #e74c3c; color: white; }
+    .badge-directeur { background: #9b59b6; color: white; }
+    .badge-officier { background: #3498db; color: white; }
+    .badge-gestionnaire { background: #2ecc71; color: white; }
+    .badge-default { background: #95a5a6; color: white; }
+
+    .badge-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    .badge-active {
+        background: #dcfce7;
+        color: #15803d;
+    }
+    .badge-inactive {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .search-box {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 2rem;
+        padding: 0.5rem 1rem;
+        width: 250px;
+        transition: all 0.3s;
+    }
+
+    .search-box:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(0,102,160,0.1);
+    }
+
+    .btn-icon {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.3rem 0.6rem;
+        border-radius: 0.5rem;
+        transition: 0.2s;
+    }
+    .btn-icon.edit { color: #f59e0b; }
+    .btn-icon.edit:hover { background: rgba(245,158,11,0.2); transform: scale(1.05); }
+    .btn-icon.delete { color: #ef4444; }
+    .btn-icon.delete:hover { background: rgba(239,68,68,0.2); transform: scale(1.05); }
+    .btn-icon.success { color: #10b981; }
+    .btn-icon.success:hover { background: rgba(16,185,129,0.2); transform: scale(1.05); }
+
+    body.dark-mode .stat-card,
+    body.dark-mode .table-custom th,
+    body.dark-mode .table-custom td,
+    body.dark-mode .search-box {
+        background: #1e293b;
+        border-color: #334155;
+        color: #e2e8f0;
+    }
+
+    body.dark-mode .table-custom tr:hover {
+        background: #334155;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.5s ease forwards;
+    }
+
+    .avatar {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+</style>
+
+<div class="container-fluid px-4">
+    <!-- En-tête -->
+    <div class="page-header animate-fade-in">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h1 class="display-5 fw-bold mb-2">
+                    <i class="fas fa-users me-3"></i>Gestion des utilisateurs
+                </h1>
+                <p class="lead mb-0 opacity-75">
+                    <i class="fas fa-user-shield me-2"></i>Gérez les comptes et les rôles
+                </p>
+            </div>
+            <div class="mt-3 mt-md-0">
+                <div class="date-display">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    <span id="currentDateTime"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row g-4 mb-4 animate-fade-in" style="animation-delay: 0.1s;">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ utilisateurs|length|default:0 }}</div>
+                <div class="stat-label">
+                    <i class="fas fa-users me-1"></i>Total utilisateurs
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.admins|default:0 }}</div>
+                <div class="stat-label">
+                    <i class="fas fa-crown me-1"></i>Administrateurs
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.actifs|default:0 }}</div>
+                <div class="stat-label">
+                    <i class="fas fa-check-circle me-1"></i>Comptes actifs
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.nouveaux_mois|default:0 }}</div>
+                <div class="stat-label">
+                    <i class="fas fa-calendar-plus me-1"></i>Nouveaux (30j)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barre d'actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3 animate-fade-in" style="animation-delay: 0.15s;">
+        <div class="d-flex gap-2">
+            <input type="text" id="searchInput" class="search-box" placeholder="🔍 Rechercher un utilisateur...">
+            <select id="roleFilter" class="search-box" style="width: auto;">
+                <option value="all">Tous les rôles</option>
+                <option value="admin">Administrateurs</option>
+                <option value="directeur">Directeurs</option>
+                <option value="officier">Officiers</option>
+                <option value="gestionnaire">Gestionnaires</option>
+            </select>
+            <select id="statusFilter" class="search-box" style="width: auto;">
+                <option value="all">Tous les statuts</option>
+                <option value="active">Actifs</option>
+                <option value="inactive">Inactifs</option>
+            </select>
+        </div>
+        <a href="{% url 'ajouter_utilisateur' %}" class="btn-custom">
+            <i class="fas fa-plus me-2"></i>Ajouter un utilisateur
+        </a>
+    </div>
+
+    <!-- Tableau des utilisateurs -->
+    <div class="card shadow animate-fade-in" style="animation-delay: 0.2s;">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table-custom" id="userTable">
+                    <thead>
+                        <tr>
+                            <th>Utilisateur</th>
+                            <th>Email</th>
+                            <th>Rôle(s)</th>
+                            <th>Date d'inscription</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in utilisateurs %}
+                        <tr data-username="{{ u.username|lower }}" data-status="{% if u.is_active %}active{% else %}inactive{% endif %}" data-roles="{% for g in u.groups.all %}{{ g.name|lower }},{% endfor %}{% if u.is_superuser %}superuser{% endif %}">
+                            <td>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="avatar">
+                                        {{ u.username|first|upper }}
+                                    </div>
+                                    <div>
+                                        <strong>{{ u.username }}</strong>
+                                        {% if u.is_superuser %}
+                                            <span class="badge-role badge-admin ms-1">Superuser</span>
+                                        {% endif %}
+                                        {% if u == request.user %}
+                                            <span class="badge bg-info text-white ms-1">Vous</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ u.email|default:"<span class='text-muted'>—</span>"|safe }}</div>
+                            <td>
+                                {% if u.groups.all %}
+                                    {% for group in u.groups.all %}
+                                        {% if group.name == 'Directeur' %}
+                                            <span class="badge-role badge-directeur">👑 Directeur</span>
+                                        {% elif group.name == 'Officier_port' %}
+                                            <span class="badge-role badge-officier">⚓ Officier Port</span>
+                                        {% elif group.name == 'Officier_radio' %}
+                                            <span class="badge-role badge-officier">📻 Officier Radio</span>
+                                        {% elif group.name == 'Gestionnaire_escales' %}
+                                            <span class="badge-role badge-gestionnaire">📋 Gestionnaire escales</span>
+                                        {% else %}
+                                            <span class="badge-role badge-default">👤 {{ group.name }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                             </div>
+                            <td>{{ u.date_joined|date:"d/m/Y" }}</div>
+                            <td>
+                                {% if u.is_active %}
+                                    <span class="badge-status badge-active">
+                                        <i class="fas fa-check-circle"></i> Actif
+                                    </span>
+                                {% else %}
+                                    <span class="badge-status badge-inactive">
+                                        <i class="fas fa-ban"></i> Inactif
+                                    </span>
+                                {% endif %}
+                             </div>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <a href="{% url 'modifier_utilisateur' u.id %}" class="btn-icon edit" title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if u != request.user %}
+                                        {% if u.is_active %}
+                                            <a href="{% url 'desactiver_utilisateur' u.id %}" class="btn-icon delete" 
+                                               onclick="return confirm('⚠️ Désactiver le compte de {{ u.username }} ?\n\nL\'utilisateur ne pourra plus se connecter.')"
+                                               title="Désactiver">
+                                                <i class="fas fa-ban"></i>
+                                            </a>
+                                        {% else %}
+                                            <a href="{% url 'activer_utilisateur' u.id %}" class="btn-icon success" 
+                                               onclick="return confirm('✅ Réactiver le compte de {{ u.username }} ?\n\nL\'utilisateur pourra à nouveau se connecter.')"
+                                               title="Activer">
+                                                <i class="fas fa-check-circle"></i>
+                                            </a>
+                                        {% endif %}
+                                        <form method="post" action="{% url 'supprimer_utilisateur' u.id %}" style="display:inline;" onsubmit="return confirm('⚠️ Supprimer définitivement {{ u.username }} ?\n\nCette action est irréversible.')">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn-icon delete" title="Supprimer">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <button class="btn-icon" disabled style="opacity:0.5; cursor:not-allowed;" title="Vous ne pouvez pas modifier votre propre statut">
+                                            <i class="fas fa-lock"></i>
+                                        </button>
+                                    {% endif %}
+                                </div>
+                             </div>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message si aucun résultat -->
+    <div id="noResults" class="text-center py-5 text-muted" style="display: none;">
+        <i class="fas fa-search fa-3x mb-3 opacity-50"></i>
+        <h5>Aucun utilisateur trouvé</h5>
+        <p>Essayez avec d'autres critères de recherche</p>
+    </div>
+
+    <!-- Bouton retour -->
+    <div class="mt-4 mb-4">
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Retour au tableau de bord
+        </a>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mise à jour date/heure
+        function updateDateTime() {
+            const now = new Date();
+            const jour = String(now.getDate()).padStart(2, '0');
+            const mois = String(now.getMonth() + 1).padStart(2, '0');
+            const annee = now.getFullYear();
+            const heures = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const formatted = `${jour}/${mois}/${annee} ${heures}:${minutes}`;
+            const dateTimeEl = document.getElementById('currentDateTime');
+            if (dateTimeEl) dateTimeEl.textContent = formatted;
+        }
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+
+        // Recherche et filtres
+        const searchInput = document.getElementById('searchInput');
+        const roleFilter = document.getElementById('roleFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        const rows = document.querySelectorAll('#userTable tbody tr');
+        const noResults = document.getElementById('noResults');
+        const table = document.querySelector('.table-custom');
+
+        function filterTable() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const roleTerm = roleFilter.value;
+            const statusTerm = statusFilter.value;
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const username = row.getAttribute('data-username') || '';
+                const roles = row.getAttribute('data-roles') || '';
+                const status = row.getAttribute('data-status') || '';
+                let showBySearch = true;
+                let showByRole = true;
+                let showByStatus = true;
+
+                if (searchTerm) {
+                    showBySearch = username.includes(searchTerm);
+                }
+
+                if (roleTerm !== 'all') {
+                    if (roleTerm === 'admin') {
+                        showByRole = roles.includes('superuser');
+                    } else if (roleTerm === 'directeur') {
+                        showByRole = roles.includes('directeur');
+                    } else if (roleTerm === 'officier') {
+                        showByRole = roles.includes('officier');
+                    } else if (roleTerm === 'gestionnaire') {
+                        showByRole = roles.includes('gestionnaire');
+                    }
+                }
+
+                if (statusTerm !== 'all') {
+                    showByStatus = status === statusTerm;
+                }
+
+                if (showBySearch && showByRole && showByStatus) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            if (visibleCount === 0) {
+                noResults.style.display = 'block';
+                if (table) table.style.display = 'none';
+            } else {
+                noResults.style.display = 'none';
+                if (table) table.style.display = 'table';
+            }
+        }
+
+        if (searchInput) searchInput.addEventListener('input', filterTable);
+        if (roleFilter) roleFilter.addEventListener('change', filterTable);
+        if (statusFilter) statusFilter.addEventListener('change', filterTable);
+    });
+</script>
+{% endblock %}

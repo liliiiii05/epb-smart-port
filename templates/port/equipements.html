@@ -1,0 +1,875 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Équipements de manutention | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    /* ========== VARIABLES MODERNISÉES ========== */
+    :root {
+        --epb-primary: #003366;
+        --epb-primary-dark: #002244;
+        --epb-primary-light: #1a4d8c;
+        --epb-secondary: #ff6600;
+        --epb-success: #10b981;
+        --epb-warning: #f59e0b;
+        --epb-danger: #ef4444;
+        --epb-info: #3b82f6;
+        --epb-gray-bg: #f8fafc;
+        --epb-card-bg: #ffffff;
+        --epb-border: #e2e8f0;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .equipement-page {
+        background: var(--epb-gray-bg);
+        min-height: 100vh;
+        padding: 2rem 1rem;
+    }
+    
+    .equipement-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    /* En-tête */
+    .page-header {
+        background: linear-gradient(135deg, var(--epb-primary) 0%, var(--epb-primary-dark) 100%);
+        border-radius: 1.5rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: var(--shadow-lg);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -5%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+    
+    .header-text h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+    
+    .header-text p {
+        margin-bottom: 0;
+        opacity: 0.9;
+        font-size: 0.95rem;
+    }
+    
+    .header-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .header-actions .btn {
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: white;
+        transition: var(--transition);
+        white-space: nowrap;
+        padding: 0.6rem 1.2rem;
+        border-radius: 2rem;
+        font-weight: 500;
+        text-decoration: none;
+    }
+    
+    .header-actions .btn:hover {
+        background: rgba(255,255,255,0.25);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    /* Barre de recherche */
+    .search-container {
+        background: var(--epb-card-bg);
+        border-radius: 1rem;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--epb-border);
+    }
+    
+    .search-box {
+        position: relative;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 0.75rem 2.5rem 0.75rem 1rem;
+        border: 2px solid var(--epb-border);
+        border-radius: 2rem;
+        font-size: 0.9rem;
+        transition: var(--transition);
+        outline: none;
+        background: var(--epb-card-bg);
+        color: var(--epb-primary);
+    }
+    
+    .search-input:focus {
+        border-color: var(--epb-secondary);
+        box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.1);
+    }
+    
+    .clear-search {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        color: #999;
+        transition: var(--transition);
+    }
+    
+    .clear-search:hover {
+        color: var(--epb-secondary);
+    }
+    
+    .search-stats {
+        text-align: center;
+        margin-top: 0.75rem;
+        font-size: 0.85rem;
+    }
+
+    /* Statistiques */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: var(--epb-card-bg);
+        border-radius: 1rem;
+        padding: 1.2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--epb-border);
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--epb-secondary);
+        transition: var(--transition);
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--epb-primary), var(--epb-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        line-height: 1;
+    }
+    
+    .stat-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #64748b;
+        margin-top: 0.25rem;
+        font-weight: 600;
+    }
+    
+    .stat-icon {
+        font-size: 2rem;
+        opacity: 0.3;
+        color: var(--epb-primary);
+        transition: var(--transition);
+    }
+    
+    .stat-card:hover .stat-icon {
+        opacity: 0.6;
+        transform: scale(1.1);
+    }
+
+    /* Cartes et tableaux */
+    .card {
+        background: var(--epb-card-bg);
+        border-radius: 1rem;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--epb-border);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        padding: 1rem 1.5rem;
+        border-bottom: 2px solid var(--epb-secondary);
+    }
+    
+    .card-header h5 {
+        margin: 0;
+        color: var(--epb-primary);
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    
+    .card-header small {
+        color: #64748b;
+        font-size: 0.75rem;
+    }
+    
+    .table-container {
+        background: var(--epb-card-bg);
+        border-radius: 1rem;
+        overflow-x: auto;
+        border: 1px solid var(--epb-border);
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 1.5rem;
+    }
+    
+    .equipment-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        min-width: 950px;
+    }
+    
+    .equipment-table th {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        padding: 1rem;
+        font-weight: 700;
+        text-align: left;
+        border-bottom: 2px solid var(--epb-border);
+        white-space: nowrap;
+        color: var(--epb-primary);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .equipment-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+    
+    .equipment-table tr:hover {
+        background: linear-gradient(90deg, #fefce8, #fff7ed);
+        transform: scale(1.01);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    body.dark-mode .equipment-table tr:hover {
+        background: linear-gradient(90deg, #1e3a5f, #0f172a);
+    }
+    
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.9rem;
+        border-radius: 2rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    
+    .badge-success { background: #dcfce7; color: #15803d; }
+    .badge-warning { background: #fef3c7; color: #92400e; }
+    .badge-danger { background: #fee2e2; color: #991b1b; }
+    .badge-info { background: #e0f2fe; color: #0369a1; }
+    
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        transition: var(--transition);
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, var(--epb-primary), var(--epb-primary-light));
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        filter: brightness(105%);
+    }
+    
+    .btn-secondary {
+        background: #64748b;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #475569;
+        transform: translateY(-2px);
+    }
+    
+    .btn-sm {
+        padding: 0.3rem 0.7rem;
+        font-size: 0.75rem;
+    }
+    
+    .btn-warning {
+        background: var(--epb-warning);
+        color: white;
+    }
+    
+    .btn-warning:hover {
+        background: #d97706;
+        transform: translateY(-2px);
+    }
+    
+    .btn-danger {
+        background: var(--epb-danger);
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #dc2626;
+        transform: translateY(-2px);
+    }
+    
+    .btn-success {
+        background: var(--epb-success);
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #059669;
+        transform: translateY(-2px);
+    }
+    
+    .progress {
+        height: 20px;
+        background: #e2e8f0;
+        border-radius: 1rem;
+        overflow: hidden;
+    }
+    
+    .progress-bar {
+        background: var(--epb-success);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    
+    .alert {
+        padding: 1rem;
+        border-radius: 0.75rem;
+        margin-top: 1rem;
+    }
+    
+    .alert-warning {
+        background: #fef3c7;
+        border-left: 4px solid var(--epb-warning);
+        color: #92400e;
+    }
+    
+    .alert-info {
+        background: #e0f2fe;
+        border-left: 4px solid var(--epb-info);
+        color: #0369a1;
+    }
+    
+    /* Modale simplifiée */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 10000;
+        justify-content: center;
+        align-items: center;
+    }
+    .modal-content {
+        background: var(--epb-card-bg);
+        border-radius: 1rem;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: var(--shadow-lg);
+        animation: fadeSlideUp 0.2s ease;
+    }
+    .modal-header, .modal-footer {
+        padding: 1rem;
+        border-bottom: 1px solid var(--epb-border);
+    }
+    .modal-header {
+        background: linear-gradient(135deg, var(--epb-primary), var(--epb-primary-dark));
+        color: white;
+        border-radius: 1rem 1rem 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .modal-body {
+        padding: 1rem;
+    }
+    .modal-footer {
+        border-top: 1px solid var(--epb-border);
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+    .close-modal {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: white;
+        line-height: 1;
+    }
+    
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .page-header, .search-container, .stats-grid, .card {
+        animation: fadeSlideUp 0.5s ease-out forwards;
+    }
+    
+    @media (max-width: 768px) {
+        .page-header { flex-direction: column; align-items: flex-start; padding: 1.5rem; }
+        .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+        .stat-number { font-size: 1.5rem; }
+        .header-text h1 { font-size: 1.4rem; }
+        .equipment-table { min-width: 800px; }
+    }
+    
+    .mt-2 { margin-top: 0.5rem; }
+    .mt-3 { margin-top: 1rem; }
+    .mt-4 { margin-top: 1.5rem; }
+    .mb-0 { margin-bottom: 0; }
+    .mb-3 { margin-bottom: 1rem; }
+    .mb-4 { margin-bottom: 1.5rem; }
+    .text-muted { color: #64748b; }
+    .fw-bold { font-weight: 700; }
+    .text-center { text-align: center; }
+    .text-success { color: var(--epb-success); }
+    .text-danger { color: var(--epb-danger); }
+    .d-flex { display: flex; }
+    .flex-wrap { flex-wrap: wrap; }
+    .gap-1 { gap: 0.25rem; }
+    .gap-2 { gap: 0.5rem; }
+</style>
+
+<div class="equipement-page">
+    <div class="equipement-container">
+        <!-- En-tête -->
+        <div class="page-header">
+            <div class="header-text">
+                <h1><i class="fas fa-tools me-2"></i> Équipements de manutention</h1>
+                <p>Parc matériel de l'Entreprise Portuaire de Béjaïa</p>
+            </div>
+            <div class="header-actions">
+                {% if user.groups.first.name == 'Directeur' %}
+                <a href="{% url 'ajouter_equipement' %}" class="btn">
+                    <i class="fas fa-plus-circle me-2"></i> Ajouter un équipement
+                </a>
+                {% endif %}
+                <a href="{% url 'liste_equipements' %}" class="btn">
+                    <i class="fas fa-sync-alt me-2"></i> Actualiser
+                </a>
+            </div>
+        </div>
+
+        <!-- Barre de recherche -->
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" 
+                       placeholder="Rechercher par désignation, capacité..." autocomplete="off">
+                <button id="clearSearch" class="clear-search" style="display: none;">
+                    <i class="fas fa-times-circle"></i>
+                </button>
+            </div>
+            <div class="search-stats" id="searchStats"></div>
+        </div>
+
+        <!-- Statistiques globales -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div>
+                    <div class="stat-number">{{ total_unites|default:0 }}</div>
+                    <div class="stat-label">Unités totales</div>
+                </div>
+                <i class="fas fa-cubes stat-icon"></i>
+            </div>
+            <div class="stat-card">
+                <div>
+                    <div class="stat-number">{{ total_disponibles|default:0 }}</div>
+                    <div class="stat-label">Unités disponibles</div>
+                </div>
+                <i class="fas fa-check-circle stat-icon"></i>
+            </div>
+            <div class="stat-card">
+                <div>
+                    <div class="stat-number">{{ taux_disponibilite|floatformat:1|default:0 }}%</div>
+                    <div class="stat-label">Taux de disponibilité</div>
+                </div>
+                <i class="fas fa-chart-pie stat-icon"></i>
+            </div>
+            <div class="stat-card">
+                <div>
+                    <div class="stat-number">{{ engins|length|add:grues|length }}</div>
+                    <div class="stat-label">Types d'équipements</div>
+                </div>
+                <i class="fas fa-tools stat-icon"></i>
+            </div>
+        </div>
+
+        <!-- SECTION ENGINS -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-tractor me-2"></i> Engins de manutention</h5>
+                <small>Chariots, tracteurs, pelles, chargeurs</small>
+            </div>
+            <div class="table-container">
+                <table class="equipment-table" id="enginsTable">
+                    <thead>
+                        <tr>
+                            <th>Désignation</th>
+                            <th>Capacité / Type</th>
+                            <th>Existants</th>
+                            <th>En marche</th>
+                            <th>En panne</th>
+                            <th>Disponibilité</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in engins %}
+                        <tr class="equipment-row" data-name="{{ e.designation|lower }} {{ e.capacite|lower }}">
+                            <td><strong>{{ e.designation }}</strong></div>
+                            <td>{{ e.capacite|default:"-" }}</div>
+                            <td>{{ e.engins_existants }}</div>
+                            <td><span class="text-success fw-bold">{{ e.engins_en_marche }}</span></div>
+                            <td><span class="text-danger">{{ e.engins_en_panne }}</span></div>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    {% widthratio e.engins_en_marche e.engins_existants 100 as taux %}
+                                    <div class="progress-bar" style="width: {{ taux }}%;">
+                                        {{ taux }}%
+                                    </div>
+                                </div>
+                             </div>
+                            <td>
+                                <div class="action-buttons d-flex flex-wrap gap-1">
+                                    {% if e.engins_en_marche > 0 %}
+                                    <button type="button" class="btn btn-sm btn-warning btn-panne" data-modal="panneModal{{ e.id }}">
+                                        <i class="fas fa-tools"></i> Panne
+                                    </button>
+                                    {% endif %}
+                                    {% if e.engins_en_panne > 0 %}
+                                    <a href="{% url 'reparer_equipement' e.id %}" class="btn btn-sm btn-success" onclick="return confirm('Réparer cet équipement ?')">
+                                        <i class="fas fa-wrench"></i> Réparer
+                                    </a>
+                                    {% endif %}
+                                    {% if user.groups.first.name == 'Directeur' %}
+                                    <a href="{% url 'modifier_equipement' e.id %}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-edit"></i> Modifier
+                                    </a>
+                                    <form method="post" action="{% url 'supprimer_equipement' e.id %}" style="display: inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Confirmer la suppression de {{ e.designation }} ?')">
+                                            <i class="fas fa-trash"></i> Supprimer
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                             </div>
+                        </tr>
+                        <!-- Modale Panne pour cet engin -->
+                        <div id="panneModal{{ e.id }}" class="modal">
+                            <div class="modal-content">
+                                <form method="post" action="{% url 'declarer_panne' e.id %}">
+                                    {% csrf_token %}
+                                    <div class="modal-header">
+                                        <h5>Déclarer une panne - {{ e.designation }}</h5>
+                                        <button type="button" class="close-modal" data-modal-close="panneModal{{ e.id }}">&times;</button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label>Nombre d'unités en panne (max {{ e.engins_en_marche }})</label>
+                                            <input type="number" name="nb_unites" class="form-control" value="1" min="1" max="{{ e.engins_en_marche }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label>Durée estimée de réparation (heures)</label>
+                                            <input type="number" step="0.5" name="duree" class="form-control" value="2.0" min="0.5" required>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-modal-close="panneModal{{ e.id }}">Annuler</button>
+                                        <button type="submit" class="btn btn-danger">Déclarer panne</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <td><td colspan="7" class="text-center text-muted">Aucun engin enregistré. <a href="{% url 'ajouter_equipement' %}">Ajouter</a></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SECTION GRUES ET PORTIQUES -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-crane me-2"></i> Grues et portiques</h5>
+                <small>Grues fixes, mobiles, portiques</small>
+            </div>
+            <div class="table-container">
+                <table class="equipment-table" id="gruesTable">
+                    <thead>
+                        <tr>
+                            <th>Désignation</th>
+                            <th>Capacité (t)</th>
+                            <th>Existants</th>
+                            <th>En marche</th>
+                            <th>En panne</th>
+                            <th>Disponibilité</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for g in grues %}
+                        <tr class="equipment-row" data-name="{{ g.designation|lower }} {{ g.capacite|lower }}">
+                            <td><strong>{{ g.designation }}</strong></div>
+                            <td>{{ g.capacite|default:"-" }}</div>
+                            <td>{{ g.engins_existants }}</div>
+                            <td><span class="text-success fw-bold">{{ g.engins_en_marche }}</span></div>
+                            <td><span class="text-danger">{{ g.engins_en_panne }}</span></div>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    {% widthratio g.engins_en_marche g.engins_existants 100 as taux %}
+                                    <div class="progress-bar" style="width: {{ taux }}%;">
+                                        {{ taux }}%
+                                    </div>
+                                </div>
+                             </div>
+                            <td>
+                                <div class="action-buttons d-flex flex-wrap gap-1">
+                                    {% if g.engins_en_marche > 0 %}
+                                    <button type="button" class="btn btn-sm btn-warning btn-panne" data-modal="panneModal{{ g.id }}">
+                                        <i class="fas fa-tools"></i> Panne
+                                    </button>
+                                    {% endif %}
+                                    {% if g.engins_en_panne > 0 %}
+                                    <a href="{% url 'reparer_equipement' g.id %}" class="btn btn-sm btn-success" onclick="return confirm('Réparer cet équipement ?')">
+                                        <i class="fas fa-wrench"></i> Réparer
+                                    </a>
+                                    {% endif %}
+                                    {% if user.groups.first.name == 'Directeur' %}
+                                    <a href="{% url 'modifier_equipement' g.id %}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-edit"></i> Modifier
+                                    </a>
+                                    <form method="post" action="{% url 'supprimer_equipement' g.id %}" style="display: inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Confirmer la suppression de {{ g.designation }} ?')">
+                                            <i class="fas fa-trash"></i> Supprimer
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                             </div>
+                        </tr>
+                        <!-- Modale Panne pour cette grue -->
+                        <div id="panneModal{{ g.id }}" class="modal">
+                            <div class="modal-content">
+                                <form method="post" action="{% url 'declarer_panne' g.id %}">
+                                    {% csrf_token %}
+                                    <div class="modal-header">
+                                        <h5>Déclarer une panne - {{ g.designation }}</h5>
+                                        <button type="button" class="close-modal" data-modal-close="panneModal{{ g.id }}">&times;</button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label>Nombre d'unités en panne (max {{ g.engins_en_marche }})</label>
+                                            <input type="number" name="nb_unites" class="form-control" value="1" min="1" max="{{ g.engins_en_marche }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label>Durée estimée de réparation (heures)</label>
+                                            <input type="number" step="0.5" name="duree" class="form-control" value="2.0" min="0.5" required>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-modal-close="panneModal{{ g.id }}">Annuler</button>
+                                        <button type="submit" class="btn btn-danger">Déclarer panne</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <td><td colspan="7" class="text-center text-muted">Aucune grue enregistrée. <a href="{% url 'ajouter_equipement' %}">Ajouter</a></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Alertes et recommandations -->
+        <div class="alert alert-info">
+            <i class="fas fa-lightbulb me-2"></i>
+            <strong>Recommandations:</strong>
+            <ul class="mb-0 mt-2">
+                {% if total_disponibles < total_unites %}
+                    <li>📊 Taux de disponibilité : <strong>{{ taux_disponibilite|floatformat:1 }}%</strong> ({{ total_disponibles }}/{{ total_unites }} équipements disponibles)</li>
+                {% else %}
+                    <li>✅ Tous les équipements sont disponibles.</li>
+                {% endif %}
+                {% for e in engins %}
+                    {% if e.engins_en_panne > 0 %}
+                        <li>🔴 <strong>{{ e.designation }}</strong> : {{ e.engins_en_panne }} en panne sur {{ e.engins_existants }}. Temps réparation estimé : {{ e.temps_reparation }}h.</li>
+                    {% endif %}
+                {% endfor %}
+                {% for g in grues %}
+                    {% if g.engins_en_panne > 0 %}
+                        <li>🔴 <strong>{{ g.designation }}</strong> : {{ g.engins_en_panne }} en panne sur {{ g.engins_existants }}. Temps réparation estimé : {{ g.temps_reparation }}h.</li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+            <a href="javascript:history.back()" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i> Retour
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Gestion manuelle des modales (sans Bootstrap JS)
+    document.querySelectorAll('.btn-panne').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const modalId = this.getAttribute('data-modal');
+            const modal = document.getElementById(modalId);
+            if (modal) modal.style.display = 'flex';
+        });
+    });
+
+    document.querySelectorAll('[data-modal-close]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const modalId = this.getAttribute('data-modal-close');
+            const modal = document.getElementById(modalId);
+            if (modal) modal.style.display = 'none';
+        });
+    });
+
+    // Fermer la modale en cliquant en dehors
+    window.addEventListener('click', (e) => {
+        if (e.target.classList && e.target.classList.contains('modal')) {
+            e.target.style.display = 'none';
+        }
+    });
+
+    // Recherche dynamique
+    function filterEquipment() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+        const rows = document.querySelectorAll('.equipment-row');
+        const clearButton = document.getElementById('clearSearch');
+        const searchStats = document.getElementById('searchStats');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            const name = row.getAttribute('data-name') || '';
+            if (searchTerm === '' || name.includes(searchTerm)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        if (searchTerm !== '') {
+            clearButton.style.display = 'block';
+            searchStats.innerHTML = `<span class="badge badge-info">🔍 ${visibleCount} résultat(s) trouvé(s)</span>`;
+        } else {
+            clearButton.style.display = 'none';
+            searchStats.innerHTML = '';
+        }
+        if (visibleCount === 0 && searchTerm !== '') {
+            searchStats.innerHTML = '<span class="badge badge-warning">⚠️ Aucun équipement trouvé</span>';
+        }
+    }
+
+    function clearSearch() {
+        const searchInput = document.getElementById('searchInput');
+        searchInput.value = '';
+        filterEquipment();
+        searchInput.focus();
+    }
+
+    let debounceTimer;
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(filterEquipment, 300);
+        });
+    }
+
+    const clearBtn = document.getElementById('clearSearch');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', clearSearch);
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            document.getElementById('searchInput')?.focus();
+        }
+    });
+</script>
+{% endblock %}

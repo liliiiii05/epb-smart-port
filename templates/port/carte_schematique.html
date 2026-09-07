@@ -1,0 +1,410 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Carte schématique du port | Port de Béjaïa{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Styles spécifiques à la carte */
+    .carte-container {
+        position: relative;
+        height: calc(100vh - 80px);
+        min-height: 600px;
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: var(--shadow-lg);
+        margin-bottom: 1rem;
+    }
+    
+    #map {
+        height: 100%;
+        width: 100%;
+        background: var(--gray-100);
+    }
+    
+    /* Style des marqueurs personnalisés */
+    .custom-icon {
+        background: white;
+        border-radius: 50%;
+        border: 2px solid;
+        text-align: center;
+        font-weight: bold;
+        width: 36px;
+        height: 36px;
+        line-height: 32px;
+        font-size: 16px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        transition: transform 0.2s;
+    }
+    .custom-icon:hover {
+        transform: scale(1.1);
+    }
+    
+    .legend {
+        background: var(--light);
+        backdrop-filter: blur(12px);
+        padding: 10px 15px;
+        border-radius: 12px;
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        font-size: 12px;
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--gray-200);
+        transition: var(--transition);
+    }
+    body.dark-mode .legend {
+        background: rgba(30, 41, 59, 0.95);
+        border-color: var(--gray-700);
+    }
+    .legend strong {
+        color: var(--dark);
+    }
+    body.dark-mode .legend strong {
+        color: var(--gray-200);
+    }
+    .legend span {
+        font-size: 12px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 5px;
+    }
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+    }
+    .legend-color.blue { background: #3b82f6; border: 2px solid #3b82f6; }
+    .legend-color.red { background: #ef4444; border: 2px solid #ef4444; }
+    .legend-color.green { background: #10b981; border: 2px solid #10b981; }
+    
+    .title-carte {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: var(--light);
+        backdrop-filter: blur(12px);
+        padding: 8px 16px;
+        border-radius: 30px;
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0;
+        pointer-events: none;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--gray-200);
+        color: var(--dark);
+    }
+    body.dark-mode .title-carte {
+        background: rgba(30, 41, 59, 0.95);
+        border-color: var(--gray-700);
+        color: var(--gray-200);
+    }
+    
+    .info-panel {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: var(--light);
+        backdrop-filter: blur(12px);
+        padding: 10px 15px;
+        border-radius: 12px;
+        font-size: 11px;
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--gray-200);
+        color: var(--gray-600);
+        pointer-events: none;
+    }
+    body.dark-mode .info-panel {
+        background: rgba(30, 41, 59, 0.95);
+        border-color: var(--gray-700);
+        color: var(--gray-400);
+    }
+    
+    .refresh-indicator {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        background: var(--light);
+        backdrop-filter: blur(12px);
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--gray-200);
+        color: var(--gray-600);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    body.dark-mode .refresh-indicator {
+        background: rgba(30, 41, 59, 0.95);
+        border-color: var(--gray-700);
+        color: var(--gray-400);
+    }
+    .refresh-indicator i {
+        font-size: 10px;
+        color: var(--primary);
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    .refreshing i {
+        animation: pulse 1s ease-in-out infinite;
+    }
+    
+    @media (max-width: 768px) {
+        .title-carte {
+            font-size: 0.8rem;
+            top: 10px;
+            left: 10px;
+            padding: 5px 10px;
+        }
+        .legend {
+            bottom: 10px;
+            right: 10px;
+            padding: 6px 10px;
+            font-size: 10px;
+        }
+        .info-panel {
+            bottom: 10px;
+            left: 10px;
+            font-size: 9px;
+            padding: 6px 10px;
+        }
+        .refresh-indicator {
+            top: 10px;
+            right: 10px;
+            font-size: 9px;
+            padding: 4px 8px;
+        }
+        .custom-icon {
+            width: 28px;
+            height: 28px;
+            line-height: 24px;
+            font-size: 12px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="carte-container">
+        <div id="map"></div>
+        <div class="title-carte">
+            <i class="fas fa-map-marked-alt me-2"></i>Carte schématique - Port de Béjaïa
+        </div>
+        <div class="legend">
+            <strong><i class="fas fa-info-circle me-1"></i>Légende</strong>
+            <div class="legend-item"><div class="legend-color blue"></div><span>Poste libre</span></div>
+            <div class="legend-item"><div class="legend-color red"></div><span>Poste occupé</span></div>
+            <div class="legend-item"><div class="legend-color green"></div><span>Navire à quai</span></div>
+        </div>
+        <div class="info-panel">
+            <i class="fas fa-mouse-pointer me-1"></i> Cliquez sur la carte pour obtenir les coordonnées
+        </div>
+        <div class="refresh-indicator" id="refreshIndicator">
+            <i class="fas fa-sync-alt"></i>
+            <span>Actualisation automatique</span>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    (function() {
+        'use strict';
+        
+        // Dimensions de l'image (à adapter selon votre image)
+        const imgWidth = 1200;
+        const imgHeight = 800;
+        const imageUrl = "{% static 'port/plan_port_bejaia.jpg' %}";
+        const imageBounds = [[0, 0], [imgHeight, imgWidth]];
+        
+        let map;
+        let posteLayer, navireLayer;
+        let refreshInterval;
+        let isRefreshing = false;
+        
+        // Fonction pour obtenir l'icône d'un poste
+        function getPosteIcon(disponible) {
+            const color = disponible ? '#3b82f6' : '#ef4444';
+            const bgColor = disponible ? 'rgba(59,130,246,0.2)' : 'rgba(239,68,68,0.2)';
+            const html = `<div class="custom-icon" style="border-color:${color}; background:${bgColor};">⚓</div>`;
+            return L.divIcon({ html: html, iconSize: [36, 36], className: '', popupAnchor: [0, -18] });
+        }
+        
+        // Fonction pour obtenir l'icône d'un navire
+        function getNavireIcon() {
+            const html = `<div class="custom-icon" style="border-color:#10b981; background:rgba(16,185,129,0.2);">🚢</div>`;
+            return L.divIcon({ html: html, iconSize: [36, 36], className: '', popupAnchor: [0, -18] });
+        }
+        
+        // Initialisation de la carte
+        function initMap() {
+            map = L.map('map').setView([imgHeight/2, imgWidth/2], 0);
+            L.imageOverlay(imageUrl, imageBounds).addTo(map);
+            map.fitBounds(imageBounds);
+            map.setMaxBounds(imageBounds);
+            map.options.crs = L.CRS.Simple;
+            
+            // Aide à la capture de coordonnées (clic)
+            map.on('click', function(e) {
+                const x = Math.round(e.latlng.lng);
+                const y = Math.round(e.latlng.lat);
+                // Utiliser une notification plus discrète
+                const infoPanel = document.querySelector('.info-panel');
+                if (infoPanel) {
+                    const originalText = infoPanel.innerHTML;
+                    infoPanel.innerHTML = `<i class="fas fa-map-pin me-1"></i> Coordonnées : X=${x}, Y=${y}`;
+                    setTimeout(() => {
+                        infoPanel.innerHTML = originalText;
+                    }, 3000);
+                }
+                console.log(`Coordonnées : X=${x}, Y=${y}`);
+            });
+        }
+        
+        // Mise à jour de la carte
+        async function updateMap() {
+            const indicator = document.getElementById('refreshIndicator');
+            if (indicator && !isRefreshing) {
+                indicator.classList.add('refreshing');
+                isRefreshing = true;
+            }
+            
+            try {
+                const response = await fetch('{% url "api_carte_data" %}');
+                const data = await response.json();
+                
+                if (posteLayer) map.removeLayer(posteLayer);
+                if (navireLayer) map.removeLayer(navireLayer);
+                
+                posteLayer = L.layerGroup();
+                navireLayer = L.layerGroup();
+                
+                // Ajouter les postes
+                if (data.postes && Array.isArray(data.postes)) {
+                    data.postes.forEach(function(p) {
+                        if (p.coord_x !== null && p.coord_y !== null) {
+                            const popup = `
+                                <div style="min-width:200px;">
+                                    <b><i class="fas fa-anchor"></i> Poste ${p.numero}</b>
+                                    <hr style="margin:5px 0;">
+                                    <div><i class="fas fa-building"></i> Quai: <strong>${p.quai__nom || '-'}</strong></div>
+                                    <div><i class="fas fa-ruler"></i> Longueur: ${p.quai__longueur || '-'}m</div>
+                                    <div><i class="fas fa-water"></i> Profondeur: ${p.quai__profondeur || '-'}m</div>
+                                    <div><i class="fas fa-tag"></i> Spécialité: ${p.specialite || '-'}</div>
+                                    <div class="mt-2"><i class="fas ${p.disponible ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'}"></i> ${p.disponible ? '✅ Libre' : '❌ Occupé'}</div>
+                                </div>
+                            `;
+                            L.marker([p.coord_y, p.coord_x], { icon: getPosteIcon(p.disponible) })
+                                .bindPopup(popup)
+                                .addTo(posteLayer);
+                        }
+                    });
+                }
+                
+                // Ajouter UNIQUEMENT les navires À QUAI (etat='quai')
+                if (data.navires && Array.isArray(data.navires)) {
+                    data.navires.forEach(function(n) {
+                        if (n.etat === 'quai' && n.coord_x !== null && n.coord_y !== null) {
+                            const popup = `
+                                <div style="min-width:200px;">
+                                    <b><i class="fas fa-ship"></i> ${n.nom}</b>
+                                    <hr style="margin:5px 0;">
+                                    <div><i class="fas fa-tag"></i> Type: ${n.type || '-'}</div>
+                                    <div><i class="fas fa-flag-checkered"></i> État: <span class="text-warning">À quai</span></div>
+                                    <div><i class="fas fa-anchor"></i> Quai: ${n.quai_attribue__nom || '-'}</div>
+                                    <hr style="margin:5px 0;">
+                                    <a href="/port/navires/${n.id}/" class="btn btn-sm btn-primary mt-1" style="display:inline-block;padding:2px 8px;border-radius:20px;text-decoration:none;background:#0066a0;color:white;">🔍 Voir détails</a>
+                                </div>
+                            `;
+                            L.marker([n.coord_y, n.coord_x], { icon: getNavireIcon() })
+                                .bindPopup(popup)
+                                .addTo(navireLayer);
+                        }
+                    });
+                }
+                
+                posteLayer.addTo(map);
+                navireLayer.addTo(map);
+                
+                // Mettre à jour l'heure du dernier rafraîchissement
+                if (indicator) {
+                    const timeSpan = indicator.querySelector('.refresh-time');
+                    if (timeSpan) timeSpan.remove();
+                    const time = new Date().toLocaleTimeString('fr-FR');
+                    const timeElement = document.createElement('span');
+                    timeElement.className = 'refresh-time ms-1';
+                    timeElement.innerHTML = ` · ${time}`;
+                    indicator.appendChild(timeElement);
+                }
+                
+            } catch (error) {
+                console.error('Erreur chargement carte:', error);
+                // Afficher une erreur discrète
+                const legend = document.querySelector('.legend');
+                if (legend) {
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'text-danger mt-1';
+                    errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erreur de chargement';
+                    errorMsg.style.fontSize = '10px';
+                    const existing = legend.querySelector('.error-msg');
+                    if (existing) existing.remove();
+                    legend.appendChild(errorMsg);
+                    setTimeout(() => errorMsg.remove(), 3000);
+                }
+            } finally {
+                if (indicator) {
+                    indicator.classList.remove('refreshing');
+                    isRefreshing = false;
+                }
+            }
+        }
+        
+        // Démarrer le rafraîchissement périodique
+        function startAutoRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(updateMap, 30000);
+        }
+        
+        // Arrêter le rafraîchissement
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+        
+        // Initialisation complète
+        function init() {
+            initMap();
+            setTimeout(() => {
+                updateMap();
+                startAutoRefresh();
+            }, 500);
+        }
+        
+        // Nettoyage à la fermeture de la page
+        window.addEventListener('beforeunload', function() {
+            stopAutoRefresh();
+        });
+        
+        // Démarrer
+        init();
+    })();
+</script>
+{% endblock %}

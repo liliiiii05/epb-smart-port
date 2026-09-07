@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif;">
+    <h2 style="color:#0066a0;">🚢 Nouvelle affectation de navire</h2>
+    <p>Bonjour,</p>
+    <p>Le navire <strong>{{ navire.nom }}</strong> ({{ navire.get_type_display }}) a été affecté au <strong>{{ quai.nom }}</strong>.</p>
+    <p>⏰ Début prévu : <strong>{{ heure_debut }}h</strong></p>
+    <p>📅 Date : {{ navire.debut_datetime|default:"Aujourd'hui" }}</p>
+    <p><a href="{{ url_planning }}" style="background:#0066a0; color:white; padding:8px 16px; text-decoration:none; border-radius:4px;">📊 Voir le planning</a></p>
+    <hr>
+    <small>Cet email a été envoyé automatiquement par EPB Smart.</small>
+</body>
+</html>

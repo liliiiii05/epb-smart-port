@@ -1,0 +1,1034 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Centre de notifications | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    /* ========== STYLES MODERNES = MODE SOMBRE HÉRITÉ ========== */
+    .page-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        border-radius: 1rem;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -5%;
+        width: 200px;
+        height: 200px;
+        background: radial-gradient(circle, rgba(255,255,255,0.15), transparent);
+        border-radius: 50%;
+    }
+
+    .page-header h2 {
+        margin: 0;
+        font-weight: 600;
+        color: white;
+    }
+
+    .page-header p {
+        color: rgba(255,255,255,0.8);
+    }
+
+    /* Statistiques des notifications */
+    .stats-notif {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-notif-card {
+        background: var(--light);
+        backdrop-filter: blur(10px);
+        border-radius: 1rem;
+        padding: 1rem;
+        text-align: center;
+        border: 1px solid var(--gray-200);
+        transition: var(--transition);
+    }
+
+    .stat-notif-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .stat-notif-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--primary);
+    }
+
+    .stat-notif-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--gray-500);
+    }
+
+    /* Filtres */
+    .filter-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .filter-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 2rem;
+        border: none;
+        background: var(--gray-200);
+        color: var(--gray-700);
+        cursor: pointer;
+        transition: var(--transition);
+        font-size: 0.85rem;
+    }
+
+    body.dark-mode .filter-btn {
+        background: var(--gray-700);
+        color: var(--gray-200);
+    }
+
+    .filter-btn.active {
+        background: var(--primary);
+        color: white;
+    }
+
+    .filter-btn:hover:not(.active) {
+        background: var(--gray-300);
+    }
+
+    body.dark-mode .filter-btn:hover:not(.active) {
+        background: var(--gray-600);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .action-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 2rem;
+        border: none;
+        cursor: pointer;
+        transition: var(--transition);
+        font-size: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .action-btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+
+    .action-btn-primary:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+    }
+
+    .action-btn-danger {
+        background: var(--danger);
+        color: white;
+    }
+
+    .action-btn-danger:hover {
+        background: #dc2626;
+        transform: translateY(-2px);
+    }
+
+    /* Liste des notifications */
+    .notifications-list {
+        background: var(--light);
+        backdrop-filter: blur(10px);
+        border-radius: 1rem;
+        overflow: hidden;
+        border: 1px solid var(--gray-200);
+    }
+
+    .notification-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--gray-200);
+        transition: var(--transition);
+        cursor: pointer;
+    }
+
+    .notification-item:hover {
+        background: rgba(0, 102, 160, 0.05);
+    }
+
+    body.dark-mode .notification-item:hover {
+        background: rgba(59, 130, 246, 0.1);
+    }
+
+    .notification-item.unread {
+        background: rgba(0, 102, 160, 0.08);
+        border-left: 3px solid var(--primary);
+    }
+
+    body.dark-mode .notification-item.unread {
+        background: rgba(59, 130, 246, 0.1);
+    }
+
+    .notification-content {
+        flex: 1;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .notification-icon {
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+
+    .notification-icon.danger {
+        background: linear-gradient(135deg, var(--danger), #dc2626);
+        color: white;
+    }
+
+    .notification-icon.warning {
+        background: linear-gradient(135deg, var(--warning), #d97706);
+        color: white;
+    }
+
+    .notification-icon.info {
+        background: linear-gradient(135deg, var(--info), #2563eb);
+        color: white;
+    }
+
+    .notification-icon.success {
+        background: linear-gradient(135deg, var(--success), #059669);
+        color: white;
+    }
+
+    .notification-text {
+        flex: 1;
+    }
+
+    .notification-message {
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: var(--gray-700);
+        margin-bottom: 0.25rem;
+    }
+
+    body.dark-mode .notification-message {
+        color: var(--gray-200);
+    }
+
+    .notification-date {
+        font-size: 0.7rem;
+        color: var(--gray-500);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .notification-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 2rem;
+        font-size: 0.65rem;
+        font-weight: 600;
+    }
+
+    .badge-unread {
+        background: var(--primary);
+        color: white;
+    }
+
+    .badge-read {
+        background: var(--gray-300);
+        color: var(--gray-600);
+    }
+
+    body.dark-mode .badge-read {
+        background: var(--gray-600);
+        color: var(--gray-300);
+    }
+
+    .notification-actions {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .btn-icon {
+        background: transparent;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--gray-500);
+    }
+
+    .btn-icon:hover {
+        background: var(--gray-200);
+        transform: scale(1.05);
+    }
+
+    body.dark-mode .btn-icon:hover {
+        background: var(--gray-700);
+    }
+
+    .btn-mark-read:hover {
+        color: var(--success);
+    }
+
+    .btn-delete:hover {
+        color: var(--danger);
+    }
+
+    /* Checkbox sélection multiple */
+    .notification-checkbox {
+        margin-right: 1rem;
+        cursor: pointer;
+    }
+
+    .notification-checkbox input {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: var(--primary);
+    }
+
+    /* Barre d'actions multiples */
+    .bulk-actions {
+        display: none;
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--light);
+        backdrop-filter: blur(20px);
+        border-radius: 3rem;
+        padding: 0.75rem 1.5rem;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        gap: 1rem;
+        align-items: center;
+        border: 1px solid var(--gray-200);
+    }
+
+    body.dark-mode .bulk-actions {
+        background: var(--gray-800);
+        border-color: var(--gray-700);
+    }
+
+    .bulk-actions.show {
+        display: flex;
+    }
+
+    .bulk-actions span {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--gray-700);
+    }
+
+    body.dark-mode .bulk-actions span {
+        color: var(--gray-200);
+    }
+
+    /* Toast notification */
+    .toast-notification {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        background: var(--light);
+        backdrop-filter: blur(12px);
+        border-radius: 0.75rem;
+        padding: 0.75rem 1.25rem;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        animation: slideInRight 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--gray-700);
+    }
+
+    body.dark-mode .toast-notification {
+        background: var(--gray-800);
+        color: var(--gray-200);
+    }
+
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes fadeOut {
+        to {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+    }
+
+    /* Pagination */
+    .pagination-modern {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .pagination-modern a, .pagination-modern span {
+        padding: 0.5rem 1rem;
+        border-radius: 2rem;
+        text-decoration: none;
+        transition: var(--transition);
+        font-size: 0.85rem;
+    }
+
+    .pagination-modern .page-link {
+        background: var(--gray-200);
+        color: var(--gray-700);
+    }
+
+    body.dark-mode .pagination-modern .page-link {
+        background: var(--gray-700);
+        color: var(--gray-200);
+    }
+
+    .pagination-modern .page-link:hover {
+        background: var(--primary);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .pagination-modern .current-page {
+        background: var(--primary);
+        color: white;
+    }
+
+    /* Bouton retour */
+    .btn-outline-light {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 2rem;
+        text-decoration: none;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-outline-light:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    /* Spinner */
+    .spinner-border {
+        display: inline-block;
+        width: 2rem;
+        height: 2rem;
+        border: 0.2em solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: spinner-border 0.75s linear infinite;
+    }
+
+    @keyframes spinner-border {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 1rem 1.5rem;
+        }
+        .page-header h2 {
+            font-size: 1.4rem;
+        }
+        .notification-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        .notification-actions {
+            align-self: flex-end;
+        }
+        .filter-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .bulk-actions {
+            width: 90%;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .notification-date {
+            flex-wrap: wrap;
+        }
+    }
+
+    /* Texte blanc pour les badges */
+    .badge-unread, .badge-read {
+        color: white;
+    }
+    
+    body.dark-mode .badge-read {
+        color: var(--gray-800);
+    }
+</style>
+
+<div class="container-fluid px-4">
+    <!-- Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h2>
+                    <i class="fas fa-bell me-2"></i>
+                    Centre de notifications
+                </h2>
+                <p class="mb-0">Gérez toutes vos alertes et notifications</p>
+            </div>
+            <div class="mt-2 mt-md-0">
+                <a href="{% url 'dashboard' %}" class="btn-outline-light">
+                    <i class="fas fa-arrow-left me-2"></i> Retour au tableau de bord
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="stats-notif">
+        <div class="stat-notif-card">
+            <div class="stat-notif-value" id="totalCount">0</div>
+            <div class="stat-notif-label">Total notifications</div>
+        </div>
+        <div class="stat-notif-card">
+            <div class="stat-notif-value" id="unreadCount" style="color: var(--danger)">0</div>
+            <div class="stat-notif-label">Non lues</div>
+        </div>
+        <div class="stat-notif-card">
+            <div class="stat-notif-value" id="readCount" style="color: var(--success)">0</div>
+            <div class="stat-notif-label">Lues</div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="filter-bar">
+        <div class="filter-buttons">
+            <button class="filter-btn active" data-filter="all">
+                <i class="fas fa-list me-1"></i> Toutes
+            </button>
+            <button class="filter-btn" data-filter="unread">
+                <i class="fas fa-envelope me-1"></i> Non lues
+            </button>
+            <button class="filter-btn" data-filter="read">
+                <i class="fas fa-check-circle me-1"></i> Lues
+            </button>
+            <button class="filter-btn" data-filter="danger">
+                <i class="fas fa-exclamation-triangle me-1"></i> Critiques
+            </button>
+            <button class="filter-btn" data-filter="warning">
+                <i class="fas fa-clock me-1"></i> Attention
+            </button>
+        </div>
+        <div class="action-buttons">
+            <button id="markAllReadBtn" class="action-btn action-btn-primary">
+                <i class="fas fa-check-double"></i> Tout marquer lu
+            </button>
+            <button id="deleteAllBtn" class="action-btn action-btn-danger">
+                <i class="fas fa-trash-alt"></i> Tout supprimer
+            </button>
+        </div>
+    </div>
+
+    <!-- Liste des notifications -->
+    <div class="notifications-list">
+        <div class="d-flex align-items-center p-3 border-bottom" style="border-bottom-color: var(--gray-200);">
+            <div class="notification-checkbox">
+                <input type="checkbox" id="selectAllCheckbox">
+            </div>
+            <div class="flex-grow-1">
+                <label for="selectAllCheckbox" class="mb-0 small text-muted">Sélectionner tout</label>
+            </div>
+            <div class="small text-muted">
+                <i class="fas fa-info-circle me-1"></i> Cliquez sur une notification pour voir les détails
+            </div>
+        </div>
+        <div id="notificationsContainer">
+            <div class="text-center p-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Chargement...</span>
+                </div>
+                <p class="mt-2 text-muted">Chargement des notifications...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div id="paginationContainer" class="pagination-modern"></div>
+</div>
+
+<!-- Barre d'actions multiples -->
+<div id="bulkActions" class="bulk-actions">
+    <span id="selectedCount">0</span> notification(s) sélectionnée(s)
+    <button id="bulkMarkRead" class="action-btn action-btn-primary">
+        <i class="fas fa-check-circle"></i> Marquer lues
+    </button>
+    <button id="bulkDelete" class="action-btn action-btn-danger">
+        <i class="fas fa-trash-alt"></i> Supprimer
+    </button>
+    <button id="bulkCancel" class="btn btn-sm btn-outline-secondary rounded-pill">
+        <i class="fas fa-times"></i> Annuler
+    </button>
+</div>
+
+<script>
+    (function() {
+        'use strict';
+
+        let currentPage = 1;
+        let currentFilter = 'all';
+        let selectedNotifications = new Set();
+        let allNotifications = [];
+
+        function getCookie(name) {
+            let value = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        value = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return value;
+        }
+
+        function showToast(message, type = 'success') {
+            const existingToasts = document.querySelectorAll('.toast-notification');
+            existingToasts.forEach(toast => toast.remove());
+
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
+            const color = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#0066a0';
+            toast.innerHTML = `<i class="fas ${icon}" style="color: ${color}"></i> ${message}`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'Date inconnue';
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMins = Math.floor((now - date) / 60000);
+            
+            if (diffMins < 1) return 'À l\'instant';
+            if (diffMins < 60) return `Il y a ${diffMins} min`;
+            if (diffMins < 1440) return `Il y a ${Math.floor(diffMins/60)} h`;
+            if (diffMins < 2880) return 'Hier';
+            return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function getIconAndClass(niveau) {
+            switch(niveau) {
+                case 'danger':
+                    return { icon: 'fa-exclamation-triangle', class: 'danger', text: 'Critique' };
+                case 'warning':
+                    return { icon: 'fa-clock', class: 'warning', text: 'Attention' };
+                case 'success':
+                    return { icon: 'fa-check-circle', class: 'success', text: 'Succès' };
+                default:
+                    return { icon: 'fa-info-circle', class: 'info', text: 'Information' };
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function renderNotifications(notifications) {
+            const container = document.getElementById('notificationsContainer');
+            if (!notifications.length) {
+                container.innerHTML = `
+                    <div class="text-center p-5">
+                        <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+                        <h5>Aucune notification</h5>
+                        <p class="text-muted">Vous n'avez aucune notification pour le moment.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            notifications.forEach(notif => {
+                const { icon, class: iconClass, text: niveauText } = getIconAndClass(notif.niveau);
+                const isUnread = !notif.est_lue;
+                const isSelected = selectedNotifications.has(notif.id);
+                
+                html += `
+                    <div class="notification-item ${isUnread ? 'unread' : ''}" data-id="${notif.id}">
+                        <div class="notification-checkbox">
+                            <input type="checkbox" class="notification-checkbox-input" data-id="${notif.id}" ${isSelected ? 'checked' : ''}>
+                        </div>
+                        <div class="notification-content">
+                            <div class="notification-icon ${iconClass}">
+                                <i class="fas ${icon}"></i>
+                            </div>
+                            <div class="notification-text">
+                                <div class="notification-message">${escapeHtml(notif.message)}</div>
+                                <div class="notification-date">
+                                    <i class="far fa-clock"></i> ${formatDate(notif.date)}
+                                    <span class="notification-badge ${isUnread ? 'badge-unread' : 'badge-read'}">
+                                        ${isUnread ? 'Non lue' : 'Lue'}
+                                    </span>
+                                    <span class="notification-badge ${iconClass}">
+                                        ${niveauText}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="notification-actions">
+                            ${isUnread ? `
+                                <button class="btn-icon mark-read-btn" data-id="${notif.id}" title="Marquer comme lue">
+                                    <i class="fas fa-check-circle"></i>
+                                </button>
+                            ` : ''}
+                            <button class="btn-icon delete-btn" data-id="${notif.id}" title="Supprimer">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            attachItemEvents();
+        }
+
+        function attachItemEvents() {
+            document.querySelectorAll('.notification-checkbox-input').forEach(cb => {
+                cb.onclick = (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(cb.dataset.id);
+                    if (cb.checked) {
+                        selectedNotifications.add(id);
+                    } else {
+                        selectedNotifications.delete(id);
+                    }
+                    updateBulkActions();
+                    const selectAll = document.getElementById('selectAllCheckbox');
+                    if (selectAll) selectAll.checked = false;
+                };
+            });
+
+            document.querySelectorAll('.mark-read-btn').forEach(btn => {
+                btn.onclick = async (e) => {
+                    e.stopPropagation();
+                    const id = btn.dataset.id;
+                    await markAsRead(id);
+                };
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.onclick = async (e) => {
+                    e.stopPropagation();
+                    const id = btn.dataset.id;
+                    if (confirm('Supprimer cette notification ?')) {
+                        await deleteNotification(id);
+                    }
+                };
+            });
+
+            document.querySelectorAll('.notification-item').forEach(item => {
+                item.onclick = (e) => {
+                    if (e.target.closest('.notification-checkbox-input') || 
+                        e.target.closest('.mark-read-btn') || 
+                        e.target.closest('.delete-btn')) return;
+                    const lien = item.querySelector('.mark-read-btn')?.dataset?.lien;
+                    if (lien) window.location.href = lien;
+                };
+            });
+        }
+
+        async function markAsRead(id) {
+            try {
+                const response = await fetch(`/api/alerte/lire/${id}/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                });
+                if (response.ok) {
+                    showToast('Notification marquée comme lue', 'success');
+                    loadNotifications();
+                    updateStats();
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function deleteNotification(id) {
+            try {
+                const response = await fetch(`/api/alerte/supprimer/${id}/`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                });
+                if (response.ok) {
+                    showToast('Notification supprimée', 'success');
+                    selectedNotifications.delete(id);
+                    loadNotifications();
+                    updateStats();
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function markAllAsRead() {
+            if (!confirm('Marquer TOUTES les notifications comme lues ?')) return;
+            try {
+                const response = await fetch('/api/notifications/mark-all-read/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                });
+                if (response.ok) {
+                    showToast('Toutes les notifications ont été marquées comme lues', 'success');
+                    loadNotifications();
+                    updateStats();
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function deleteAllNotifications() {
+            if (!confirm('⚠️ Supprimer TOUTES les notifications ? Cette action est irréversible !')) return;
+            
+            const container = document.getElementById('notificationsContainer');
+            container.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary"></div><p class="mt-2">Suppression en cours...</p></div>';
+            
+            try {
+                const response = await fetch('/api/notifications/delete-all/', {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                });
+                if (response.ok) {
+                    showToast('Toutes les notifications ont été supprimées', 'success');
+                    selectedNotifications.clear();
+                    loadNotifications();
+                    updateStats();
+                }
+            } catch(e) { 
+                console.error(e);
+                showToast('Erreur lors de la suppression', 'error');
+                loadNotifications();
+            }
+        }
+
+        async function bulkMarkRead() {
+            if (selectedNotifications.size === 0) return;
+            const ids = Array.from(selectedNotifications);
+            showToast(`Marquage de ${ids.length} notification(s)...`, 'info');
+            
+            for (const id of ids) {
+                await fetch(`/api/alerte/lire/${id}/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                });
+            }
+            showToast(`${ids.length} notification(s) marquée(s) comme lues`, 'success');
+            selectedNotifications.clear();
+            loadNotifications();
+            updateStats();
+            updateBulkActions();
+        }
+
+        async function bulkDelete() {
+            if (selectedNotifications.size === 0) return;
+            if (!confirm(`Supprimer ${selectedNotifications.size} notification(s) ?`)) return;
+            
+            const ids = Array.from(selectedNotifications);
+            for (const id of ids) {
+                await fetch(`/api/alerte/supprimer/${id}/`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                });
+            }
+            showToast(`${ids.length} notification(s) supprimée(s)`, 'success');
+            selectedNotifications.clear();
+            loadNotifications();
+            updateStats();
+            updateBulkActions();
+        }
+
+        function updateBulkActions() {
+            const bulkActions = document.getElementById('bulkActions');
+            const selectedCountSpan = document.getElementById('selectedCount');
+            const count = selectedNotifications.size;
+            
+            if (count > 0 && bulkActions && selectedCountSpan) {
+                selectedCountSpan.innerText = count;
+                bulkActions.classList.add('show');
+            } else if (bulkActions) {
+                bulkActions.classList.remove('show');
+            }
+        }
+
+        async function updateStats() {
+            try {
+                const response = await fetch('/api/notifications/');
+                const data = await response.json();
+                const notifications = data.notifications || [];
+                const total = notifications.length;
+                const unread = notifications.filter(n => !n.est_lue).length;
+                const read = total - unread;
+                
+                const totalEl = document.getElementById('totalCount');
+                const unreadEl = document.getElementById('unreadCount');
+                const readEl = document.getElementById('readCount');
+                
+                if (totalEl) totalEl.innerText = total;
+                if (unreadEl) unreadEl.innerText = unread;
+                if (readEl) readEl.innerText = read;
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadNotifications() {
+            try {
+                const response = await fetch('/api/notifications/');
+                const data = await response.json();
+                allNotifications = data.notifications || [];
+                
+                let filtered = allNotifications;
+                if (currentFilter === 'unread') {
+                    filtered = allNotifications.filter(n => !n.est_lue);
+                } else if (currentFilter === 'read') {
+                    filtered = allNotifications.filter(n => n.est_lue);
+                } else if (currentFilter === 'danger') {
+                    filtered = allNotifications.filter(n => n.niveau === 'danger');
+                } else if (currentFilter === 'warning') {
+                    filtered = allNotifications.filter(n => n.niveau === 'warning');
+                }
+                
+                renderNotifications(filtered);
+                updateStats();
+            } catch(e) {
+                console.error(e);
+                const container = document.getElementById('notificationsContainer');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="text-center p-5 text-danger">
+                            <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                            <h5>Erreur de chargement</h5>
+                            <button onclick="location.reload()" class="btn btn-primary mt-2 rounded-pill">Réessayer</button>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Sélection tout
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.onchange = (e) => {
+                const isChecked = e.target.checked;
+                const visibleItems = document.querySelectorAll('.notification-item');
+                visibleItems.forEach(item => {
+                    const id = parseInt(item.dataset.id);
+                    const cb = item.querySelector('.notification-checkbox-input');
+                    if (cb) {
+                        cb.checked = isChecked;
+                        if (isChecked) {
+                            selectedNotifications.add(id);
+                        } else {
+                            selectedNotifications.delete(id);
+                        }
+                    }
+                });
+                updateBulkActions();
+            };
+        }
+
+        // Filtres
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                selectedNotifications.clear();
+                if (selectAllCheckbox) selectAllCheckbox.checked = false;
+                updateBulkActions();
+                loadNotifications();
+            };
+        });
+
+        // Actions
+        const markAllBtn = document.getElementById('markAllReadBtn');
+        const deleteAllBtn = document.getElementById('deleteAllBtn');
+        const bulkMarkRead = document.getElementById('bulkMarkRead');
+        const bulkDeleteBtn = document.getElementById('bulkDelete');
+        const bulkCancel = document.getElementById('bulkCancel');
+        
+        if (markAllBtn) markAllBtn.addEventListener('click', markAllAsRead);
+        if (deleteAllBtn) deleteAllBtn.addEventListener('click', deleteAllNotifications);
+        if (bulkMarkRead) bulkMarkRead.addEventListener('click', bulkMarkRead);
+        if (bulkDeleteBtn) bulkDeleteBtn.addEventListener('click', bulkDelete);
+        if (bulkCancel) {
+            bulkCancel.addEventListener('click', () => {
+                selectedNotifications.clear();
+                document.querySelectorAll('.notification-checkbox-input').forEach(cb => {
+                    if (cb) cb.checked = false;
+                });
+                if (selectAllCheckbox) selectAllCheckbox.checked = false;
+                updateBulkActions();
+            });
+        }
+
+        // Chargement initial
+        loadNotifications();
+    })();
+</script>
+{% endblock %}

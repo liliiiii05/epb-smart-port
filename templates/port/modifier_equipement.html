@@ -1,0 +1,333 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Modifier {{ equipement.designation }} | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    /* ========== VARIABLES MODERNISÉES ========== */
+    :root {
+        --epb-primary: #003366;
+        --epb-primary-dark: #002244;
+        --epb-primary-light: #1a4d8c;
+        --epb-secondary: #ff6600;
+        --epb-secondary-dark: #cc5200;
+        --epb-gray-bg: #f8fafc;
+        --epb-card-bg: rgba(255, 255, 255, 0.92);
+        --epb-border: #e2e8f0;
+        --epb-success: #10b981;
+        --epb-warning: #f59e0b;
+        --epb-danger: #ef4444;
+        --epb-info: #3b82f6;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.dark-mode {
+        --epb-gray-bg: #0f172a;
+        --epb-card-bg: rgba(30, 41, 59, 0.92);
+        --epb-border: #334155;
+    }
+
+    .edit-equip-page {
+        background: var(--epb-gray-bg);
+        min-height: 100vh;
+        padding: 2rem 1rem;
+    }
+    .container-custom {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    /* En-tête */
+    .page-header {
+        background: linear-gradient(135deg, var(--epb-warning) 0%, #d97706 100%);
+        border-radius: 1.5rem;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: var(--shadow-lg);
+        position: relative;
+        overflow: hidden;
+        animation: fadeSlideUp 0.5s ease-out;
+    }
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -5%;
+        width: 250px;
+        height: 250px;
+        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+    .page-header h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.25rem;
+        font-weight: 700;
+    }
+    .page-header p {
+        margin-bottom: 0;
+        opacity: 0.9;
+        font-size: 0.95rem;
+    }
+
+    /* Carte glassmorphism */
+    .form-card {
+        background: var(--epb-card-bg);
+        backdrop-filter: blur(12px);
+        border-radius: 1rem;
+        border: 1px solid var(--epb-border);
+        box-shadow: var(--shadow-md);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        transition: var(--transition);
+        animation: fadeSlideUp 0.5s ease-out;
+    }
+    .form-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+    .card-header-custom {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--epb-border);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(0,0,0,0.02);
+    }
+    .card-header-custom i {
+        font-size: 1.2rem;
+        color: var(--epb-secondary);
+    }
+    .card-header-custom h5 {
+        margin: 0;
+        font-weight: 600;
+        color: var(--epb-primary);
+    }
+    body.dark-mode .card-header-custom h5 {
+        color: var(--epb-secondary);
+    }
+    .card-body-custom {
+        padding: 1.5rem;
+    }
+
+    /* Champs de formulaire */
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+    .form-group label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--epb-primary);
+        font-size: 0.85rem;
+    }
+    body.dark-mode .form-group label {
+        color: #e2e8f0;
+    }
+    .form-group label i {
+        color: var(--epb-secondary);
+        width: 20px;
+    }
+    .form-control, select.form-control {
+        width: 100%;
+        padding: 0.7rem 1rem;
+        background: rgba(255,255,255,0.6);
+        border: 1px solid var(--epb-border);
+        border-radius: 0.75rem;
+        font-size: 0.9rem;
+        transition: var(--transition);
+        color: var(--epb-primary);
+    }
+    body.dark-mode .form-control, body.dark-mode select.form-control {
+        background: rgba(0,0,0,0.3);
+        color: #e2e8f0;
+        border-color: var(--epb-border);
+    }
+    .form-control:focus, select.form-control:focus {
+        outline: none;
+        border-color: var(--epb-secondary);
+        box-shadow: 0 0 0 3px rgba(255,102,0,0.2);
+        background: rgba(255,255,255,0.9);
+    }
+    .form-text {
+        font-size: 0.7rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    /* Boutons */
+    .btn-group-custom {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .btn-submit {
+        background: linear-gradient(135deg, var(--epb-success), #059669);
+        border: none;
+        padding: 0.7rem 2rem;
+        border-radius: 2rem;
+        font-weight: 600;
+        color: white;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        cursor: pointer;
+    }
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        filter: brightness(1.05);
+    }
+    .btn-cancel {
+        background: linear-gradient(135deg, #6c757d, #495057);
+        border: none;
+        padding: 0.7rem 2rem;
+        border-radius: 2rem;
+        font-weight: 600;
+        color: white;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    .btn-cancel:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        background: linear-gradient(135deg, #5a6268, #343a40);
+        color: white;
+    }
+
+    /* Animation */
+    @keyframes fadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 1rem 1.5rem;
+        }
+        .page-header h1 {
+            font-size: 1.4rem;
+        }
+        .card-body-custom {
+            padding: 1rem;
+        }
+        .btn-group-custom {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .btn-submit, .btn-cancel {
+            justify-content: center;
+        }
+    }
+</style>
+
+<div class="edit-equip-page">
+    <div class="container-custom">
+        <!-- En-tête -->
+        <div class="page-header">
+            <h1><i class="fas fa-edit me-2"></i> Modifier {{ equipement.designation }}</h1>
+            <p>Mettez à jour les caractéristiques de l'équipement</p>
+        </div>
+
+        <!-- Carte formulaire -->
+        <div class="form-card">
+            <div class="card-header-custom">
+                <i class="fas fa-tools"></i>
+                <h5>Informations de l'équipement</h5>
+            </div>
+            <div class="card-body-custom">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-tag"></i> Catégorie</label>
+                        <select name="categorie" class="form-control" required>
+                            <option value="engin" {% if equipement.categorie == 'engin' %}selected{% endif %}>Engin (chariot, tracteur, pelle, chargeur)</option>
+                            <option value="grue" {% if equipement.categorie == 'grue' %}selected{% endif %}>Grue / Portique</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-signature"></i> Désignation</label>
+                        <input type="text" name="designation" class="form-control" value="{{ equipement.designation }}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-weight-hanging"></i> Capacité / Type</label>
+                        <input type="text" name="capacite" class="form-control" value="{{ equipement.capacite|default:'' }}" placeholder="Ex: 03T, pinces, Volvo 50t...">
+                        <small class="form-text">Description libre de la capacité ou du type d'équipement</small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><i class="fas fa-layer-group"></i> Engins existants</label>
+                                <input type="number" name="engins_existants" class="form-control" value="{{ equipement.engins_existants }}" required min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><i class="fas fa-check-circle"></i> Engins en marche</label>
+                                <input type="number" name="engins_en_marche" class="form-control" value="{{ equipement.engins_en_marche }}" required min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><i class="fas fa-exclamation-triangle"></i> Engins en panne</label>
+                                <input type="number" name="engins_en_panne" class="form-control" value="{{ equipement.engins_en_panne }}" required min="0">
+                                <small class="form-text">Doit être ≤ existants - en marche</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-clock"></i> Temps de réparation (heures)</label>
+                        <input type="number" step="0.5" name="temps_reparation" class="form-control" value="{{ equipement.temps_reparation }}">
+                        <small class="form-text">Durée moyenne estimée pour une réparation</small>
+                    </div>
+
+                    <div class="btn-group-custom">
+                        <button type="submit" class="btn-submit">
+                            <i class="fas fa-save"></i> Enregistrer
+                        </button>
+                        <a href="{% url 'liste_equipements' %}" class="btn-cancel">
+                            <i class="fas fa-times"></i> Annuler
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Conserver le thème sombre
+    document.addEventListener('DOMContentLoaded', function() {
+        const storedTheme = localStorage.getItem('theme');
+        if (storedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+    });
+</script>
+{% endblock %}

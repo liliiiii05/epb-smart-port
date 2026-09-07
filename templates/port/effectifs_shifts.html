@@ -1,0 +1,38 @@
+{% extends "port/base.html" %}
+
+{% block title %}Effectifs par shift{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Effectifs par shift</h2>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Shift</th>
+                    <th>Métier</th>
+                    <th>Affectés</th>
+                    <th>Présents</th>
+                    <th>Disponibilité</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in effectifs %}
+                <tr>
+                    <td>{{ e.get_shift_display }}</td>
+                    <td>{{ e.get_metier_display }}</td>
+                    <td>{{ e.effectifs_affectes }}</td>
+                    <td>{{ e.effectifs_presents }}</td>
+                    <td>
+                        <div class="progress" style="height:20px;">
+                            {% widthratio e.effectifs_presents e.effectifs_affectes 100 as taux %}
+                            <div class="progress-bar" style="width:{{ taux }}%;">{{ taux }}%</div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

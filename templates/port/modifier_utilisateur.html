@@ -1,0 +1,561 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Modifier {{ user.username }} | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    /* ========== VARIABLES MODERNISÉES ========== */
+    :root {
+        --epb-primary: #003366;
+        --epb-primary-dark: #002244;
+        --epb-primary-light: #1a4d8c;
+        --epb-secondary: #ff6600;
+        --epb-secondary-dark: #cc5200;
+        --epb-gray-bg: #f8fafc;
+        --epb-card-bg: rgba(255, 255, 255, 0.92);
+        --epb-border: #e2e8f0;
+        --epb-success: #10b981;
+        --epb-warning: #f59e0b;
+        --epb-danger: #ef4444;
+        --epb-info: #3b82f6;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.dark-mode {
+        --epb-gray-bg: #0f172a;
+        --epb-card-bg: rgba(30, 41, 59, 0.92);
+        --epb-border: #334155;
+    }
+
+    .edit-user-page {
+        background: var(--epb-gray-bg);
+        min-height: 100vh;
+        padding: 2rem 1rem;
+    }
+    .container-custom {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    /* En-tête */
+    .page-header {
+        background: linear-gradient(135deg, var(--epb-warning) 0%, #d97706 100%);
+        border-radius: 1.5rem;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: var(--shadow-lg);
+        position: relative;
+        overflow: hidden;
+        animation: fadeSlideUp 0.5s ease-out;
+    }
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -5%;
+        width: 250px;
+        height: 250px;
+        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+    .page-header h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.25rem;
+        font-weight: 700;
+    }
+    .page-header p {
+        margin-bottom: 0;
+        opacity: 0.9;
+        font-size: 0.95rem;
+    }
+
+    /* Carte glassmorphism */
+    .form-card {
+        background: var(--epb-card-bg);
+        backdrop-filter: blur(12px);
+        border-radius: 1rem;
+        border: 1px solid var(--epb-border);
+        box-shadow: var(--shadow-md);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        transition: var(--transition);
+        animation: fadeSlideUp 0.5s ease-out;
+    }
+    .form-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+    .card-header-custom {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--epb-border);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(0,0,0,0.02);
+    }
+    .card-header-custom i {
+        font-size: 1.2rem;
+        color: var(--epb-secondary);
+    }
+    .card-header-custom h5 {
+        margin: 0;
+        font-weight: 600;
+        color: var(--epb-primary);
+    }
+    body.dark-mode .card-header-custom h5 {
+        color: var(--epb-secondary);
+    }
+    .card-body-custom {
+        padding: 1.5rem;
+    }
+
+    /* Champs de formulaire */
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+    .form-group label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--epb-primary);
+        font-size: 0.85rem;
+    }
+    body.dark-mode .form-group label {
+        color: #e2e8f0;
+    }
+    .form-group label i {
+        color: var(--epb-secondary);
+        width: 20px;
+    }
+    .form-group label .optional-badge {
+        font-size: 0.65rem;
+        font-weight: normal;
+        background: #e2e8f0;
+        padding: 0.15rem 0.5rem;
+        border-radius: 2rem;
+        margin-left: 0.5rem;
+        color: #475569;
+    }
+    body.dark-mode .form-group label .optional-badge {
+        background: #334155;
+        color: #94a3b8;
+    }
+    .form-control, select.form-control, textarea.form-control {
+        width: 100%;
+        padding: 0.7rem 1rem;
+        background: rgba(255,255,255,0.6);
+        border: 1px solid var(--epb-border);
+        border-radius: 0.75rem;
+        font-size: 0.9rem;
+        transition: var(--transition);
+        color: var(--epb-primary);
+    }
+    body.dark-mode .form-control, body.dark-mode select.form-control, body.dark-mode textarea.form-control {
+        background: rgba(0,0,0,0.3);
+        color: #e2e8f0;
+        border-color: var(--epb-border);
+    }
+    .form-control:focus, select.form-control:focus, textarea.form-control:focus {
+        outline: none;
+        border-color: var(--epb-secondary);
+        box-shadow: 0 0 0 3px rgba(255,102,0,0.2);
+        background: rgba(255,255,255,0.9);
+    }
+    .form-text {
+        font-size: 0.7rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    /* Checkbox toggle (activation/désactivation) */
+    .toggle-switch {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 0.5rem;
+    }
+    .toggle-switch input {
+        width: 40px;
+        height: 20px;
+        appearance: none;
+        background: #cbd5e1;
+        border-radius: 20px;
+        position: relative;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .toggle-switch input:checked {
+        background: var(--epb-success);
+    }
+    .toggle-switch input::before {
+        content: '';
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        background: white;
+        border-radius: 50%;
+        top: 2px;
+        left: 2px;
+        transition: all 0.3s;
+    }
+    .toggle-switch input:checked::before {
+        left: 22px;
+    }
+    .toggle-label {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .toggle-label.active {
+        color: var(--epb-success);
+    }
+    .toggle-label.inactive {
+        color: var(--epb-danger);
+    }
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 2rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
+    .status-active {
+        background: #dcfce7;
+        color: #15803d;
+    }
+    .status-inactive {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    /* Indicateur de force du mot de passe */
+    .password-strength {
+        margin-top: 0.5rem;
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .strength-bar {
+        flex: 1;
+        height: 4px;
+        background: var(--epb-border);
+        border-radius: 2px;
+        overflow: hidden;
+    }
+    .strength-bar-fill {
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease, background 0.3s ease;
+        border-radius: 2px;
+    }
+    .strength-text {
+        font-size: 0.7rem;
+        min-width: 80px;
+        color: #64748b;
+    }
+    .strength-0 .strength-bar-fill { width: 0%; background: var(--epb-danger); }
+    .strength-1 .strength-bar-fill { width: 25%; background: var(--epb-danger); }
+    .strength-2 .strength-bar-fill { width: 50%; background: var(--epb-warning); }
+    .strength-3 .strength-bar-fill { width: 75%; background: var(--epb-info); }
+    .strength-4 .strength-bar-fill { width: 100%; background: var(--epb-success); }
+
+    /* Alertes */
+    .alert-warning {
+        background: #fef3c7;
+        border-left: 4px solid #f59e0b;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        font-size: 0.85rem;
+        color: #92400e;
+    }
+    body.dark-mode .alert-warning {
+        background: #78350f;
+        border-left-color: #f59e0b;
+        color: #fde68a;
+    }
+
+    /* Boutons */
+    .btn-group-custom {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .btn-submit {
+        background: linear-gradient(135deg, var(--epb-success), #059669);
+        border: none;
+        padding: 0.7rem 2rem;
+        border-radius: 2rem;
+        font-weight: 600;
+        color: white;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        cursor: pointer;
+    }
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        filter: brightness(1.05);
+    }
+    .btn-cancel {
+        background: linear-gradient(135deg, #6c757d, #495057);
+        border: none;
+        padding: 0.7rem 2rem;
+        border-radius: 2rem;
+        font-weight: 600;
+        color: white;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    .btn-cancel:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        background: linear-gradient(135deg, #5a6268, #343a40);
+        color: white;
+    }
+
+    /* Animation */
+    @keyframes fadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 1rem 1.5rem;
+        }
+        .page-header h1 {
+            font-size: 1.4rem;
+        }
+        .card-body-custom {
+            padding: 1rem;
+        }
+        .btn-group-custom {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .btn-submit, .btn-cancel {
+            justify-content: center;
+        }
+    }
+</style>
+
+<div class="edit-user-page">
+    <div class="container-custom">
+        <div class="page-header">
+            <h1><i class="fas fa-user-edit me-2"></i> Modifier {{ user.username }}</h1>
+            <p>Mettez à jour les informations de l'utilisateur</p>
+        </div>
+
+        <div class="form-card">
+            <div class="card-header-custom">
+                <i class="fas fa-users-cog"></i>
+                <h5>Informations de l'utilisateur</h5>
+            </div>
+            <div class="card-body-custom">
+                <form method="post" id="userForm">
+                    {% csrf_token %}
+                    
+                    <!-- Activation/Désactivation du compte -->
+                    <div class="form-group">
+                        <label><i class="fas fa-power-off me-1"></i> Statut du compte</label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" name="is_active" id="isActiveToggle" {% if user.is_active %}checked{% endif %}>
+                            <span class="toggle-label" id="toggleLabel">
+                                {% if user.is_active %}
+                                    <span class="status-badge status-active"><i class="fas fa-check-circle"></i> Compte actif</span>
+                                {% else %}
+                                    <span class="status-badge status-inactive"><i class="fas fa-ban"></i> Compte inactif</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <small class="form-text">
+                            <i class="fas fa-info-circle me-1"></i> 
+                            Si désactivé, l'utilisateur ne pourra plus se connecter à l'application.
+                        </small>
+                    </div>
+
+                    <hr style="margin: 1rem 0; border-color: var(--epb-border);">
+
+                    <div class="form-group">
+                        <label><i class="fas fa-user-circle"></i> Nom d'utilisateur</label>
+                        <input type="text" name="username" value="{{ user.username }}" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-key"></i> Nouveau mot de passe <span class="optional-badge">optionnel</span></label>
+                        <input type="password" name="password" id="password" class="form-control" placeholder="Laisser vide pour inchangé" minlength="8">
+                        <div class="password-strength" id="passwordStrength" style="display: none;">
+                            <div class="strength-bar">
+                                <div class="strength-bar-fill"></div>
+                            </div>
+                            <span class="strength-text">Force du mot de passe</span>
+                        </div>
+                        <small class="form-text">Remplissez ce champ uniquement si vous souhaitez modifier le mot de passe (minimum 8 caractères)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> Email <span class="optional-badge">optionnel</span></label>
+                        <input type="email" name="email" value="{{ user.email }}" class="form-control" placeholder="utilisateur@port-bejaia.dz">
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-tag"></i> Groupe <span class="optional-badge">optionnel</span></label>
+                        <select name="groupe" class="form-control">
+                            <option value="">-- Aucun groupe --</option>
+                            {% for g in groupes %}
+                            <option value="{{ g.id }}" {% if g in user.groups.all %}selected{% endif %}>{{ g.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text">Le groupe détermine les droits et permissions</small>
+                    </div>
+
+                    <!-- Informations du profil -->
+                    <div class="form-group">
+                        <label><i class="fas fa-id-card"></i> Matricule EPB</label>
+                        <input type="text" name="matricule" value="{{ profile.matricule|default:'' }}" class="form-control" placeholder="Ex: EPB-1234">
+                        <small class="form-text">Matricule unique du personnel EPB</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-calendar-alt"></i> Date de naissance <span class="optional-badge">optionnel</span></label>
+                        <input type="date" name="date_naissance" value="{{ profile.date_naissance|date:'Y-m-d'|default:'' }}" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-phone"></i> Téléphone <span class="optional-badge">optionnel</span></label>
+                        <input type="text" name="telephone" value="{{ profile.telephone|default:'' }}" class="form-control" placeholder="+213 5X XX XX XX">
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-map-marker-alt"></i> Adresse <span class="optional-badge">optionnel</span></label>
+                        <textarea name="adresse" rows="2" class="form-control" placeholder="Adresse complète">{{ profile.adresse|default:'' }}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-briefcase"></i> Poste / Fonction <span class="optional-badge">optionnel</span></label>
+                        <input type="text" name="poste" value="{{ profile.poste|default:'' }}" class="form-control" placeholder="Ex: Officier de port">
+                    </div>
+
+                    {% if not user.is_active %}
+                    <div class="alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Attention :</strong> Ce compte est actuellement <strong>désactivé</strong>. 
+                        L'utilisateur ne peut pas se connecter. Utilisez l'interrupteur ci-dessus pour le réactiver.
+                    </div>
+                    {% endif %}
+
+                    <div class="btn-group-custom">
+                        <button type="submit" class="btn-submit">
+                            <i class="fas fa-save"></i> Enregistrer
+                        </button>
+                        <a href="{% url 'gestion_utilisateurs' %}" class="btn-cancel">
+                            <i class="fas fa-times"></i> Annuler
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Conserver le thème sombre
+    (function() {
+        const storedTheme = localStorage.getItem('theme');
+        if (storedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+    })();
+
+    // Gestion du toggle activation/désactivation
+    const toggle = document.getElementById('isActiveToggle');
+    const toggleLabel = document.getElementById('toggleLabel');
+    
+    if (toggle && toggleLabel) {
+        function updateToggleDisplay() {
+            if (toggle.checked) {
+                toggleLabel.innerHTML = '<span class="status-badge status-active"><i class="fas fa-check-circle"></i> Compte actif</span>';
+            } else {
+                toggleLabel.innerHTML = '<span class="status-badge status-inactive"><i class="fas fa-ban"></i> Compte inactif</span>';
+            }
+        }
+        
+        toggle.addEventListener('change', updateToggleDisplay);
+        updateToggleDisplay();
+    }
+
+    // Indicateur de force du mot de passe
+    function checkPasswordStrength(password) {
+        let strength = 0;
+        
+        if (password.length >= 8) strength++;
+        if (password.match(/[a-z]+/)) strength++;
+        if (password.match(/[A-Z]+/)) strength++;
+        if (password.match(/[0-9]+/)) strength++;
+        if (password.match(/[$@#&!]+/)) strength++;
+        
+        return Math.min(strength, 4);
+    }
+
+    function updatePasswordStrength(password) {
+        const container = document.getElementById('passwordStrength');
+        const strength = checkPasswordStrength(password);
+        
+        if (password.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.style.display = 'flex';
+        
+        container.classList.remove('strength-0', 'strength-1', 'strength-2', 'strength-3', 'strength-4');
+        container.classList.add(`strength-${strength}`);
+        
+        const texts = ['Très faible', 'Faible', 'Moyen', 'Fort', 'Très fort'];
+        const textEl = container.querySelector('.strength-text');
+        if (textEl) textEl.textContent = texts[strength];
+    }
+
+    const passwordInput = document.getElementById('password');
+    if (passwordInput) {
+        passwordInput.addEventListener('input', function() {
+            updatePasswordStrength(this.value);
+        });
+    }
+
+    // Animation au chargement
+    document.addEventListener('DOMContentLoaded', function() {
+        const elements = document.querySelectorAll('.page-header, .form-card');
+        elements.forEach((el, index) => {
+            el.style.animationDelay = `${index * 0.1}s`;
+        });
+    });
+</script>
+{% endblock %}

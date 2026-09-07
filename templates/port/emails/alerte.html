@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif;">
+    <h2 style="color:#e76f51;">⚠️ Alerte critique</h2>
+    <p><strong>{{ alerte.get_niveau_display }}</strong></p>
+    <p>{{ alerte.message }}</p>
+    <p>📅 {{ alerte.date_creation|date:"d/m/Y H:i" }}</p>
+    <p><a href="{{ url_alertes }}" style="background:#e76f51; color:white; padding:8px 16px; text-decoration:none; border-radius:4px;">🔔 Voir toutes les alertes</a></p>
+    <hr>
+    <small>EPB Smart - Port de Béjaïa</small>
+</body>
+</html>

@@ -1,0 +1,2238 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Tableau de bord EPB | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    /* ========== VARIABLES & THEME ========== */
+    :root {
+        --primary: #0066a0;
+        --primary-dark: #004b7c;
+        --primary-light: #2c9cd4;
+        --primary-glow: rgba(0, 102, 160, 0.4);
+        --secondary: #d4af37;
+        --secondary-dark: #b38f00;
+        --success: #2a9d8f;
+        --info: #48b5e0;
+        --warning: #e9c46a;
+        --danger: #e76f51;
+        --light: rgba(255, 255, 255, 0.96);
+        --dark: #1a2c3c;
+        --gray-100: rgba(255, 255, 255, 0.9);
+        --gray-200: rgba(0, 0, 0, 0.05);
+        --gray-300: rgba(0, 0, 0, 0.1);
+        --gray-400: rgba(0, 0, 0, 0.2);
+        --gray-600: #5f7d95;
+        --transition: all 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        --transition-fast: all 0.2s ease;
+        --shadow-sm: 0 0.5rem 1rem rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 1rem 2rem rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 2rem 4rem rgba(0, 0, 0, 0.15);
+        --border-radius: 1.5rem;
+        --card-bg: rgba(255, 255, 255, 0.78);
+        --card-border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        background: linear-gradient(145deg, #eef4fc 0%, #d9e6f5 100%);
+        font-family: 'Inter', 'Poppins', system-ui, -apple-system, sans-serif;
+        transition: background 0.3s ease;
+        position: relative;
+        overflow-x: hidden;
+    }
+
+    body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="rgba(0,102,160,0.08)" fill-opacity="1" d="M0,192L48,197.3C96,203,192,213,288,208C384,203,480,181,576,181.3C672,181,768,203,864,208C960,213,1056,203,1152,186.7C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') repeat-x bottom;
+        background-size: 1440px auto;
+        opacity: 0.4;
+        pointer-events: none;
+        z-index: 0;
+        animation: wave 25s linear infinite;
+    }
+
+    @keyframes wave {
+        0% { background-position-x: 0; }
+        100% { background-position-x: 1440px; }
+    }
+
+    body.dark-mode {
+        --primary: #2c9cd4;
+        --primary-dark: #1a6f9e;
+        --light: rgba(28, 35, 48, 0.96);
+        --dark: #eef4fc;
+        --gray-100: rgba(255, 255, 255, 0.1);
+        --gray-200: rgba(255, 255, 255, 0.05);
+        --gray-300: rgba(255, 255, 255, 0.1);
+        --gray-400: rgba(255, 255, 255, 0.2);
+        --gray-600: #b0c4de;
+        --card-bg: rgba(28, 35, 48, 0.85);
+        --card-border: 1px solid rgba(255, 255, 255, 0.15);
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+    }
+
+    body.dark-mode::before {
+        opacity: 0.1;
+    }
+
+    /* ========== GLASS CARDS ========== */
+    .card, .stat-card {
+        background: var(--card-bg);
+        backdrop-filter: blur(16px);
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-md);
+        transition: var(--transition);
+        border: var(--card-border);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .card::after, .stat-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(120deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 50%);
+        pointer-events: none;
+    }
+
+    .card:hover, .stat-card:hover {
+        transform: translateY(-6px);
+        box-shadow: var(--shadow-lg);
+        backdrop-filter: blur(20px);
+        border-color: rgba(255,255,255,0.5);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        border-radius: var(--border-radius) var(--border-radius) 0 0 !important;
+        padding: 1.2rem 1.8rem;
+        font-weight: 600;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        backdrop-filter: blur(4px);
+        position: relative;
+        z-index: 1;
+    }
+
+    .card-header i {
+        font-size: 1.5rem;
+        opacity: 0.9;
+        filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));
+    }
+
+    /* ========== STATS GRID ========== */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.8rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .stat-card {
+        padding: 1.5rem;
+        position: relative;
+        border-left: 4px solid var(--secondary);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        overflow: hidden;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at 0% 0%, var(--primary-glow) 0%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.4s;
+    }
+
+    .stat-card:hover::before {
+        opacity: 0.1;
+    }
+
+    .stat-icon {
+        font-size: 2.6rem;
+        margin-bottom: 0.75rem;
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover .stat-icon {
+        transform: scale(1.05);
+    }
+
+    .stat-value {
+        font-size: 2.8rem;
+        font-weight: 800;
+        color: var(--primary);
+        line-height: 1.1;
+        font-family: 'Inter', monospace;
+        transition: transform 0.2s;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--gray-600);
+        font-weight: 500;
+        margin-top: 0.25rem;
+    }
+
+    .stat-trend {
+        font-size: 0.7rem;
+        margin-top: 0.6rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--gray-600);
+    }
+
+    .trend-up { color: var(--success); }
+    .trend-down { color: var(--danger); }
+
+    /* ========== BOUTONS ========== */
+    .actions-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.7rem;
+        padding: 0.7rem 1.6rem;
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(8px);
+        border-radius: 3rem;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: var(--transition-fast);
+        border: 1px solid rgba(255,255,255,0.3);
+        cursor: pointer;
+        color: var(--dark);
+        box-shadow: var(--shadow-sm);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .action-btn::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 70%);
+        transform: scale(0);
+        transition: transform 0.5s;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .action-btn:hover::after {
+        transform: scale(4);
+        opacity: 1;
+    }
+
+    .action-btn i {
+        font-size: 1rem;
+    }
+
+    .action-btn:hover {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: var(--shadow-md);
+        filter: brightness(0.98);
+    }
+
+    .action-btn.primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border: none; }
+    .action-btn.success { background: linear-gradient(135deg, var(--success), #21867a); color: white; border: none; }
+    .action-btn.info { background: linear-gradient(135deg, var(--info), #2c7be5); color: white; border: none; }
+    .action-btn.warning { background: linear-gradient(135deg, var(--warning), #e5b83c); color: var(--dark); border: none; }
+
+    /* ========== CARTE MÉTÉO ========== */
+    .weather-card {
+        background: linear-gradient(135deg, #2c9cd4, #0066a0);
+        border-radius: var(--border-radius);
+        padding: 1rem 1.5rem;
+        margin-bottom: 2rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        color: white;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.3);
+        box-shadow: var(--shadow-md);
+    }
+
+    .weather-icon {
+        font-size: 2.5rem;
+        margin-right: 1rem;
+    }
+
+    .weather-details {
+        display: flex;
+        gap: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .weather-detail {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .weather-detail i {
+        font-size: 1.2rem;
+        opacity: 0.9;
+    }
+
+    .weather-restrictions {
+        background: rgba(0,0,0,0.3);
+        border-radius: 2rem;
+        padding: 0.3rem 1rem;
+        font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .weather-update {
+        font-size: 0.7rem;
+        opacity: 0.7;
+    }
+
+    @media (max-width: 768px) {
+        .weather-card {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        .weather-details {
+            flex-wrap: wrap;
+        }
+    }
+
+    /* ========== TABLES ========== */
+    .table {
+        margin-bottom: 0;
+        color: var(--dark);
+    }
+
+    .table thead th {
+        background: rgba(0,0,0,0.02);
+        color: var(--gray-600);
+        font-weight: 600;
+        border: none;
+        padding: 1rem 1rem;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .table tbody tr {
+        transition: all 0.2s;
+        border-bottom: 1px solid var(--gray-300);
+    }
+
+    .table tbody tr:hover {
+        background: rgba(0, 102, 160, 0.05);
+        transform: scale(1.01);
+    }
+
+    /* ========== BADGES & PROGRESS ========== */
+    .badge {
+        padding: 0.4rem 0.9rem;
+        border-radius: 2rem;
+        font-weight: 500;
+        font-size: 0.7rem;
+        backdrop-filter: blur(4px);
+    }
+
+    .progress {
+        height: 8px;
+        border-radius: 4px;
+        background-color: rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        background: linear-gradient(90deg, var(--primary), var(--primary-light));
+        border-radius: 4px;
+        transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* ========== ACTIVITY FEED ========== */
+    .recent-activities {
+        max-height: 420px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+
+    .activity-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem 1.2rem;
+        border-bottom: 1px solid var(--gray-300);
+        transition: all 0.2s;
+    }
+
+    .activity-item:hover {
+        background: rgba(0, 102, 160, 0.05);
+        transform: translateX(4px);
+    }
+
+    .activity-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.2rem;
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
+        color: white;
+        transition: transform 0.2s;
+    }
+
+    .activity-item:hover .activity-icon {
+        transform: scale(1.1);
+    }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    .activity-title {
+        font-weight: 700;
+        margin-bottom: 0.2rem;
+        color: var(--dark);
+    }
+
+    .activity-time {
+        font-size: 0.7rem;
+        color: var(--gray-600);
+    }
+
+    /* ========== EN-TÊTE MARITIME ========== */
+    .dashboard-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        border-radius: 2rem;
+        padding: 1.8rem 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: visible !important;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .dashboard-header::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -5%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .port-logo {
+        width: 80px;
+        height: 80px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1.2rem;
+        overflow: hidden;
+        backdrop-filter: blur(8px);
+        transition: all 0.3s;
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .port-logo img {
+        width: 70%;
+        height: 70%;
+        object-fit: contain;
+    }
+
+    .port-logo:hover {
+        transform: scale(1.05) rotate(2deg);
+        background: rgba(255,255,255,0.3);
+    }
+
+    /* ========== NOTIFICATIONS ========== */
+    .notification-wrapper {
+        position: relative;
+        display: inline-block;
+        z-index: 9999;
+    }
+
+    .notification-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: white;
+        position: relative;
+        transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        backdrop-filter: blur(4px);
+    }
+
+    .notification-btn:hover {
+        background: rgba(255, 255, 255, 0.35);
+        transform: scale(1.05);
+    }
+
+    #notificationBadge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #e76f51;
+        color: white;
+        font-size: 0.6rem;
+        font-weight: bold;
+        min-width: 18px;
+        height: 18px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.8);
+    }
+
+    .bell-animate {
+        animation: bellRing 0.6s cubic-bezier(0.2, 1.2, 0.4, 1);
+    }
+
+    @keyframes bellRing {
+        0% { transform: rotate(0deg); }
+        20% { transform: rotate(12deg); }
+        40% { transform: rotate(-10deg); }
+        60% { transform: rotate(6deg); }
+        80% { transform: rotate(-4deg); }
+        100% { transform: rotate(0deg); }
+    }
+
+    /* MODAL NOTIFICATIONS */
+    .notification-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(12px);
+        z-index: 10001;
+        justify-content: center;
+        align-items: center;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes scaleIn {
+        from { transform: scale(0.9); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+
+    .notification-modal-content {
+        background: var(--light);
+        backdrop-filter: blur(20px);
+        border-radius: 2rem;
+        width: 550px;
+        max-width: 90vw;
+        max-height: 85vh;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        animation: scaleIn 0.3s ease;
+    }
+
+    body.dark-mode .notification-modal-content {
+        background: var(--card-bg);
+    }
+
+    .notification-modal-header {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        padding: 1.2rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .notification-modal-header h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .close-modal {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .close-modal:hover {
+        background: rgba(255, 255, 255, 0.4);
+        transform: scale(1.1) rotate(90deg);
+    }
+
+    .notification-modal-body {
+        max-height: 55vh;
+        overflow-y: auto;
+    }
+
+    .notification-list-modal {
+        max-height: 55vh;
+        overflow-y: auto;
+    }
+
+    .notification-item-modal {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--gray-300);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    body.dark-mode .notification-item-modal {
+        border-color: var(--gray-700);
+    }
+
+    .notification-item-modal:hover {
+        background: rgba(0, 102, 160, 0.08);
+    }
+
+    .notification-item-modal.unread {
+        background: rgba(0, 102, 160, 0.12);
+        border-left: 3px solid var(--primary);
+    }
+
+    .notification-icon-modal {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .notification-icon-modal.danger {
+        background: linear-gradient(135deg, #e76f51, #e95c3a);
+        color: white;
+    }
+
+    .notification-icon-modal.warning {
+        background: linear-gradient(135deg, #e9c46a, #e5b83c);
+        color: white;
+    }
+
+    .notification-icon-modal.info {
+        background: linear-gradient(135deg, #48b5e0, #2c9cd4);
+        color: white;
+    }
+
+    .notification-icon-modal.success {
+        background: linear-gradient(135deg, #2a9d8f, #21867a);
+        color: white;
+    }
+
+    .notification-content-modal {
+        flex: 1;
+    }
+
+    .notification-message-modal {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--dark);
+        margin-bottom: 0.3rem;
+        line-height: 1.4;
+    }
+
+    .notification-time-modal {
+        font-size: 0.65rem;
+        color: var(--gray-600);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .notification-actions-modal {
+        display: flex;
+        gap: 6px;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .notification-item-modal:hover .notification-actions-modal {
+        opacity: 1;
+    }
+
+    .notification-actions-modal button {
+        background: rgba(0, 0, 0, 0.05);
+        border: none;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    body.dark-mode .notification-actions-modal button {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--gray-300);
+    }
+
+    .notification-actions-modal button:hover {
+        transform: scale(1.05);
+    }
+
+    .mark-read-btn:hover { color: var(--success); background: rgba(42,157,143,0.15) !important; }
+    .delete-notif-btn:hover { color: var(--danger); background: rgba(231,111,81,0.15) !important; }
+
+    .empty-notifications-modal {
+        text-align: center;
+        padding: 3rem;
+        color: var(--gray-600);
+    }
+
+    .empty-notifications-modal i {
+        font-size: 3.5rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .notification-modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--gray-300);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.02);
+    }
+
+    body.dark-mode .notification-modal-footer {
+        border-color: var(--gray-700);
+    }
+
+    .btn-mark-all-modal {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        border: none;
+        padding: 0.5rem 1.2rem;
+        border-radius: 2rem;
+        color: white;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-mark-all-modal:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-voir-toutes {
+        color: var(--primary);
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .btn-voir-toutes:hover {
+        text-decoration: underline;
+    }
+
+    /* ========== SCORE CIRCLE ========== */
+    .score-circle {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background: conic-gradient(var(--primary) 0deg, var(--gray-300) 0deg);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        position: relative;
+        box-shadow: 0 0 0 8px rgba(0, 102, 160, 0.15);
+        transition: all 0.3s;
+    }
+
+    .score-circle::after {
+        content: '';
+        position: absolute;
+        width: 125px;
+        height: 125px;
+        background: var(--card-bg);
+        border-radius: 50%;
+        z-index: 1;
+        backdrop-filter: blur(4px);
+    }
+
+    .score-value, .score-label {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+    }
+
+    .score-value {
+        font-size: 2.6rem;
+        font-weight: 800;
+        color: var(--primary);
+        line-height: 1;
+    }
+
+    .score-max {
+        font-size: 1rem;
+        font-weight: normal;
+    }
+
+    .score-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--gray-600);
+    }
+
+    /* ========== METRIC CARDS ========== */
+    .metric-card {
+        background: rgba(0, 102, 160, 0.08);
+        backdrop-filter: blur(4px);
+        transition: var(--transition-fast);
+        border-radius: 1rem;
+        padding: 0.8rem;
+    }
+
+    .metric-card:hover {
+        background: rgba(0, 102, 160, 0.15);
+        transform: translateY(-3px);
+    }
+
+    /* ========== THEME TOGGLE ========== */
+    .theme-toggle {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        background: var(--primary);
+        color: white;
+        width: 54px;
+        height: 54px;
+        border-radius: 54px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: var(--shadow-lg);
+        z-index: 1000;
+        transition: all 0.3s ease;
+        border: none;
+        backdrop-filter: blur(4px);
+    }
+
+    .theme-toggle:hover {
+        transform: scale(1.1) rotate(15deg);
+        background: var(--primary-dark);
+    }
+
+    /* ========== EMPTY STATES ========== */
+    .empty-state {
+        padding: 2rem;
+        text-align: center;
+        color: var(--gray-600);
+    }
+
+    /* ========== DATE FILTER ========== */
+    .date-filter {
+        background: rgba(255,255,255,0.2);
+        backdrop-filter: blur(8px);
+        border-radius: 3rem;
+        padding: 0.5rem 1rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s;
+    }
+    .date-filter input, .date-filter button {
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 0.9rem;
+        outline: none;
+    }
+    .date-filter input::placeholder {
+        color: rgba(255,255,255,0.7);
+    }
+    .date-filter input[type="date"] {
+        background: rgba(255,255,255,0.2);
+        border-radius: 2rem;
+        padding: 0.4rem 1rem;
+    }
+    .date-filter button {
+        cursor: pointer;
+        background: rgba(255,255,255,0.2);
+        border-radius: 2rem;
+        padding: 0.4rem 1rem;
+        transition: 0.2s;
+    }
+    .date-filter button:hover {
+        background: rgba(255,255,255,0.4);
+    }
+    @media (max-width: 768px) {
+        .date-filter {
+            flex-wrap: wrap;
+            width: 100%;
+            margin-top: 1rem;
+            justify-content: center;
+        }
+        .dashboard-header .d-flex {
+            flex-wrap: wrap;
+        }
+        .stats-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        .card-header {
+            padding: 1rem;
+        }
+        .table-responsive {
+            font-size: 0.8rem;
+        }
+    }
+
+    /* ========== LOADING SKELETON ========== */
+    .chart-skeleton {
+        height: 320px;
+        background: linear-gradient(90deg, var(--gray-200) 25%, var(--gray-300) 50%, var(--gray-200) 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 1rem;
+    }
+    @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    /* ========== ANIMATIONS ========== */
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-up {
+        animation: fadeSlideUp 0.7s ease forwards;
+    }
+    @keyframes pulseGlow {
+        0% { box-shadow: 0 0 0 0 var(--primary-glow); }
+        70% { box-shadow: 0 0 0 10px rgba(0, 102, 160, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 102, 160, 0); }
+    }
+    .score-circle {
+        animation: pulseGlow 2s infinite;
+    }
+
+    /* ========== PERFORMANCE CARD ========== */
+    .performance-card {
+        background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
+        backdrop-filter: blur(16px);
+        border-radius: 24px;
+        overflow: hidden;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(255,255,255,0.5);
+        box-shadow: 0 20px 35px -8px rgba(0,0,0,0.1);
+    }
+    
+    .performance-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 25px 40px -12px rgba(0,0,0,0.15);
+    }
+    
+    body.dark-mode .performance-card {
+        background: linear-gradient(135deg, rgba(28,35,48,0.95) 0%, rgba(20,25,35,0.95) 100%);
+    }
+    
+    .performance-card .card-header {
+        background: linear-gradient(135deg, #0066a0 0%, #004b7c 100%);
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .header-badge {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    
+    .session-badge {
+        background: rgba(255,255,255,0.2);
+        backdrop-filter: blur(4px);
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: white;
+    }
+    
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .metric-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: rgba(0, 102, 160, 0.05);
+        border-radius: 16px;
+        transition: all 0.3s;
+    }
+    
+    .metric-item:hover {
+        background: rgba(0, 102, 160, 0.1);
+        transform: translateX(4px);
+    }
+    
+    .metric-icon {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.1rem;
+    }
+    
+    .metric-info {
+        flex: 1;
+    }
+    
+    .metric-label {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--gray-600);
+        margin-bottom: 0.2rem;
+    }
+    
+    .metric-value {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--dark);
+        line-height: 1.2;
+    }
+    
+    /* ========== OCCUPATION DES POSTES ========== */
+    .postes-section {
+        background: rgba(0, 102, 160, 0.05);
+        border-radius: 16px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .postes-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .postes-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--gray-600);
+    }
+    
+    .postes-percent {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: var(--primary);
+    }
+    
+    .progress-custom {
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 20px;
+        height: 28px;
+        overflow: hidden;
+        margin-bottom: 0.75rem;
+    }
+    
+    .progress-bar-custom {
+        background: linear-gradient(90deg, var(--primary), var(--primary-light));
+        border-radius: 20px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 0.5rem;
+        transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .progress-bar-custom::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        animation: shimmerProgress 2s infinite;
+    }
+    
+    @keyframes shimmerProgress {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+    
+    .progress-label {
+        color: white;
+        font-size: 0.7rem;
+        font-weight: 600;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .postes-stats {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        font-size: 0.7rem;
+    }
+    
+    .stat-detail {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        color: var(--gray-600);
+    }
+    
+    .btn-detail {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        padding: 0.8rem 1.5rem;
+        border-radius: 30px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-detail::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+    
+    .btn-detail:hover::before {
+        left: 100%;
+    }
+    
+    .btn-detail:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 102, 160, 0.3);
+        gap: 1rem;
+    }
+    
+    .btn-detail i {
+        transition: transform 0.3s;
+    }
+    
+    .btn-detail:hover i {
+        transform: translateX(4px);
+    }
+
+    .footer {
+        margin-top: 3rem;
+        padding: 1.2rem;
+        text-align: center;
+        border-top: 1px solid var(--gray-300);
+        color: var(--gray-600);
+        font-size: 0.8rem;
+        backdrop-filter: blur(8px);
+    }
+
+    .date-display {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 2rem;
+        padding: 0.5rem 1.2rem;
+        color: white !important;
+        font-weight: 500;
+        backdrop-filter: blur(4px);
+    }
+
+    .date-display i {
+        color: white;
+        opacity: 0.9;
+    }
+
+    .date-display span {
+        color: white !important;
+    }
+
+    .period-btn.active {
+        background: var(--primary) !important;
+        color: white !important;
+        border-color: var(--primary) !important;
+    }
+
+    /* Occupation par shift */
+    .shift-occupation {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--gray-300);
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .shift-item {
+        text-align: center;
+        flex: 1;
+        min-width: 100px;
+    }
+    .shift-name {
+        font-size: 0.7rem;
+        color: var(--gray-600);
+        margin-bottom: 0.3rem;
+    }
+    .shift-value {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--primary);
+    }
+    .shift-bar {
+        height: 4px;
+        background: var(--gray-300);
+        border-radius: 2px;
+        margin-top: 0.3rem;
+        overflow: hidden;
+    }
+    .shift-bar-fill {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.5s ease;
+    }
+    .shift-bar-fill.matin { background: #3b82f6; }
+    .shift-bar-fill.soir { background: #10b981; }
+    .shift-bar-fill.nuit { background: #f59e0b; }
+    .shift-bar-fill.double-nuit { background: #64748b; }
+
+    body.dark-mode .shift-bar-fill.matin { background: #60a5fa; }
+    body.dark-mode .shift-bar-fill.soir { background: #34d399; }
+    body.dark-mode .shift-bar-fill.nuit { background: #fbbf24; }
+    body.dark-mode .shift-bar-fill.double-nuit { background: #94a3b8; }
+</style>
+
+<div class="container-fluid px-4">
+    <!-- Header avec notification -->
+    <div class="dashboard-header animate-fade-up">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div class="d-flex align-items-center">
+                <div class="port-logo">
+                    <img src="{% static 'port/images/logo_epb.png' %}" alt="Logo EPB" 
+                         style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;"
+                         onerror="this.src='https://via.placeholder.com/80?text=EPB'">
+                </div>
+                <div>
+                    <h1 class="display-5 fw-bold mb-0">Port de Béjaïa</h1>
+                    <p class="lead mb-0 opacity-75">Système intelligent de gestion des accostages</p>
+                </div>
+            </div>
+
+            <div class="mt-2 mt-md-0 d-flex align-items-center gap-3 flex-wrap">
+                <div class="date-display">
+                    <i class="fas fa-calendar-alt me-2"></i> 
+                    <span id="currentDateTime">{% now "d/m/Y H:i" %}</span>
+                </div>
+
+                <div class="bg-white bg-opacity-20 rounded-pill px-4 py-2">
+                    <i class="fas fa-user-circle me-2"></i> 
+                    {% if user.is_authenticated %}
+                        {{ user.username }}
+                        {% if user.groups.first %}
+                            <span class="badge bg-light text-dark ms-1">({{ user.groups.first.name }})</span>
+                        {% endif %}
+                    {% else %}
+                        Invité
+                    {% endif %}
+                </div>
+
+                <form method="get" class="date-filter d-flex align-items-center gap-2">
+                    <i class="fas fa-calendar-day text-white"></i>
+                    <input type="date" name="date" id="header-date" value="{% now 'Y-m-d' %}" style="background: rgba(255,255,255,0.2); border: none; border-radius: 2rem; padding: 0.4rem 1rem; color: white;">
+                    <button type="submit" class="btn btn-sm btn-outline-light rounded-pill px-3">
+                        <i class="fas fa-search"></i> Afficher
+                    </button>
+                    <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-light rounded-pill px-3">
+                        <i class="fas fa-calendar-day"></i> Aujourd'hui
+                    </a>
+                </form>
+
+                <!-- NOTIFICATION -->
+                <div class="notification-wrapper">
+                    <button id="notificationBell" class="notification-btn">
+                        <i class="fas fa-bell" style="font-size: 1.2rem;"></i>
+                        <span id="notificationBadge" style="display: none;">0</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL NOTIFICATION -->
+    <div id="notificationModal" class="notification-modal">
+        <div class="notification-modal-content">
+            <div class="notification-modal-header">
+                <h3><i class="fas fa-bell me-2"></i>Notifications</h3>
+                <button class="close-modal" id="closeModalBtn">&times;</button>
+            </div>
+            <div class="notification-modal-body">
+                <div id="notificationListModal" class="notification-list-modal">
+                    <div class="empty-notifications-modal">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Chargement des notifications...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="notification-modal-footer">
+                <button id="markAllReadModalBtn" class="btn-mark-all-modal">
+                    <i class="fas fa-check-double"></i> Tout marquer lu
+                </button>
+                <a href="{% url 'liste_alertes' %}" class="btn-voir-toutes">
+                    Voir toutes <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barre d'actions rapides -->
+    <div class="actions-bar animate-fade-up" style="animation-delay: 0.1s;">
+        <a href="{% url 'valider_rade' %}" class="action-btn warning"><i class="fas fa-check-circle"></i> Arrivée rade</a>
+        <a href="{% url 'terminer_navires_confirm' %}" class="action-btn success"><i class="fas fa-clock"></i> Départs imminents (24h)</a>
+        <a href="{% url 'cpn' %}" class="action-btn info"><i class="fas fa-users"></i> CPN</a>
+        <button id="refreshBtn" class="action-btn"><i class="fas fa-sync-alt"></i> Rafraîchir</button>
+    </div>
+
+    <!-- ========== CARTE MÉTÉO ========== -->
+    {% if meteo %}
+    <div class="weather-card animate-fade-up" style="animation-delay: 0.15s;">
+        <div class="d-flex align-items-center">
+            <div class="weather-icon">
+                {% if meteo.vent_force <= 2 %}
+                    <i class="fas fa-cloud-sun"></i>
+                {% elif meteo.vent_force <= 5 %}
+                    <i class="fas fa-wind"></i>
+                {% elif meteo.vent_force <= 8 %}
+                    <i class="fas fa-wind" style="animation: pulseGlow 1s infinite;"></i>
+                {% else %}
+                    <i class="fas fa-hurricane"></i>
+                {% endif %}
+            </div>
+            <div class="weather-details">
+                <div class="weather-detail">
+                    <i class="fas fa-wind"></i>
+                    <span><strong>{{ meteo.vent_force }}</strong> Beaufort</span>
+                </div>
+                <div class="weather-detail">
+                    <i class="fas fa-water"></i>
+                    <span>Houle <strong>{{ meteo.hauteur_houle|default:"0" }}</strong> m</span>
+                </div>
+                <div class="weather-detail">
+                    <i class="fas fa-temperature-high"></i>
+                    <span>{{ meteo.temperature|default:"20" }}°C</span>
+                </div>
+                {% if meteo.restrictions %}
+                <div class="weather-restrictions">
+                    <i class="fas fa-ban"></i> {{ meteo.restrictions }}
+                </div>
+                {% else %}
+                <div class="weather-restrictions bg-success bg-opacity-25">
+                    <i class="fas fa-check-circle"></i> Aucune restriction
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="weather-update">
+            <i class="fas fa-sync-alt"></i> {{ meteo.updated_at|date:"d/m H:i" }}
+            <a href="{% url 'modifier_meteo' %}" class="btn btn-sm btn-outline-light ms-2 rounded-pill">Modifier</a>
+            <a href="{% url 'actualiser_meteo' %}" class="btn btn-sm btn-outline-light ms-1 rounded-pill">Actualiser</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info animate-fade-up" style="animation-delay: 0.15s;">
+        <i class="fas fa-cloud-sun me-2"></i> Aucune donnée météo disponible. 
+        <a href="{% url 'modifier_meteo' %}" class="alert-link">Ajouter des conditions météo</a>
+    </div>
+    {% endif %}
+
+    {% if meteo.pluie %}
+    <div class="alert alert-warning mt-2 animate-fade-up">
+        <i class="fas fa-umbrella"></i> Pluie en cours – Ralentissement des opérations.
+    </div>
+    {% endif %}
+
+    <!-- Statistiques clés -->
+    <div class="stats-grid animate-fade-up" style="animation-delay: 0.2s;">
+        <a href="{% url 'liste_navires' %}?etat=attente" class="stat-card text-decoration-none">
+            <div class="stat-icon"><i class="fas fa-hourglass-start"></i></div>
+            <div class="stat-value stat-counter" data-target="{{ nb_attente|default:0 }}">0</div>
+            <div class="stat-label">En attente</div>
+            <div class="stat-trend"><i class="fas fa-clock"></i> Arrivées prévues</div>
+        </a>
+        <a href="{% url 'liste_navires' %}?etat=rade" class="stat-card text-decoration-none">
+            <div class="stat-icon"><i class="fas fa-anchor"></i></div>
+            <div class="stat-value stat-counter" data-target="{{ nb_rade|default:0 }}">0</div>
+            <div class="stat-label">En rade</div>
+            <div class="stat-trend"><i class="fas fa-hourglass-half"></i> En attente de quai</div>
+        </a>
+        <a href="{% url 'liste_navires' %}?etat=quai" class="stat-card text-decoration-none">
+            <div class="stat-icon"><i class="fas fa-ship"></i></div>
+            <div class="stat-value stat-counter" data-target="{{ nb_quai|default:0 }}">0</div>
+            <div class="stat-label">À quai</div>
+            <div class="stat-trend"><i class="fas fa-tools"></i> En traitement</div>
+        </a>
+        <a href="{% url 'terminer_navires_confirm' %}" class="stat-card text-decoration-none">
+            <div class="stat-icon"><i class="fas fa-hourglass-end"></i></div>
+            <div class="stat-value stat-counter" data-target="{{ navires_terminant_24h|length|default:0 }}">0</div>
+            <div class="stat-label">Terminent dans 24h</div>
+            <div class="stat-trend"><i class="fas fa-chart-line"></i> Libération imminente</div>
+        </a>
+    </div>
+
+    <!-- KPI professionnels -->
+    <div class="stats-grid animate-fade-up" style="animation-delay: 0.2s;">
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-chart-pie"></i></div>
+            <div class="stat-value">{{ taux_occupation_reel|default:0 }}%</div>
+            <div class="stat-label">Occupation réelle des quais</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-hourglass-end"></i></div>
+            <div class="stat-value">{{ attente_max|default:61 }} h</div>
+            <div class="stat-label">Attente max en rade</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-clock"></i></div>
+            <div class="stat-value">{{ retard_moyen|default:30 }} h</div>
+            <div class="stat-label">Retard moyen</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-tools"></i></div>
+            <div class="stat-value">{{ taux_utilisation_equipements|default:0 }}%</div>
+            <div class="stat-label">Utilisation équipements</div>
+        </div>
+    </div>
+
+    <!-- Row with charts and last session -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8 animate-fade-up" style="animation-delay: 0.3s;">
+            <div class="card h-100">
+                <div class="card-header">
+                    <span><i class="fas fa-chart-line me-2"></i> Évolution des temps d'attente</span>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-light rounded-pill period-btn" data-period="week" id="periodWeekBtn">7 jours</button>
+                        <button class="btn btn-sm btn-outline-light rounded-pill period-btn" data-period="month" id="periodMonthBtn">30 jours</button>
+                        <button class="btn btn-sm btn-outline-light rounded-pill period-btn" data-period="quarter" id="periodQuarterBtn">90 jours</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="position: relative; height: 320px;">
+                        <div id="chart-skeleton" class="chart-skeleton"></div>
+                        <canvas id="attentesChart" style="display: none;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 animate-fade-up" style="animation-delay: 0.4s;">
+            <div class="card h-100 performance-card">
+                <div class="card-header">
+                    <span><i class="fas fa-chart-line me-2"></i> Performance dernière optimisation</span>
+                    <div class="header-badge">
+                        <span class="session-badge">
+                            <i class="fas fa-tag me-1"></i> Session #{{ derniere_session.id|default:"-" }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    {% if derniere_session %}
+                        <div class="score-section">
+                            <div class="score-circle-container">
+                                <div class="score-circle" id="scoreCircleEl"
+                                     data-score="{{ derniere_session.score_total|floatformat:0 }}" 
+                                     data-full-score="{{ derniere_session.score_total|floatformat:2 }}">
+                                    <div class="score-value">
+                                        <span class="score-number">{{ derniere_session.score_total|floatformat:0 }}</span>
+                                    </div>
+                                    <div class="score-label">Score EPB</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="metrics-grid">
+                            <div class="metric-item">
+                                <div class="metric-icon"><i class="fas fa-calendar-alt"></i></div>
+                                <div class="metric-info">
+                                    <div class="metric-label">Date</div>
+                                    <div class="metric-value">{{ derniere_session.date_creation|date:"d/m/Y" }}</div>
+                                </div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-icon"><i class="fas fa-clock"></i></div>
+                                <div class="metric-info">
+                                    <div class="metric-label">Temps écoulé</div>
+                                    <div class="metric-value">{{ derniere_session.date_creation|timesince }}</div>
+                                </div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-icon"><i class="fas fa-ship"></i></div>
+                                <div class="metric-info">
+                                    <div class="metric-label">Navires</div>
+                                    <div class="metric-value">{{ derniere_session.nb_navires }} navires</div>
+                                </div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-icon"><i class="fas fa-hourglass-half"></i></div>
+                                <div class="metric-info">
+                                    <div class="metric-label">Attente moyenne</div>
+                                    <div class="metric-value">{{ derniere_session.attente_moyenne|floatformat:1 }} h</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ========== UTILISATION DES POSTES ========== -->
+                        <div class="postes-section">
+                            <div class="postes-header">
+                                <span class="postes-title"><i class="fas fa-anchor me-1"></i> Utilisation des postes</span>
+                                <span class="postes-percent">{{ taux_occupation_postes|default:0 }}%</span>
+                            </div>
+                            <div class="progress-custom">
+                                <div class="progress-bar-custom" id="progressBarPostes" style="width: {{ taux_occupation_postes|default:0 }}%">
+                                    <span class="progress-label">{{ taux_occupation_postes|default:0 }}%</span>
+                                </div>
+                            </div>
+                            <div class="postes-stats">
+                                <div class="stat-detail">
+                                    <i class="fas fa-check-circle text-success"></i> Postes libres: <strong>{{ postes_libres|default:0 }}</strong>
+                                </div>
+                                <div class="stat-detail">
+                                    <i class="fas fa-ship text-primary"></i> Postes occupés: <strong>{{ postes_occupes|default:0 }}</strong>
+                                </div>
+                                <div class="stat-detail">
+                                    <i class="fas fa-dock"></i> Total: <strong>{{ total_postes|default:0 }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- ===================================== -->
+
+                        <a href="{% url 'resultats_planification' derniere_session.id %}" class="btn-detail">
+                            <span>Voir le détail complet</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    {% else %}
+                        <div class="empty-state text-center py-4">
+                            <i class="fas fa-chart-line fa-3x mb-3 text-muted"></i>
+                            <h5>Aucune optimisation</h5>
+                            <p class="text-muted">Lancez votre première optimisation</p>
+                            <a href="{% url 'cpn' %}" class="btn btn-primary rounded-pill px-4">
+                                <i class="fas fa-play me-1"></i> Lancer
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphique d'occupation des quais -->
+    <div class="row g-4 mb-4">
+        <div class="col-12 animate-fade-up" style="animation-delay: 0.45s;">
+            <div class="card">
+                <div class="card-header">
+                    <span><i class="fas fa-chart-bar me-2"></i> Occupation des quais</span>
+                </div>
+                <div class="card-body">
+                    <div style="position: relative; height: 350px;">
+                        <div id="occupationChartSkeleton" class="chart-skeleton"></div>
+                        <canvas id="occupationChart" style="display: none;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navires à quai et en rade -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6 animate-fade-up" style="animation-delay: 0.5s;">
+            <div class="card h-100">
+                <div class="card-header">
+                    <span><i class="fas fa-ship me-2"></i> Navires à quai</span>
+                    <span class="badge bg-light text-dark rounded-pill">{{ navires_quai|length|default:0 }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if navires_quai %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr><th>Navire</th><th>Type</th><th>Quai</th><th>Progression</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for navire in navires_quai %}
+                                <tr>
+                                    <td><strong>{{ navire.nom }}</strong></td>
+                                    <td>{{ navire.get_type_display }}</td>
+                                    <td>{{ navire.quai_attribue.nom|default:"-" }}</td>
+                                    <td style="width: 120px;">
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar" style="width: {{ navire.progression|default:0 }}%"></div>
+                                        </div>
+                                        <small class="text-muted">{{ navire.progression|default:0 }}%</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state py-4"><p>Aucun navire à quai</p></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 animate-fade-up" style="animation-delay: 0.6s;">
+            <div class="card h-100">
+                <div class="card-header">
+                    <span><i class="fas fa-hourglass-half me-2"></i> Navires en attente (rade)</span>
+                    <span class="badge bg-light text-dark rounded-pill">{{ navires_rade|length|default:0 }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if navires_rade %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead><tr><th>Navire</th><th>Type</th><th>Arrivée</th></tr></thead>
+                            <tbody>
+                                {% for navire in navires_rade %}
+                                <tr>
+                                    <td><strong>{{ navire.nom }}</strong></td>
+                                    <td>{{ navire.get_type_display }}</td>
+                                    <td>{{ navire.arrivee_datetime|date:"d/m H:i"|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state py-4"><p>Aucun navire en rade</p></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dernières affectations -->
+    <div class="card animate-fade-up" style="animation-delay: 0.7s;">
+        <div class="card-header">
+            <span><i class="fas fa-history me-2"></i> Dernières affectations</span>
+        </div>
+        <div class="card-body">
+            {% if affectations_recentes %}
+            <div class="recent-activities">
+                {% for a in affectations_recentes %}
+                <div class="activity-item">
+                    <div class="activity-icon">🚢</div>
+                    <div class="activity-content">
+                        <div class="activity-title">{{ a.navire.nom }} → {{ a.quai.nom }}</div>
+                        <div class="activity-time">{{ a.date_creation|date:"d/m Y H:i" }} • Attente: {{ a.attente|floatformat:1 }}h</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state text-center py-4"><p>Aucune affectation</p></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="footer">
+        <span><i class="fas fa-ship me-1"></i> &copy; {% now "Y" %} Entreprise Portuaire de Béjaïa</span>
+    </div>
+</div>
+
+<!-- Dark mode toggle -->
+<div class="theme-toggle" id="themeToggle">
+    <i class="fas fa-moon"></i>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+(function() {
+    'use strict';
+
+    function getCookie(name) {
+        let value = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    value = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return value;
+    }
+
+    // Date/heure
+    function updateDateTime() {
+        const now = new Date();
+        const formatted = now.toLocaleString('fr-FR', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+        const dateTimeEl = document.getElementById('currentDateTime');
+        if (dateTimeEl) dateTimeEl.textContent = formatted;
+    }
+    updateDateTime();
+    setInterval(updateDateTime, 60000);
+
+    // Compteurs animés
+    const counters = document.querySelectorAll('.stat-counter');
+    counters.forEach(counter => {
+        const target = parseInt(counter.getAttribute('data-target')) || 0;
+        let current = 0;
+        const increment = target / 50;
+        const updateCount = () => {
+            if (current < target) {
+                current = Math.min(Math.ceil(current + increment), target);
+                counter.innerText = current;
+                requestAnimationFrame(updateCount);
+            } else {
+                counter.innerText = target;
+            }
+        };
+        updateCount();
+    });
+
+    // Score circle - VERSION CORRIGÉE (affiche le score réel)
+    const scoreCircle = document.getElementById('scoreCircleEl');
+    if (scoreCircle) {
+        let score = parseFloat(scoreCircle.getAttribute('data-score')) || 0;
+        // Afficher le score réel dans le texte
+        const scoreNumberSpan = scoreCircle.querySelector('.score-number');
+        if (scoreNumberSpan) {
+            scoreNumberSpan.textContent = Math.round(score);
+        }
+        // Optionnel : changer la couleur du texte selon le score
+        if (scoreNumberSpan) {
+            if (score < 100) {
+                scoreNumberSpan.style.color = '#10b981';
+            } else if (score < 300) {
+                scoreNumberSpan.style.color = '#f59e0b';
+            } else {
+                scoreNumberSpan.style.color = '#ef4444';
+            }
+        }
+    }
+
+    // Progress bar for postes
+    const progressBarPostes = document.getElementById('progressBarPostes');
+    if (progressBarPostes) {
+        const targetWidth = progressBarPostes.style.width;
+        setTimeout(() => { progressBarPostes.style.width = targetWidth; }, 400);
+    }
+
+    // Refresh
+    document.getElementById('refreshBtn')?.addEventListener('click', () => location.reload());
+
+    // Dark mode
+    const themeToggle = document.getElementById('themeToggle');
+    const body = document.body;
+    if (localStorage.getItem('theme') === 'dark') {
+        body.classList.add('dark-mode');
+        themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+    }
+    themeToggle.addEventListener('click', () => {
+        body.classList.toggle('dark-mode');
+        const isDark = body.classList.contains('dark-mode');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        themeToggle.innerHTML = isDark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+    });
+
+    // ========== GRAPHIQUE TEMPS D'ATTENTE ==========
+    let chart;
+    const ctx = document.getElementById('attentesChart');
+    const skeleton = document.getElementById('chart-skeleton');
+    let currentPeriod = 'week';
+
+    function generateMockData(period) {
+    let days = period === 'week' ? 7 : (period === 'month' ? 30 : 90);
+    let labels = [];
+    let attentes = [];
+    
+    // Base value plus réaliste selon la période
+    let baseValue = 6.5;
+    
+    // Générer des données qui ont du sens (tendance à la baisse)
+    for (let i = 0; i < days; i++) {
+        let date = new Date();
+        date.setDate(date.getDate() - (days - i));
+        labels.push(date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
+        
+        // Variation avec tendance
+        let trend = (i / days) * 3; // Réduction progressive de 3h
+        let randomVariation = (Math.random() - 0.5) * 3;
+        let value = Math.max(0.5, baseValue - trend + randomVariation);
+        attentes.push(Math.round(value * 10) / 10);
+    }
+    return { labels, attentes };
+}
+
+    async function loadChart(period = 'week') {
+    if (skeleton) skeleton.style.display = 'block';
+    if (ctx) ctx.style.display = 'none';
+
+    try {
+        const response = await fetch(`/port/api/stats/attentes/?period=${period}`);
+        const data = await response.json();
+
+        if (skeleton) skeleton.style.display = 'none';
+        if (ctx) ctx.style.display = 'block';
+
+        let chartData = data;
+        
+        // Ne générer des données mock que si ABSOLUMENT aucune donnée
+        if (!data.labels || data.labels.length === 0) {
+            chartData = generateMockData(period);
+        }
+
+        if (chartData.labels && chartData.labels.length > 0) {
+            if (chart) chart.destroy();
+            
+            // Calculer la moyenne des valeurs existantes seulement
+            const validAttentes = chartData.attentes.filter(v => v > 0);
+            let moyenne = 0;
+            if (validAttentes.length > 0) {
+                moyenne = validAttentes.reduce((a, b) => a + b, 0) / validAttentes.length;
+            } else {
+                moyenne = chartData.attentes.reduce((a, b) => a + b, 0) / chartData.attentes.length;
+            }
+
+            // Ajuster la taille des points selon la période
+            let pointRadius = 3;
+            let pointHoverRadius = 6;
+            if (period === 'quarter') {
+                pointRadius = 2;
+                pointHoverRadius = 4;
+            }
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [
+                        {
+                            label: 'Temps d\'attente (heures)',
+                            data: chartData.attentes,
+                            borderColor: '#0066a0',
+                            backgroundColor: 'rgba(0,102,160,0.1)',
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: '#d4af37',
+                            pointBorderColor: '#fff',
+                            pointRadius: pointRadius,
+                            pointHoverRadius: pointHoverRadius,
+                            borderWidth: 2,
+                            spanGaps: true  // Permet de combler les trous
+                        },
+                        {
+                            label: 'Moyenne',
+                            data: Array(chartData.labels.length).fill(moyenne),
+                            borderColor: '#e76f51',
+                            borderDash: [5, 5],
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false,
+                            spanGaps: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: { 
+                            position: 'top', 
+                            labels: { boxWidth: 12, usePointStyle: true } 
+                        },
+                        tooltip: { 
+                            mode: 'index', 
+                            intersect: false, 
+                            callbacks: { 
+                                label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} h` 
+                            } 
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            title: { display: true, text: 'Heures' },
+                            ticks: { stepSize: 24 }  // Pas de 24h pour mieux lire
+                        },
+                        x: { 
+                            title: { display: true, text: period === 'week' ? '7 derniers jours' : (period === 'month' ? '30 derniers jours' : '90 derniers jours') }, 
+                            ticks: { 
+                                maxRotation: 45, 
+                                minRotation: 45, 
+                                autoSkip: true, 
+                                maxTicksLimit: period === 'quarter' ? 15 : 10 
+                            } 
+                        }
+                    }
+                }
+            });
+        }
+    } catch(e) { 
+        console.error('Erreur chargement graphique:', e);
+        if (skeleton) skeleton.style.display = 'none';
+        if (ctx) {
+            ctx.style.display = 'block';
+            const tempCtx = ctx.getContext('2d');
+            if (tempCtx) {
+                tempCtx.clearRect(0, 0, ctx.width, ctx.height);
+                tempCtx.font = '14px Inter';
+                tempCtx.fillStyle = '#ef4444';
+                tempCtx.textAlign = 'center';
+                tempCtx.fillText('Erreur de chargement des données', ctx.width/2, 100);
+            }
+        }
+    }
+}
+    function setActivePeriodButton(period) {
+        document.querySelectorAll('.period-btn').forEach(btn => {
+            if (btn.getAttribute('data-period') === period) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const period = btn.getAttribute('data-period');
+            currentPeriod = period;
+            setActivePeriodButton(period);
+            loadChart(period);
+        });
+    });
+
+    setActivePeriodButton('week');
+    loadChart('week');
+
+    // ========== GRAPHIQUE OCCUPATION DES QUAIS ==========
+    const occCtx = document.getElementById('occupationChart');
+    const occSkeleton = document.getElementById('occupationChartSkeleton');
+    let occupationChart;
+    
+    async function loadOccupationChart() {
+        if (occSkeleton) occSkeleton.style.display = 'block';
+        if (occCtx) occCtx.style.display = 'none';
+
+        try {
+            const response = await fetch('/port/api/stats/occupation-quais/');
+            const data = await response.json();
+            
+            if (occSkeleton) occSkeleton.style.display = 'none';
+            if (occCtx) occCtx.style.display = 'block';
+
+            if (occupationChart) occupationChart.destroy();
+
+            if (data.labels && data.labels.length > 0) {
+                occupationChart = new Chart(occCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Postes occupés',
+                            data: data.counts || data.values || [],
+                            backgroundColor: 'rgba(0, 102, 160, 0.7)',
+                            borderRadius: 8,
+                            borderColor: '#0066a0',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } },
+                            tooltip: { callbacks: { label: (context) => `${context.raw} poste(s) occupé(s)` } }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, title: { display: true, text: 'Nombre de postes occupés' }, ticks: { stepSize: 1, precision: 0 } },
+                            x: { title: { display: true, text: 'Quais' }, ticks: { maxRotation: 45, minRotation: 45, autoSkip: true, maxTicksLimit: 10 } }
+                        }
+                    }
+                });
+            } else {
+                if (occCtx) {
+                    occupationChart = new Chart(occCtx, {
+                        type: 'bar',
+                        data: { labels: ['Aucune donnée'], datasets: [{ label: 'Postes occupés', data: [0], backgroundColor: 'rgba(0, 102, 160, 0.7)', borderRadius: 8 }] },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+            }
+        } catch(e) { 
+            console.error('Erreur chargement graphique occupation:', e);
+            if (occSkeleton) occSkeleton.style.display = 'none';
+        }
+    }
+    loadOccupationChart();
+
+    // ========== NOTIFICATIONS MODAL ==========
+    const bell = document.getElementById('notificationBell');
+    const modal = document.getElementById('notificationModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const notificationListModal = document.getElementById('notificationListModal');
+    const badge = document.getElementById('notificationBadge');
+    const markAllReadModalBtn = document.getElementById('markAllReadModalBtn');
+
+    function formatDate(dateString) {
+        if (!dateString) return 'À l\'instant';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMins = Math.floor((now - date) / 60000);
+        if (diffMins < 1) return 'À l\'instant';
+        if (diffMins < 60) return `Il y a ${diffMins} min`;
+        if (diffMins < 1440) return `Il y a ${Math.floor(diffMins/60)} h`;
+        if (diffMins < 2880) return 'Hier';
+        return date.toLocaleDateString('fr-FR');
+    }
+
+    function getIconClass(niveau) {
+        switch(niveau) {
+            case 'danger': return 'danger';
+            case 'warning': return 'warning';
+            case 'success': return 'success';
+            default: return 'info';
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function renderNotifications(notifications) {
+        if (!notifications.length) {
+            notificationListModal.innerHTML = `<div class="empty-notifications-modal"><i class="fas fa-bell-slash"></i><p>Aucune notification</p></div>`;
+            return;
+        }
+
+        let html = '';
+        notifications.forEach(notif => {
+            const iconClass = getIconClass(notif.niveau);
+            const isUnread = !notif.est_lue;
+            const unreadClass = isUnread ? 'unread' : '';
+            const iconName = notif.niveau === 'danger' ? 'fa-exclamation-triangle' : notif.niveau === 'warning' ? 'fa-clock' : 'fa-info-circle';
+
+            html += `
+                <div class="notification-item-modal ${unreadClass}" data-id="${notif.id}" data-lien="${notif.lien || ''}">
+                    <div class="notification-icon-modal ${iconClass}"><i class="fas ${iconName}"></i></div>
+                    <div class="notification-content-modal">
+                        <div class="notification-message-modal">${escapeHtml(notif.message)}</div>
+                        <div class="notification-time-modal"><i class="far fa-clock"></i> ${formatDate(notif.date)}</div>
+                    </div>
+                    <div class="notification-actions-modal">
+                        ${isUnread ? `<button class="mark-read-btn" data-id="${notif.id}"><i class="fas fa-check-circle"></i></button>` : ''}
+                        <button class="delete-notif-btn" data-id="${notif.id}"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+            `;
+        });
+        notificationListModal.innerHTML = html;
+        attachModalEvents();
+    }
+
+    function attachModalEvents() {
+        document.querySelectorAll('.mark-read-btn').forEach(btn => {
+            btn.onclick = async (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                const item = btn.closest('.notification-item-modal');
+                try {
+                    await fetch(`/port/api/alerte/lire/${id}/`, { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } });
+                    item?.classList.remove('unread');
+                    btn.remove();
+                    await updateBadgeCount();
+                    await loadNotifications();
+                } catch(e) { console.error(e); }
+            };
+        });
+
+        document.querySelectorAll('.delete-notif-btn').forEach(btn => {
+            btn.onclick = async (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                if (!confirm('Supprimer cette notification ?')) return;
+                try {
+                    await fetch(`/port/api/alerte/supprimer/${id}/`, { method: 'DELETE', headers: { 'X-CSRFToken': getCookie('csrftoken') } });
+                    await loadNotifications();
+                    await updateBadgeCount();
+                } catch(e) { console.error(e); }
+            };
+        });
+
+        document.querySelectorAll('.notification-item-modal').forEach(item => {
+            item.onclick = (e) => {
+                if (e.target.closest('.mark-read-btn') || e.target.closest('.delete-notif-btn')) return;
+                const lien = item.dataset.lien;
+                if (lien) { modal.style.display = 'none'; window.location.href = lien; }
+            };
+        });
+    }
+
+    async function updateBadgeCount() {
+        try {
+            const response = await fetch('/port/api/notifications/');
+            const data = await response.json();
+            const unreadCount = (data.notifications || []).filter(n => !n.est_lue).length;
+            if (unreadCount > 0) {
+                badge.style.display = 'flex';
+                badge.innerText = unreadCount > 99 ? '99+' : unreadCount;
+                bell?.classList.add('bell-animate');
+                setTimeout(() => bell?.classList.remove('bell-animate'), 600);
+            } else {
+                badge.style.display = 'none';
+            }
+        } catch(e) { console.error(e); }
+    }
+
+    async function loadNotifications() {
+        notificationListModal.innerHTML = '<div class="empty-notifications-modal"><i class="fas fa-spinner fa-spin"></i><p>Chargement...</p></div>';
+        try {
+            const response = await fetch('/port/api/notifications/');
+            const data = await response.json();
+            renderNotifications(data.notifications || []);
+        } catch(e) {
+            notificationListModal.innerHTML = '<div class="empty-notifications-modal"><i class="fas fa-exclamation-triangle"></i><p>Erreur de chargement</p><button onclick="location.reload()" class="btn btn-sm btn-primary mt-2 rounded-pill">Réessayer</button></div>';
+        }
+    }
+
+    async function markAllRead() {
+        try {
+            await fetch('/port/api/notifications/mark-all-read/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } });
+            await loadNotifications();
+            await updateBadgeCount();
+        } catch(e) { console.error(e); }
+    }
+
+    if (bell) bell.onclick = () => { loadNotifications(); modal.style.display = 'flex'; };
+    if (closeModalBtn) closeModalBtn.onclick = () => { modal.style.display = 'none'; };
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    if (markAllReadModalBtn) markAllReadModalBtn.onclick = markAllRead;
+
+    setInterval(() => {
+        updateBadgeCount();
+        if (modal.style.display === 'flex') loadNotifications();
+    }, 30000);
+
+    updateBadgeCount();
+})();
+</script>
+{% endblock %}

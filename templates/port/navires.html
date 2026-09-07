@@ -1,0 +1,846 @@
+{% extends "port/base.html" %}
+
+{% block title %}Liste des navires | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    /* ========== VARIABLES MODERNISÉES ========== */
+    :root {
+        --epb-primary: #003366;
+        --epb-primary-dark: #002244;
+        --epb-primary-light: #1a4d8c;
+        --epb-secondary: #ff6600;
+        --epb-secondary-dark: #cc5200;
+        --epb-gray-bg: #f8fafc;
+        --epb-card-bg: #ffffff;
+        --epb-border: #e2e8f0;
+        --epb-success: #10b981;
+        --epb-warning: #f59e0b;
+        --epb-danger: #ef4444;
+        --epb-info: #3b82f6;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .navire-page {
+        background: var(--epb-gray-bg);
+        min-height: 100vh;
+        padding: 2rem 1rem;
+    }
+    .navire-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    /* En-tête modernisé */
+    .page-header {
+        background: linear-gradient(135deg, var(--epb-primary) 0%, var(--epb-primary-dark) 100%);
+        border-radius: 1.5rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: var(--shadow-lg);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -5%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+    
+    .header-text h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+    
+    .header-text p {
+        margin-bottom: 0;
+        opacity: 0.9;
+        font-size: 0.95rem;
+    }
+    
+    .header-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .header-actions .btn {
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: white;
+        transition: var(--transition);
+        white-space: nowrap;
+        padding: 0.6rem 1.2rem;
+        border-radius: 2rem;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-block;
+        cursor: pointer;
+    }
+    
+    .header-actions .btn:hover {
+        background: rgba(255,255,255,0.25);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    /* Bouton synchronisation EPB */
+    .btn-sync {
+        background: linear-gradient(135deg, #10b981, #059669) !important;
+        border: none !important;
+        color: white !important;
+    }
+    
+    .btn-sync:hover {
+        background: linear-gradient(135deg, #059669, #047857) !important;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .btn-sync:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    /* Statistiques modernisées */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: var(--epb-card-bg);
+        border-radius: 1rem;
+        padding: 1.2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--epb-border);
+        transition: var(--transition);
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--epb-secondary);
+        transition: var(--transition);
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--epb-primary), var(--epb-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        line-height: 1;
+    }
+    
+    .stat-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #64748b;
+        margin-top: 0.25rem;
+        font-weight: 600;
+    }
+    
+    .stat-icon {
+        font-size: 2rem;
+        opacity: 0.3;
+        color: var(--epb-primary);
+        transition: var(--transition);
+    }
+    
+    .stat-card:hover .stat-icon {
+        opacity: 0.6;
+        transform: scale(1.1);
+    }
+
+    /* Filtres modernisés */
+    .filter-bar {
+        background: var(--epb-card-bg);
+        border-radius: 1rem;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        border: 1px solid var(--epb-border);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .filter-chip {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 2rem;
+        padding: 0.5rem 1.2rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #334155;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: var(--transition);
+    }
+    
+    .filter-chip:hover {
+        background: var(--epb-primary);
+        border-color: var(--epb-primary);
+        color: white;
+        transform: translateY(-1px);
+    }
+    
+    .filter-chip.active {
+        background: linear-gradient(135deg, var(--epb-primary), var(--epb-primary-light));
+        border-color: var(--epb-primary);
+        color: white;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .filter-chip .count {
+        background: rgba(0,0,0,0.1);
+        border-radius: 1rem;
+        padding: 0.1rem 0.5rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    
+    .filter-chip.active .count {
+        background: rgba(255,255,255,0.25);
+    }
+    
+    .search-wrapper {
+        position: relative;
+    }
+    
+    .search-wrapper input {
+        padding: 0.6rem 1rem 0.6rem 2.5rem;
+        border-radius: 2rem;
+        border: 1px solid #e2e8f0;
+        width: 280px;
+        font-size: 0.85rem;
+        transition: var(--transition);
+    }
+    
+    .search-wrapper input:focus {
+        outline: none;
+        border-color: var(--epb-primary);
+        box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1);
+    }
+    
+    .search-wrapper i {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+    }
+
+    /* Tableau modernisé */
+    .table-container {
+        background: var(--epb-card-bg);
+        border-radius: 1rem;
+        overflow-x: auto;
+        border: 1px solid var(--epb-border);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .navire-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        min-width: 1000px;
+    }
+    
+    .navire-table th {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        padding: 1rem;
+        font-weight: 700;
+        text-align: left;
+        border-bottom: 2px solid var(--epb-border);
+        white-space: nowrap;
+        color: var(--epb-primary);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .navire-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+    
+    .navire-table tr {
+        transition: var(--transition);
+    }
+    
+    .navire-table tr:hover {
+        background: linear-gradient(90deg, #fefce8, #fff7ed);
+        transform: scale(1.01);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .navire-link {
+        font-weight: 700;
+        color: var(--epb-primary);
+        text-decoration: none;
+        transition: var(--transition);
+    }
+    
+    .navire-link:hover {
+        color: var(--epb-secondary);
+        text-decoration: underline;
+    }
+    
+    .badge-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.9rem;
+        border-radius: 2rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        white-space: nowrap;
+        transition: var(--transition);
+    }
+    
+    .badge-attente { 
+        background: #f1f5f9; 
+        color: #334155;
+        border-left: 3px solid #64748b;
+    }
+    .badge-rade { 
+        background: #e0f2fe; 
+        color: #0369a1;
+        border-left: 3px solid #0ea5e9;
+    }
+    .badge-quai { 
+        background: #dcfce7; 
+        color: #15803d;
+        border-left: 3px solid #22c55e;
+    }
+    .badge-termine { 
+        background: #f3f4f6; 
+        color: #4b5563;
+        border-left: 3px solid #6b7280;
+    }
+    
+    /* Badge pour l'affichage du quai */
+    .badge-quai-detail {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+        padding: 0.3rem 0.9rem;
+        border-radius: 2rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #15803d;
+        white-space: nowrap;
+    }
+    
+    .badge-quai-detail small {
+        color: #166534;
+        font-size: 0.7rem;
+        font-weight: normal;
+    }
+    
+    .action-btn {
+        background: none;
+        border: none;
+        padding: 0.5rem;
+        border-radius: 0.5rem;
+        color: #64748b;
+        transition: var(--transition);
+        cursor: pointer;
+        font-size: 0.9rem;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .action-btn:hover {
+        background: linear-gradient(135deg, var(--epb-primary), var(--epb-secondary));
+        color: white;
+        transform: scale(1.1);
+    }
+    
+    .action-btn.danger:hover {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+    
+    .results-info {
+        padding: 1rem;
+        font-size: 0.8rem;
+        color: #64748b;
+        border-top: 1px solid var(--epb-border);
+        display: flex;
+        justify-content: space-between;
+        background: #fafbfc;
+        border-radius: 0 0 1rem 1rem;
+    }
+    
+    /* Alert modernisée */
+    .alert-info-custom {
+        background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+        border-left: 4px solid var(--epb-primary);
+        border-radius: 0.75rem;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .alert-link-custom {
+        color: var(--epb-primary);
+        text-decoration: none;
+        font-weight: 600;
+        transition: var(--transition);
+    }
+    
+    .alert-link-custom:hover {
+        color: var(--epb-secondary);
+        text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .page-header { 
+            flex-direction: column; 
+            align-items: flex-start; 
+            padding: 1.5rem;
+        }
+        .filter-bar { 
+            flex-direction: column; 
+            align-items: stretch; 
+        }
+        .search-wrapper input { 
+            width: 100%; 
+        }
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        .stat-number {
+            font-size: 1.5rem;
+        }
+        .filter-group {
+            justify-content: center;
+        }
+        .header-text h1 {
+            font-size: 1.4rem;
+        }
+    }
+    
+    /* Animation d'entrée */
+    @keyframes fadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .page-header, .stats-grid, .filter-bar, .table-container {
+        animation: fadeSlideUp 0.5s ease-out forwards;
+    }
+    
+    .stats-grid > *:nth-child(1) { animation-delay: 0.1s; }
+    .stats-grid > *:nth-child(2) { animation-delay: 0.15s; }
+    .stats-grid > *:nth-child(3) { animation-delay: 0.2s; }
+    .stats-grid > *:nth-child(4) { animation-delay: 0.25s; }
+    
+    /* Tooltip */
+    [title] {
+        cursor: help;
+    }
+</style>
+
+<div class="navire-page">
+    <div class="navire-container">
+        <!-- En‑tête modernisé -->
+        <div class="page-header">
+            <div class="header-text">
+                <h1><i class="fas fa-ship me-2"></i> Liste des navires</h1>
+                <p>Gestion et suivi de l'ensemble des navires du port de Béjaïa</p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'ajouter_navire' %}" class="btn rounded-pill px-4">
+                    <i class="fas fa-plus-circle me-2"></i> Nouveau navire
+                </a>
+                <a href="{% url 'planification' %}" class="btn rounded-pill px-4">
+                    <i class="fas fa-chart-line me-2"></i> Planification
+                </a>
+                
+                <!-- Bouton Synchronisation EPB - Uniquement pour certains groupes -->
+                {% if user.groups.first.name == 'Officier_radio' or user.groups.first.name == 'Gestionnaire_escales' or user.groups.first.name == 'Directeur' %}
+                <form method="post" action="{% url 'synchroniser_epb' %}" style="display: inline-block;" 
+                      id="syncForm" onsubmit="return showSyncLoader(this);">
+                    {% csrf_token %}
+                    <button type="submit" class="btn rounded-pill px-4 btn-sync" id="syncBtn">
+                        <i class="fas fa-sync-alt me-2"></i> Synchroniser EPB
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Statistiques modernisées -->
+        <div class="stats-grid">
+            <div class="stat-card" onclick="window.location.href='{% url 'liste_navires' %}?etat=attente'">
+                <div>
+                    <div class="stat-number">{{ nb_attente }}</div>
+                    <div class="stat-label">En attente</div>
+                </div>
+                <i class="fas fa-hourglass-start stat-icon"></i>
+            </div>
+            <div class="stat-card" onclick="window.location.href='{% url 'liste_navires' %}?etat=rade'">
+                <div>
+                    <div class="stat-number">{{ nb_rade }}</div>
+                    <div class="stat-label">En rade</div>
+                </div>
+                <i class="fas fa-anchor stat-icon"></i>
+            </div>
+            <div class="stat-card" onclick="window.location.href='{% url 'liste_navires' %}?etat=quai'">
+                <div>
+                    <div class="stat-number">{{ nb_quai }}</div>
+                    <div class="stat-label">À quai</div>
+                </div>
+                <i class="fas fa-ship stat-icon"></i>
+            </div>
+            <div class="stat-card" onclick="window.location.href='{% url 'liste_navires' %}?etat=termine'">
+                <div>
+                    <div class="stat-number">{{ navires_termines }}</div>
+                    <div class="stat-label">Terminés</div>
+                </div>
+                <i class="fas fa-check-circle stat-icon"></i>
+            </div>
+        </div>
+
+        <!-- Filtres et recherche modernisés -->
+        <div class="filter-bar">
+            <div class="filter-group">
+                <a href="{% url 'liste_navires' %}" class="filter-chip {% if not etat_actif and not filtre_actif %}active{% endif %}">
+                    <i class="fas fa-ship"></i> Tous 
+                    <span class="count">{{ total_navires }}</span>
+                </a>
+                <a href="{% url 'liste_navires' %}?etat=attente" class="filter-chip {% if etat_actif == 'attente' %}active{% endif %}">
+                    <i class="fas fa-hourglass-start"></i> En attente 
+                    <span class="count">{{ nb_attente }}</span>
+                </a>
+                <a href="{% url 'liste_navires' %}?etat=rade" class="filter-chip {% if etat_actif == 'rade' %}active{% endif %}">
+                    <i class="fas fa-anchor"></i> En rade 
+                    <span class="count">{{ nb_rade }}</span>
+                </a>
+                <a href="{% url 'liste_navires' %}?etat=quai" class="filter-chip {% if etat_actif == 'quai' %}active{% endif %}">
+                    <i class="fas fa-ship"></i> À quai 
+                    <span class="count">{{ nb_quai }}</span>
+                </a>
+                <a href="{% url 'liste_navires' %}?etat=termine" class="filter-chip {% if etat_actif == 'termine' %}active{% endif %}">
+                    <i class="fas fa-check-circle"></i> Terminés 
+                    <span class="count">{{ navires_termines }}</span>
+                </a>
+                <a href="{% url 'liste_navires' %}?filtre=fin_24h" class="filter-chip {% if filtre_actif == 'fin_24h' %}active{% endif %}">
+                    <i class="fas fa-hourglass-end"></i> Fin dans 24h 
+                    <span class="count">{{ nb_terminant_24h }}</span>
+                </a>
+            </div>
+            <div class="search-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Rechercher par nom...">
+            </div>
+        </div>
+
+        <!-- Message d'information sur le filtre actif -->
+        {% if etat_actif or filtre_actif %}
+        <div class="alert-info-custom">
+            <span>
+                <i class="fas fa-filter me-2"></i> 
+                <strong>Filtre actif :</strong> 
+                {% if filtre_actif == 'fin_24h' %}
+                    Navires qui termineront dans les <strong>24 prochaines heures</strong>
+                {% elif etat_actif %}
+                    Navires 
+                    <strong>
+                        {% if etat_actif == 'attente' %}en attente
+                        {% elif etat_actif == 'rade' %}en rade
+                        {% elif etat_actif == 'quai' %}à quai
+                        {% elif etat_actif == 'termine' %}terminés
+                        {% endif %}
+                    </strong>
+                {% endif %}
+            </span>
+            <a href="{% url 'liste_navires' %}" class="alert-link-custom">
+                <i class="fas fa-times-circle me-1"></i> Voir tous
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Tableau des navires -->
+        <div class="table-container">
+            <table class="navire-table" id="navireTable">
+                <thead>
+                    <tr>
+                        <th><i class="fas fa-ship me-1"></i> Nom</th>
+                        <th><i class="fas fa-tag me-1"></i> Type</th>
+                        <th><i class="fas fa-calendar-alt me-1"></i> Arrivée</th>
+                        <th><i class="fas fa-arrows-alt-h me-1"></i> Longueur</th>
+                        <th><i class="fas fa-water me-1"></i> Tirant</th>
+                        <th><i class="fas fa-box me-1"></i> Marchandise</th>
+                        <th><i class="fas fa-anchor me-1"></i> Quai / Poste</th>
+                        <th><i class="fas fa-chart-line me-1"></i> État</th>
+                        {% if filtre_actif == 'fin_24h' %}
+                        <th><i class="fas fa-hourglass-half me-1"></i> Temps restant</th>
+                        {% endif %}
+                        <th style="width: 90px;"><i class="fas fa-cog me-1"></i> Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for n in navires %}
+                    <tr class="navire-row" data-nom="{{ n.nom|lower }}">
+                        <td>
+                            <a href="{% url 'detail_navire' n.id %}" class="navire-link">
+                                <i class="fas fa-ship me-1" style="font-size: 0.7rem;"></i>
+                                {{ n.nom }}
+                            </a>
+                        </a>
+                        <td>{{ n.get_type_display }}</a>
+                        
+                        {# Colonne Arrivée avec DATE et HEURE #}
+                        <td>
+                            {% if n.etat == 'quai' %}
+                                {# Navire à quai - afficher la date d'accostage et l'heure #}
+                                {% if n.debut_datetime %}
+                                    <span title="Date et heure d'accostage">
+                                        {{ n.debut_datetime|date:"d/m/Y" }} 
+                                        {% if n.heure_accostage_formatee %}
+                                            {{ n.heure_accostage_formatee }}
+                                        {% else %}
+                                            {% with heures=n.heure_debut|floatformat:0|add:"0" minutes=n.heure_debut|stringformat:".2f"|slice:"-2:" %}
+                                                {{ heures|stringformat:"02d" }}:{{ minutes|stringformat:"02d" }}
+                                            {% endwith %}
+                                        {% endif %}
+                                    </span>
+                                {% elif n.heure_debut is not None %}
+                                    {% with heures=n.heure_debut|floatformat:0|add:"0" minutes=n.heure_debut|stringformat:".2f"|slice:"-2:" %}
+                                        <span title="Heure d'accostage (date non renseignée)">
+                                            {{ heures|stringformat:"02d" }}:{{ minutes|stringformat:"02d" }}
+                                        </span>
+                                    {% endwith %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            
+                            {% elif n.arrivee_datetime %}
+                                {# Navire en attente ou en rade #}
+                                <span title="{% if n.etat == 'rade' %}Arrivée en rade{% else %}ETA{% endif %}">
+                                    {{ n.arrivee_datetime|date:"d/m/Y H:i" }}
+                                </span>
+                            
+                            {% elif n.heure_arrivee_formatee %}
+                                <span title="Heure d'arrivée">{{ n.heure_arrivee_formatee }}</span>
+                            
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </a>
+                        
+                        <td>{{ n.longueur|default:"?" }} m</a>
+                        <td>{{ n.tirant|default:"?" }} m</a>
+                        <td>{{ n.marchandise_type|default:"-"|truncatechars:25 }}</a>
+                        
+                        <!-- Colonne Quai/Poste -->
+                        <td>
+                            {% if n.etat == 'quai' and n.quai_attribue %}
+                                <span class="badge-quai-detail">
+                                    <i class="fas fa-ship me-1"></i>
+                                    {{ n.quai_attribue.nom }}
+                                    {% if n.poste_attribue %}
+                                        <small>(Poste {{ n.poste_attribue.numero }})</small>
+                                    {% endif %}
+                                </span>
+                            {% elif n.etat == 'quai' %}
+                                <span class="text-muted">
+                                    <i class="fas fa-clock"></i> En attente d'affectation
+                                </span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </a>
+                        
+                        <td>
+                            {% if n.etat == 'attente' %}
+                                <span class="badge-status badge-attente">
+                                    <i class="fas fa-hourglass-start"></i> En attente
+                                </span>
+                            {% elif n.etat == 'rade' %}
+                                <span class="badge-status badge-rade">
+                                    <i class="fas fa-anchor"></i> En rade
+                                </span>
+                            {% elif n.etat == 'quai' %}
+                                <span class="badge-status badge-quai">
+                                    <i class="fas fa-ship"></i> À quai
+                                </span>
+                            {% else %}
+                                <span class="badge-status badge-termine">
+                                    <i class="fas fa-check-circle"></i> Terminé
+                                </span>
+                            {% endif %}
+                        </a>
+                        
+                        {% if filtre_actif == 'fin_24h' %}
+                        <td class="fw-bold {% if n.temps_restant <= 2 %}text-danger{% elif n.temps_restant <= 6 %}text-warning{% else %}text-success{% endif %}">
+                            <i class="fas fa-clock me-1"></i>
+                            {{ n.temps_restant|floatformat:1 }} h
+                        </a>
+                        {% endif %}
+                        
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{% url 'modifier_navire' n.id %}" class="action-btn" title="Modifier">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% if user.groups.first.name == 'Directeur' %}
+                                <a href="{% url 'supprimer_navire' n.id %}" class="action-btn danger" title="Supprimer" 
+                                   onclick="return confirm('⚠️ Confirmez-vous la suppression du navire {{ n.nom }} ? Cette action est irréversible.')">
+                                    <i class="fas fa-trash-alt"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </a>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-5 text-muted">
+                            <i class="fas fa-ship fa-3x mb-3 d-block opacity-25"></i>
+                            Aucun navire ne correspond aux critères sélectionnés.
+                        </a>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="results-info">
+                <div>
+                    <i class="fas fa-chart-line me-1"></i> 
+                    <strong>{{ navires|length }}</strong> navire(s) affiché(s)
+                    {% if navires|length > 0 %}
+                    <span class="text-muted">| Total: {{ total_navires }}</span>
+                    {% endif %}
+                </div>
+                <div id="searchResultsCount" style="display: none;">
+                    <i class="fas fa-search me-1"></i>
+                    <span></span> résultat(s) trouvé(s)
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Fonction pour l'indicateur de chargement du bouton synchronisation
+    function showSyncLoader(form) {
+        const btn = document.getElementById('syncBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Synchronisation...';
+        }
+        return true;
+    }
+    
+    // Recherche en temps réel
+    const searchInput = document.getElementById('searchInput');
+    const rows = document.querySelectorAll('#navireTable tbody .navire-row');
+    const totalRows = rows.length;
+    const searchResultsDiv = document.getElementById('searchResultsCount');
+    const resultsCountSpan = searchResultsDiv ? searchResultsDiv.querySelector('span') : null;
+
+    function updateSearchCount() {
+        if (!searchResultsDiv || !resultsCountSpan) return;
+        
+        let visible = 0;
+        rows.forEach(row => {
+            if (row.style.display !== 'none') visible++;
+        });
+        
+        if (visible !== totalRows && searchInput && searchInput.value.length > 0) {
+            searchResultsDiv.style.display = 'flex';
+            resultsCountSpan.textContent = visible;
+            searchResultsDiv.style.animation = 'fadeSlideUp 0.3s ease-out';
+        } else {
+            searchResultsDiv.style.display = 'none';
+        }
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function() {
+            const filter = this.value.toLowerCase().trim();
+            rows.forEach(row => {
+                const nom = row.getAttribute('data-nom');
+                if (nom && nom.includes(filter)) {
+                    row.style.display = '';
+                    row.style.animation = 'fadeSlideUp 0.3s ease-out';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            updateSearchCount();
+        });
+    }
+    
+    // Animation des lignes au chargement
+    document.addEventListener('DOMContentLoaded', function() {
+        rows.forEach((row, index) => {
+            row.style.opacity = '0';
+            row.style.animation = `fadeSlideUp 0.3s ease-out ${index * 0.02}s forwards`;
+        });
+    });
+</script>
+{% endblock %}

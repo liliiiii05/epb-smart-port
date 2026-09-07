@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Rapport d'optimisation EPB</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2cm; }
+        h1 { color: #003366; }
+        h2 { color: #0066cc; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th { background: #003366; color: white; padding: 10px; text-align: left; }
+        td { padding: 8px; border-bottom: 1px solid #ddd; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .stats { margin: 20px 0; padding: 15px; background: #f0f0f0; border-radius: 5px; }
+        .footer { margin-top: 50px; text-align: center; font-size: 0.8em; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚢 RAPPORT D'OPTIMISATION</h1>
+        <h2>Entreprise Portuaire de Béjaïa (EPB)</h2>
+        <p>Session: {{ session.nom }}</p>
+        <p>Date: {{ session.date_creation|date:"d/m/Y H:i" }}</p>
+        <p>Saison: {{ session.get_saison_display }}</p>
+    </div>
+    
+    <div class="stats">
+        <h3>📊 Statistiques globales</h3>
+        <p><strong>Navires planifiés:</strong> {{ session.nb_navires }}</p>
+        <p><strong>Score total:</strong> {{ session.score_total|floatformat:2 }}</p>
+        <p><strong>Attente moyenne:</strong> {{ session.attente_moyenne|floatformat:1 }}h</p>
+        <p><strong>Taux occupation:</strong> {{ session.taux_occupation|floatformat:1 }}%</p>
+    </div>
+    
+    <h3>🚢 Détail des affectations</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Navire</th>
+                <th>Type</th>
+                <th>Quai</th>
+                <th>Début</th>
+                <th>Fin</th>
+                <th>Attente</th>
+                <th>Score</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in affectations %}
+            <tr>
+                <td>{{ a.navire.nom }}</td>
+                <td>{{ a.navire.get_type_display }}</td>
+                <td>{{ a.quai.nom }}</td>
+                <td>{{ a.heure_debut|floatformat:1 }}h</td>
+                <td>{{ a.heure_fin|floatformat:1 }}h</td>
+                <td>{{ a.attente|floatformat:1 }}h</td>
+                <td>{{ a.score_contribution|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="footer">
+        <p>Rapport généré le {{ date|date:"d/m/Y H:i" }}</p>
+        <p>Système Intelligent de Gestion des Accostages - Master Génie Logiciel</p>
+    </div>
+</body>
+</html>

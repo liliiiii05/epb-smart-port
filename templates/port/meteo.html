@@ -1,0 +1,576 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Météo - Conditions portuaires{% endblock %}
+
+{% block content %}
+<style>
+    /* ========== VARIABLES & THÈME ========== */
+    :root {
+        --primary: #0066a0;
+        --primary-dark: #004b7c;
+        --primary-light: #2c9cd4;
+        --primary-soft: rgba(0,102,160,0.08);
+        --light: #ffffff;
+        --dark: #1a2c3c;
+        --gray-50: #f8fafc;
+        --gray-100: #f1f5f9;
+        --gray-200: #e9ecef;
+        --gray-300: #dee2e6;
+        --gray-400: #ced4da;
+        --gray-600: #6c757d;
+        --gray-700: #495057;
+        --border-radius: 1rem;
+        --shadow-sm: 0 2px 4px rgba(0,0,0,0.02);
+        --shadow-md: 0 8px 20px rgba(0,0,0,0.04);
+        --shadow-lg: 0 12px 28px rgba(0,0,0,0.08);
+        --transition: all 0.2s ease;
+    }
+
+    /* Mode sombre */
+    body.dark-mode {
+        --primary: #3b82f6;
+        --primary-dark: #2563eb;
+        --primary-light: #60a5fa;
+        --primary-soft: rgba(59,130,246,0.15);
+        --light: #1e293b;
+        --dark: #f1f5f9;
+        --gray-50: #0f172a;
+        --gray-100: #1e293b;
+        --gray-200: #334155;
+        --gray-300: #475569;
+        --gray-400: #64748b;
+        --gray-600: #94a3b8;
+        --gray-700: #cbd5e1;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        border-radius: 1.5rem;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: var(--shadow-md);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .header-text h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+    .header-text p { margin-bottom: 0; opacity: 0.9; }
+
+    .weather-main-card {
+        background: linear-gradient(135deg, #1a6f9e, #0d4b6e);
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: var(--shadow-lg);
+        margin-bottom: 2rem;
+        position: relative;
+    }
+    .weather-main-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: url('https://cdn.pixabay.com/photo/2017/01/20/13/25/clouds-1994730_640.jpg') no-repeat center/cover;
+        opacity: 0.15;
+        pointer-events: none;
+    }
+    .weather-current {
+        padding: 2rem;
+        color: white;
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .weather-icon-large { font-size: 5rem; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2)); }
+    .weather-temp { font-size: 3rem; font-weight: 700; }
+    .weather-desc { font-size: 1rem; opacity: 0.9; }
+    .weather-stats {
+        display: flex;
+        gap: 2rem;
+        flex-wrap: wrap;
+        background: rgba(255,255,255,0.15);
+        backdrop-filter: blur(8px);
+        border-radius: 2rem;
+        padding: 1rem 2rem;
+    }
+    .weather-stat { text-align: center; }
+    .weather-stat i { font-size: 1.5rem; opacity: 0.9; margin-bottom: 0.3rem; display: block; }
+    .weather-stat-value { font-size: 1.3rem; font-weight: 600; }
+    .weather-stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; }
+
+    .card {
+        border: none;
+        border-radius: var(--border-radius);
+        background: var(--light);
+        box-shadow: var(--shadow-md);
+        transition: var(--transition);
+        margin-bottom: 1.8rem;
+        overflow: hidden;
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+    .card-header {
+        background: var(--light);
+        border-bottom: 1px solid var(--gray-200);
+        padding: 1rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .card-header i {
+        font-size: 1.3rem;
+        color: var(--primary);
+        background: var(--primary-soft);
+        padding: 0.5rem;
+        border-radius: 0.8rem;
+    }
+    .card-header h5 { margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--dark); }
+    .card-header .badge { background: var(--primary-soft); color: var(--primary); font-weight: 500; }
+
+    .form-range-custom {
+        width: 100%;
+        -webkit-appearance: none;
+        background: var(--gray-200);
+        height: 6px;
+        border-radius: 3px;
+    }
+    .form-range-custom:focus { outline: none; }
+    .form-range-custom::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        background: var(--primary);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        transition: 0.2s;
+    }
+    .form-range-custom::-webkit-slider-thumb:hover { transform: scale(1.2); background: var(--primary-dark); }
+
+    .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 0.5rem;
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 0.5rem;
+        border: 1px solid var(--gray-200);
+        border-radius: 1rem;
+        background: var(--gray-50);
+    }
+    .checkbox-grid .form-check { margin-bottom: 0.3rem; }
+    .checkbox-grid .form-check-label { font-size: 0.85rem; color: var(--gray-700); }
+    .checkbox-grid .form-check-input:checked { background-color: var(--primary); border-color: var(--primary); }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        border: none;
+        padding: 0.6rem 1.8rem;
+        border-radius: 2rem;
+        font-weight: 500;
+        transition: var(--transition);
+        box-shadow: var(--shadow-sm);
+        color: white;
+    }
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+        background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+        color: white;
+    }
+    .btn-secondary {
+        background: var(--gray-100);
+        border: 1px solid var(--gray-300);
+        color: var(--gray-600);
+        padding: 0.6rem 1.8rem;
+        border-radius: 2rem;
+        transition: var(--transition);
+    }
+    .btn-secondary:hover { background: var(--gray-200); border-color: var(--gray-400); color: var(--gray-700); }
+    .btn-warning {
+        background: #f59e0b;
+        border: none;
+        color: white;
+        padding: 0.6rem 1.2rem;
+        border-radius: 2rem;
+        font-weight: 500;
+        transition: var(--transition);
+    }
+    .btn-warning:hover { background: #d97706; transform: translateY(-1px); color: white; }
+    .btn-outline-secondary {
+        background: transparent;
+        border: 1px solid var(--gray-300);
+        color: var(--gray-600);
+        padding: 0.6rem 1.2rem;
+        border-radius: 2rem;
+        transition: var(--transition);
+    }
+    .btn-outline-secondary:hover { background: var(--gray-100); color: var(--gray-700); }
+
+    .restrictions-badge {
+        background: var(--primary-soft);
+        color: var(--primary);
+        border-radius: 2rem;
+        padding: 0.2rem 0.7rem;
+        font-size: 0.7rem;
+        display: inline-block;
+        margin: 0.2rem;
+    }
+    .alert-info { background: #e3f2fd; color: #0c5460; border-radius: 0.8rem; border: none; }
+    body.dark-mode .alert-info { background: #1e3a5f; color: #90cdf4; }
+    .action-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-bottom: 1.5rem;
+    }
+    .pluie-forecast {
+        background: #e8f4f8;
+        border-left: 4px solid var(--primary);
+        padding: 0.75rem 1rem;
+        border-radius: 0.8rem;
+        margin-bottom: 1rem;
+    }
+    body.dark-mode .pluie-forecast { background: #1e3a5f; color: #90cdf4; }
+    .rain-counter {
+        background: #ff9800;
+        color: white;
+        border-radius: 1rem;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        font-weight: bold;
+    }
+    .rain-counter i { font-size: 2rem; }
+    .rain-counter #rainDuration { font-size: 1.5rem; font-family: monospace; background: rgba(0,0,0,0.2); padding: 0.2rem 0.8rem; border-radius: 2rem; }
+    
+    .bg-gray-100 { background: var(--gray-100); }
+    .form-select { background: var(--gray-100); border: 1px solid var(--gray-200); border-radius: 2rem; padding: 0.5rem 1rem; }
+    .text-muted { color: var(--gray-600) !important; }
+</style>
+
+<div class="container">
+    <div class="page-header">
+        <div class="header-text">
+            <h1><i class="fas fa-cloud-sun me-2"></i> Conditions météo du port</h1>
+            <p>Surveillance et gestion des conditions météorologiques – Béjaïa</p>
+        </div>
+        <div class="weather-update-info">
+            <span class="badge bg-light text-dark px-3 py-2 rounded-pill">
+                <i class="fas fa-sync-alt me-1"></i> Dernière mise à jour : {{ meteo.updated_at|date:"d/m/Y H:i"|default:"--" }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Carte météo principale -->
+    <div class="weather-main-card">
+        <div class="weather-current">
+            <div class="d-flex align-items-center gap-4">
+                <div class="weather-icon-large">
+                    {% if meteo.pluie %}
+                        <i class="fas fa-cloud-rain"></i>
+                    {% elif meteo.vent_force >= 8 %}
+                        <i class="fas fa-wind"></i>
+                    {% elif meteo.vent_force >= 4 %}
+                        <i class="fas fa-cloud-sun"></i>
+                    {% else %}
+                        <i class="fas fa-sun"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    <div class="weather-temp">{{ meteo.temperature|default:"20"|floatformat:0 }}°C</div>
+                    <div class="weather-desc">
+                        {% if meteo.pluie %}Pluie en cours
+                        {% elif meteo.vent_force >= 8 %}Vent fort
+                        {% elif meteo.vent_force >= 4 %}Vent modéré
+                        {% else %}Conditions normales{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="weather-stats">
+                <div class="weather-stat">
+                    <i class="fas fa-wind"></i>
+                    <div class="weather-stat-value">{{ meteo.vent_force|default:"0" }}</div>
+                    <div class="weather-stat-label">Beaufort</div>
+                </div>
+                <div class="weather-stat">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <div class="weather-stat-value">{{ meteo.vent_direction|default:"N" }}</div>
+                    <div class="weather-stat-label">Direction</div>
+                </div>
+                <div class="weather-stat">
+                    <i class="fas fa-umbrella"></i>
+                    <div class="weather-stat-value">{{ meteo.precipitation|default:"0"|floatformat:1 }}</div>
+                    <div class="weather-stat-label">mm/h</div>
+                </div>
+                <div class="weather-stat">
+                    <i class="fas fa-water"></i>
+                    <div class="weather-stat-value">{{ meteo.hauteur_houle|default:"0"|floatformat:1 }}</div>
+                    <div class="weather-stat-label">Houle (m)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compteur de pluie active (si pluie en cours réelle) -->
+    {% if meteo.pluie_active and meteo.pluie_debut_reelle %}
+    <div class="rain-counter">
+        <i class="fas fa-cloud-rain"></i>
+        <span><strong>🌧️ Pluie en cours depuis</strong></span>
+        <span id="rainDuration">0h 00m 00s</span>
+        <span>(arrêt des navires céréaliers et dangereux)</span>
+    </div>
+    {% endif %}
+
+    <!-- Barre d'actions : boutons dynamiques (confirmer/annuler pluie et vent, réinitialiser) -->
+    <div class="action-bar">
+        <form method="post" style="display: inline;">
+            {% csrf_token %}
+            {% if meteo.pluie_active %}
+                <button type="submit" name="annuler_pluie" class="btn btn-outline-secondary"
+                        onclick="return confirm('Annuler la pluie ? La durée écoulée sera ajoutée aux navires céréaliers/dangereux à quai.')">
+                    <i class="fas fa-cloud-sun me-1"></i> Mode pluie OFF
+                </button>
+            {% else %}
+                <button type="submit" name="confirmer_pluie" class="btn btn-warning"
+                        onclick="return confirm('Confirmer la pluie ? Les quais céréaliers seront interdits et les navires sensibles à quai seront stoppés.')">
+                    <i class="fas fa-cloud-rain me-1"></i> Mode pluie ON
+                </button>
+            {% endif %}
+        </form>
+
+        <form method="post" style="display: inline;">
+            {% csrf_token %}
+            {% if meteo.vent_force >= 8 %}
+                <button type="submit" name="annuler_vent" class="btn btn-outline-secondary"
+                        onclick="return confirm('Annuler le vent fort ? Réactiver les quais sensibles.')">
+                    <i class="fas fa-leaf me-1"></i> Annuler vent fort
+                </button>
+            {% else %}
+                <button type="submit" name="confirmer_vent" class="btn btn-warning"
+                        onclick="return confirm('Confirmer vent fort (≥8 Bft) ? Les quais sensibles seront interdits.')">
+                    <i class="fas fa-wind me-1"></i> Confirmer vent fort
+                </button>
+            {% endif %}
+        </form>
+
+        <form method="post" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" name="reinitialiser" class="btn btn-outline-secondary"
+                    onclick="return confirm('Revenir aux données météo réelles ?')">
+                <i class="fas fa-sync-alt me-1"></i> Réinitialiser
+            </button>
+        </form>
+    </div>
+
+    <!-- Affichage des prévisions de pluie -->
+    {% if meteo.pluie_debut_prevue and meteo.pluie_fin_prevue %}
+    <div class="pluie-forecast">
+        <i class="fas fa-cloud-rain me-2"></i>
+        <strong>Prévision pluie :</strong>
+        Du {{ meteo.pluie_debut_prevue|date:"d/m/Y H:i" }} au {{ meteo.pluie_fin_prevue|date:"d/m/Y H:i" }}
+        <span class="text-muted ms-2">(les navires céréaliers et dangereux ne seront pas planifiés pendant cette période)</span>
+    </div>
+    {% endif %}
+
+    <!-- Formulaire de modification détaillée -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-sliders-h"></i>
+            <h5>Modifier les conditions météo</h5>
+            <span class="badge ms-auto">Paramètres avancés</span>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <!-- Vent -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold"><i class="fas fa-wind text-primary me-1"></i> Force du vent (Beaufort)</label>
+                            <div class="d-flex align-items-center gap-3">
+                                <input type="range" name="vent_force" id="ventForce" class="form-range-custom"
+                                       min="0" max="12" step="1" value="{{ meteo.vent_force|default:0 }}">
+                                <span id="ventValue" class="badge bg-primary px-3 py-2 rounded-pill">{{ meteo.vent_force|default:0 }} Bft</span>
+                            </div>
+                            <div id="ventDescription" class="small text-muted mt-1">
+                                {% if meteo.vent_force <= 2 %}Calme
+                                {% elif meteo.vent_force <= 5 %}Bonne brise
+                                {% elif meteo.vent_force <= 7 %}Vent frais
+                                {% else %}Tempête{% endif %}
+                            </div>
+                        </div>
+                        <!-- Hauteur de la houle -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold"><i class="fas fa-water text-primary me-1"></i> Hauteur de la houle (m)</label>
+                            <div class="d-flex align-items-center gap-3">
+                                <input type="range" name="hauteur_houle" id="houleSlider" class="form-range-custom"
+                                       min="0" max="10" step="0.1" value="{{ meteo.hauteur_houle|default:0 }}">
+                                <span id="houleValue" class="badge bg-primary px-3 py-2 rounded-pill">{{ meteo.hauteur_houle|default:0|floatformat:1 }} m</span>
+                            </div>
+                        </div>
+                        <!-- Température -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold"><i class="fas fa-thermometer-half text-primary me-1"></i> Température (°C)</label>
+                            <div class="d-flex align-items-center gap-3">
+                                <input type="range" name="temperature" id="tempSlider" class="form-range-custom"
+                                       min="-10" max="50" step="1" value="{{ meteo.temperature|default:20 }}">
+                                <span id="tempValue" class="badge bg-primary px-3 py-2 rounded-pill">{{ meteo.temperature|default:20|floatformat:0 }} °C</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <!-- Précipitations -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold"><i class="fas fa-umbrella text-primary me-1"></i> Précipitations (mm/h)</label>
+                            <div class="d-flex align-items-center gap-3">
+                                <input type="range" name="precipitation" id="precipSlider" class="form-range-custom"
+                                       min="0" max="50" step="0.5" value="{{ meteo.precipitation|default:0 }}">
+                                <span id="precipValue" class="badge bg-primary px-3 py-2 rounded-pill">{{ meteo.precipitation|default:0|floatformat:1 }} mm/h</span>
+                            </div>
+                            <div class="small text-muted mt-1">
+                                {% if meteo.precipitation > 0 %}⚠️ Pluie détectée – restrictions sur quais céréaliers{% endif %}
+                            </div>
+                        </div>
+                        <!-- Direction du vent -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold"><i class="fas fa-location-arrow text-primary me-1"></i> Direction du vent</label>
+                            <select name="vent_direction" class="form-select">
+                                <option value="N" {% if meteo.vent_direction == 'N' %}selected{% endif %}>Nord (N)</option>
+                                <option value="NE" {% if meteo.vent_direction == 'NE' %}selected{% endif %}>Nord-Est (NE)</option>
+                                <option value="E" {% if meteo.vent_direction == 'E' %}selected{% endif %}>Est (E)</option>
+                                <option value="SE" {% if meteo.vent_direction == 'SE' %}selected{% endif %}>Sud-Est (SE)</option>
+                                <option value="S" {% if meteo.vent_direction == 'S' %}selected{% endif %}>Sud (S)</option>
+                                <option value="SO" {% if meteo.vent_direction == 'SO' %}selected{% endif %}>Sud-Ouest (SO)</option>
+                                <option value="O" {% if meteo.vent_direction == 'O' %}selected{% endif %}>Ouest (O)</option>
+                                <option value="NO" {% if meteo.vent_direction == 'NO' %}selected{% endif %}>Nord-Ouest (NO)</option>
+                            </select>
+                        </div>
+                        <!-- Intervalle pluie prévue -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold"><i class="fas fa-clock text-primary me-1"></i> Intervalle pluie prévue</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="datetime-local" name="pluie_debut_prevue" class="form-control"
+                                           value="{{ meteo.pluie_debut_prevue|date:'Y-m-d\\TH:i' }}" placeholder="Début pluie">
+                                    <small class="text-muted">Début</small>
+                                </div>
+                                <div class="col-6">
+                                    <input type="datetime-local" name="pluie_fin_prevue" class="form-control"
+                                           value="{{ meteo.pluie_fin_prevue|date:'Y-m-d\\TH:i' }}" placeholder="Fin pluie">
+                                    <small class="text-muted">Fin</small>
+                                </div>
+                            </div>
+                            <small class="text-muted">Si renseigné, les navires céréaliers et dangereux seront bloqués pendant cette période.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quais interdits -->
+                <div class="mb-4">
+                    <label class="form-label fw-semibold"><i class="fas fa-ban text-danger me-1"></i> Quais interdits</label>
+                    <div class="checkbox-grid">
+                        {% for quai in tous_les_quais %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="quais_interdits" value="{{ quai.id }}"
+                                   id="quai_{{ quai.id }}" {% if quai.id in restrictions_ids %}checked{% endif %}>
+                            <label class="form-check-label" for="quai_{{ quai.id }}">{{ quai.nom }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="small text-muted mt-2">
+                        <i class="fas fa-info-circle"></i> Cochez les quais à interdire pour cause de conditions météo.
+                    </div>
+                </div>
+
+                <!-- Restrictions actuelles -->
+                {% if meteo.restrictions %}
+                <div class="alert alert-info mb-4">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Restrictions actives :</strong>
+                    {% for r in meteo.restrictions.split|slice:":5" %}
+                        <span class="restrictions-badge">{{ r }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Boutons d'envoi -->
+                <div class="d-flex justify-content-center gap-3 mt-4">
+                    <button type="submit" class="btn btn-primary px-4 py-2">
+                        <i class="fas fa-save me-2"></i> Enregistrer
+                    </button>
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary px-4 py-2">
+                        <i class="fas fa-times me-2"></i> Annuler
+                    </a>
+                    <a href="{% url 'actualiser_meteo' %}" class="btn btn-outline-secondary px-4 py-2">
+                        <i class="fas fa-cloud-sun me-2"></i> Actualiser depuis API
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Mise à jour dynamique des sliders
+    const ventSlider = document.getElementById('ventForce');
+    const ventValue = document.getElementById('ventValue');
+    const ventDesc = document.getElementById('ventDescription');
+    const houleSlider = document.getElementById('houleSlider');
+    const houleValue = document.getElementById('houleValue');
+    const tempSlider = document.getElementById('tempSlider');
+    const tempValue = document.getElementById('tempValue');
+    const precipSlider = document.getElementById('precipSlider');
+    const precipValue = document.getElementById('precipValue');
+
+    const ventDescriptions = ["Calme", "Très légère brise", "Légère brise", "Petite brise",
+                              "Jolie brise", "Bonne brise", "Vent frais", "Grand frais",
+                              "Coup de vent", "Fort coup de vent", "Tempête", "Violente tempête", "Ouragan"];
+
+    function updateVent() {
+        let val = parseInt(ventSlider.value);
+        ventValue.textContent = val + " Bft";
+        ventDesc.textContent = ventDescriptions[val] || "";
+    }
+    function updateHoule() { houleValue.textContent = parseFloat(houleSlider.value).toFixed(1) + " m"; }
+    function updateTemp() { tempValue.textContent = parseInt(tempSlider.value) + " °C"; }
+    function updatePrecip() { precipValue.textContent = parseFloat(precipSlider.value).toFixed(1) + " mm/h"; }
+
+    if (ventSlider) ventSlider.addEventListener('input', updateVent);
+    if (houleSlider) houleSlider.addEventListener('input', updateHoule);
+    if (tempSlider) tempSlider.addEventListener('input', updateTemp);
+    if (precipSlider) precipSlider.addEventListener('input', updatePrecip);
+
+    updateVent(); updateHoule(); updateTemp(); updatePrecip();
+
+    // Compteur de durée de pluie active
+    {% if meteo.pluie_active and meteo.pluie_debut_reelle %}
+    (function() {
+        var debutPluie = new Date("{{ meteo.pluie_debut_reelle|date:'Y-m-d H:i:s' }}");
+        var rainDurationSpan = document.getElementById('rainDuration');
+        if (rainDurationSpan) {
+            function updateRainCounter() {
+                var now = new Date();
+                var diff = Math.floor((now - debutPluie) / 1000);
+                if (diff < 0) diff = 0;
+                var hours = Math.floor(diff / 3600);
+                var minutes = Math.floor((diff % 3600) / 60);
+                var seconds = diff % 60;
+                rainDurationSpan.innerHTML = hours + "h " + minutes + "m " + seconds + "s";
+            }
+            updateRainCounter();
+            setInterval(updateRainCounter, 1000);
+        }
+    })();
+    {% endif %}
+</script>
+{% endblock %}

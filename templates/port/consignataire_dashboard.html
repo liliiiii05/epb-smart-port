@@ -1,0 +1,1026 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Mes navires | Consignataire{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ========== EN-TÊTE MODERNE ========== */
+    .page-header {
+        background: linear-gradient(135deg, #003366, #002244);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        color: white;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -5%;
+        width: 200px;
+        height: 200px;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+        border-radius: 50%;
+    }
+    .page-header h1 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    .page-header p {
+        opacity: 0.85;
+        margin-bottom: 0;
+    }
+
+    /* ========== STATS CARDS ========== */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.2rem;
+        margin-bottom: 2rem;
+    }
+    .stat-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.2rem;
+        text-align: center;
+        transition: all 0.3s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+    }
+    body.dark-mode .stat-card {
+        background: #1e293b;
+        border-color: #334155;
+    }
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        border-color: #003366;
+    }
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.8rem auto;
+        font-size: 1.3rem;
+    }
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #003366;
+        line-height: 1;
+    }
+    body.dark-mode .stat-number {
+        color: #60a5fa;
+    }
+    .stat-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        color: #64748b;
+        letter-spacing: 1px;
+        margin-top: 0.3rem;
+    }
+
+    /* ========== CARTE FILTRES ========== */
+    .card-filter {
+        background: white;
+        border-radius: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+    }
+    body.dark-mode .card-filter {
+        background: #1e293b;
+        border-color: #334155;
+    }
+    .card-header-custom {
+        background: #f8fafc;
+        padding: 0.8rem 1.2rem;
+        border-bottom: 1px solid #e2e8f0;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    body.dark-mode .card-header-custom {
+        background: #0f172a;
+        border-bottom-color: #334155;
+        color: #f1f5f9;
+    }
+    .card-header-custom i {
+        margin-right: 0.5rem;
+        color: #003366;
+    }
+
+    /* ========== FILTRES ========== */
+    .filter-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .filter-btn {
+        border-radius: 2rem;
+        padding: 0.4rem 1.2rem;
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        font-weight: 500;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    body.dark-mode .filter-btn {
+        background: #334155;
+        color: #cbd5e1;
+        border-color: #475569;
+    }
+    .filter-btn.active {
+        background: #003366;
+        color: white;
+        border-color: #003366;
+    }
+    .filter-btn:hover:not(.active) {
+        background: #e2e8f0;
+        transform: translateY(-1px);
+    }
+    .search-input {
+        border-radius: 2rem;
+        border: 1px solid #e2e8f0;
+        padding: 0.4rem 1rem 0.4rem 2.5rem;
+        width: 260px;
+        background: white;
+    }
+    body.dark-mode .search-input {
+        background: #1e293b;
+        border-color: #475569;
+        color: white;
+    }
+    .search-input:focus {
+        outline: none;
+        border-color: #003366;
+        box-shadow: 0 0 0 3px rgba(0,51,102,0.1);
+    }
+    .search-wrapper {
+        position: relative;
+    }
+    .search-icon {
+        position: absolute;
+        left: 0.8rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+    }
+
+    /* ========== SECTION CARD ========== */
+    .section-card {
+        background: white;
+        border-radius: 1rem;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s;
+    }
+    body.dark-mode .section-card {
+        background: #1e293b;
+        border-color: #334155;
+    }
+    .section-card:hover {
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    .section-header {
+        background: linear-gradient(135deg, #003366, #002244);
+        padding: 0.8rem 1.2rem;
+        color: white;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .section-badge {
+        background: rgba(255,255,255,0.2);
+        border-radius: 2rem;
+        padding: 0.2rem 0.8rem;
+        font-size: 0.7rem;
+    }
+
+    /* ========== TABLEAUX ========== */
+    .table-custom {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .table-custom th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    body.dark-mode .table-custom th {
+        background: #0f172a;
+        color: #94a3b8;
+        border-bottom-color: #334155;
+    }
+    .table-custom td {
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+    }
+    body.dark-mode .table-custom td {
+        border-bottom-color: #334155;
+    }
+    .table-custom tr:last-child td {
+        border-bottom: none;
+    }
+    .table-custom tr:hover td {
+        background: #f1f5f9;
+    }
+    body.dark-mode .table-custom tr:hover td {
+        background: #334155;
+    }
+
+    /* ========== BADGES ========== */
+    .badge-status {
+        border-radius: 2rem;
+        padding: 0.3rem 0.9rem;
+        font-size: 0.7rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .badge-success {
+        background: rgba(16,185,129,0.15);
+        color: #10b981;
+        border: 1px solid rgba(16,185,129,0.3);
+    }
+    .badge-secondary {
+        background: rgba(100,116,139,0.15);
+        color: #64748b;
+        border: 1px solid rgba(100,116,139,0.3);
+    }
+    .badge-info {
+        background: rgba(59,130,246,0.15);
+        color: #3b82f6;
+        border: 1px solid rgba(59,130,246,0.3);
+    }
+
+    /* ========== BOUTONS ========== */
+    .btn-sm-rounded {
+        border-radius: 2rem;
+        padding: 0.25rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    .btn-primary-custom {
+        background: #003366;
+        border: 1px solid #003366;
+        color: white;
+    }
+    .btn-primary-custom:hover {
+        background: #002244;
+        transform: translateY(-1px);
+    }
+    .btn-outline-warning-custom {
+        background: transparent;
+        border: 1px solid #f59e0b;
+        color: #f59e0b;
+    }
+    .btn-outline-warning-custom:hover {
+        background: #f59e0b;
+        color: white;
+        transform: translateY(-1px);
+    }
+    .btn-outline-secondary-custom {
+        background: transparent;
+        border: 1px solid #cbd5e1;
+        color: #475569;
+        border-radius: 2rem;
+        padding: 0.5rem 1.5rem;
+        transition: all 0.2s;
+    }
+    .btn-outline-secondary-custom:hover {
+        border-color: #003366;
+        color: #003366;
+    }
+
+    /* ========== NOTIFICATIONS ========== */
+    .notification-wrapper { position: relative; }
+    .notification-btn {
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: white;
+        transition: all 0.2s;
+        backdrop-filter: blur(4px);
+    }
+    .notification-btn:hover {
+        background: rgba(255,255,255,0.35);
+        transform: scale(1.05);
+    }
+    #notificationBadge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #ef4444;
+        color: white;
+        font-size: 0.6rem;
+        font-weight: bold;
+        min-width: 18px;
+        height: 18px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.8);
+    }
+    .notification-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(12px);
+        z-index: 10001;
+        justify-content: center;
+        align-items: center;
+    }
+    .notification-modal-content {
+        background: white;
+        border-radius: 1.5rem;
+        width: 550px;
+        max-width: 90vw;
+        max-height: 85vh;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        animation: scaleIn 0.3s ease;
+    }
+    body.dark-mode .notification-modal-content {
+        background: #1e293b;
+    }
+    @keyframes scaleIn {
+        from { transform: scale(0.95); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+    .notification-modal-header {
+        background: linear-gradient(135deg, #003366, #002244);
+        color: white;
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .close-modal {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        color: white;
+        font-size: 1.2rem;
+        transition: all 0.2s;
+    }
+    .close-modal:hover {
+        background: rgba(255,255,255,0.3);
+        transform: rotate(90deg);
+    }
+    .notification-list-modal {
+        max-height: 55vh;
+        overflow-y: auto;
+    }
+    .notification-item-modal {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    body.dark-mode .notification-item-modal {
+        border-bottom-color: #334155;
+    }
+    .notification-item-modal.unread {
+        background: rgba(0,51,102,0.08);
+        border-left: 3px solid #003366;
+    }
+    .notification-icon-modal {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+    .notification-icon-modal.danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+    .notification-icon-modal.warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+    .notification-icon-modal.info { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+    .notification-icon-modal.success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+    .notification-message-modal {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #1e293b;
+        margin-bottom: 0.3rem;
+    }
+    body.dark-mode .notification-message-modal {
+        color: #f1f5f9;
+    }
+    .notification-time-modal {
+        font-size: 0.65rem;
+        color: #64748b;
+    }
+    .notification-actions-modal {
+        display: flex;
+        gap: 6px;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .notification-item-modal:hover .notification-actions-modal { opacity: 1; }
+    .notification-actions-modal button {
+        background: rgba(0,0,0,0.05);
+        border: none;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .mark-read-btn:hover { color: #10b981; }
+    .delete-notif-btn:hover { color: #ef4444; }
+    .empty-notifications-modal {
+        text-align: center;
+        padding: 3rem;
+        color: #64748b;
+    }
+    .notification-modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    body.dark-mode .notification-modal-footer {
+        border-top-color: #334155;
+    }
+    .btn-mark-all-modal {
+        background: linear-gradient(135deg, #003366, #002244);
+        border: none;
+        padding: 0.4rem 1.2rem;
+        border-radius: 2rem;
+        color: white;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-mark-all-modal:hover {
+        transform: translateY(-2px);
+    }
+    .bell-animate {
+        animation: bellRing 0.6s cubic-bezier(0.2,1.2,0.4,1);
+    }
+    @keyframes bellRing {
+        0% { transform: rotate(0deg); }
+        20% { transform: rotate(12deg); }
+        40% { transform: rotate(-10deg); }
+        60% { transform: rotate(6deg); }
+        80% { transform: rotate(-4deg); }
+        100% { transform: rotate(0deg); }
+    }
+    .hidden {
+        display: none;
+    }
+
+    @media (max-width: 992px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (max-width: 576px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        .filter-group {
+            justify-content: center;
+        }
+        .search-input {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+    <!-- NOTIFICATION ICÔNE -->
+    <div class="position-fixed" style="top: 1rem; right: 1.5rem; z-index: 1050;">
+        <div class="notification-wrapper">
+            <button id="notificationBell" class="notification-btn shadow-sm">
+                <i class="fas fa-bell" style="font-size: 1.2rem;"></i>
+                <span id="notificationBadge" style="display: none;">0</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODALE NOTIFICATIONS -->
+    <div id="notificationModal" class="notification-modal">
+        <div class="notification-modal-content">
+            <div class="notification-modal-header">
+                <h3><i class="fas fa-bell me-2"></i>Mes notifications</h3>
+                <button class="close-modal" id="closeModalBtn">&times;</button>
+            </div>
+            <div class="notification-modal-body">
+                <div id="notificationListModal" class="notification-list-modal">
+                    <div class="empty-notifications-modal"><i class="fas fa-spinner fa-spin"></i><p>Chargement...</p></div>
+                </div>
+            </div>
+            <div class="notification-modal-footer">
+                <button id="markAllReadModalBtn" class="btn-mark-all-modal"><i class="fas fa-check-double"></i> Tout marquer lu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EN-TÊTE MODERNE -->
+    <div class="page-header">
+        <h1><i class="fas fa-check-circle me-2"></i> Mes navires</h1>
+        <p class="mb-0">Validez la disponibilité de vos navires pour l'optimisation des accostages</p>
+    </div>
+
+    <!-- STATS RAPIDES -->
+    <div class="stats-grid">
+        <div class="stat-card" data-filter="rade">
+            <div class="stat-icon" style="background: rgba(59,130,246,0.15);"><i class="fas fa-anchor" style="color: #3b82f6;"></i></div>
+            <div class="stat-number">{{ navires_rade|length }}</div>
+            <div class="stat-label">En rade</div>
+        </div>
+        <div class="stat-card" data-filter="attente">
+            <div class="stat-icon" style="background: rgba(245,158,11,0.15);"><i class="fas fa-hourglass-half" style="color: #f59e0b;"></i></div>
+            <div class="stat-number">{{ navires_attente|length }}</div>
+            <div class="stat-label">En attente (ETA)</div>
+        </div>
+        <div class="stat-card" data-filter="quai">
+            <div class="stat-icon" style="background: rgba(16,185,129,0.15);"><i class="fas fa-ship" style="color: #10b981;"></i></div>
+            <div class="stat-number">{{ navires_quai|length }}</div>
+            <div class="stat-label">À quai</div>
+        </div>
+        <div class="stat-card" data-filter="termine">
+            <div class="stat-icon" style="background: rgba(100,116,139,0.15);"><i class="fas fa-check-double" style="color: #64748b;"></i></div>
+            <div class="stat-number">{{ navires_termine|length }}</div>
+            <div class="stat-label">Terminés</div>
+        </div>
+    </div>
+
+    <!-- CARTE FILTRES -->
+    <div class="card-filter">
+        <div class="card-header-custom">
+            <i class="fas fa-filter"></i> Filtres
+        </div>
+        <div class="card-body" style="padding: 1rem;">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="filter-group">
+                    <button class="filter-btn active" data-filter="all">Tous</button>
+                    <button class="filter-btn" data-filter="rade">En rade</button>
+                    <button class="filter-btn" data-filter="attente">Attente (ETA)</button>
+                    <button class="filter-btn" data-filter="quai">À quai</button>
+                    <button class="filter-btn" data-filter="termine">Terminés</button>
+                </div>
+                <div class="search-wrapper">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="searchInput" class="search-input" placeholder="Rechercher un navire...">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTIONS DES NAVIRES -->
+    <div id="sectionsWrapper">
+        <!-- En rade -->
+        {% if navires_rade %}
+        <div class="section-card navire-section" data-section="rade">
+            <div class="section-header">
+                <span><i class="fas fa-anchor me-2"></i> Navires en rade</span>
+                <span class="section-badge">{{ navires_rade|length }} navire(s)</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table-custom mb-0">
+                    <thead>
+                        <tr><th>Navire</th><th>Type</th><th>Arrivée en rade</th><th>Prêt ?</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for navire in navires_rade %}
+                        <tr class="navire-row" data-nom="{{ navire.nom|lower }}">
+                            <td><strong><i class="fas fa-ship me-1"></i> {{ navire.nom }}</strong></td>
+                            <td>{{ navire.get_type_display|default:"-" }}</td>
+                            <td>{{ navire.arrivee_datetime|date:"d/m H:i"|default:navire.arrivee|floatformat:0 }}h</div>
+                            <td>
+                                {% if navire.pret_consignataire %}
+                                    <span class="badge-status badge-success"><i class="fas fa-check-circle"></i> Prêt</span>
+                                {% else %}
+                                    <span class="badge-status badge-secondary"><i class="fas fa-clock"></i> Non prêt</span>
+                                {% endif %}
+                             </div>
+                            <td>
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="navire_id" value="{{ navire.id }}">
+                                    {% if navire.pret_consignataire %}
+                                        <button type="submit" name="annuler_pret" class="btn-outline-warning-custom btn-sm-rounded"><i class="fas fa-undo-alt me-1"></i> Annuler</button>
+                                    {% else %}
+                                        <button type="submit" name="marquer_pret" class="btn-primary-custom btn-sm-rounded"><i class="fas fa-check me-1"></i> Marquer prêt</button>
+                                    {% endif %}
+                                </form>
+                             </div>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Attente -->
+        {% if navires_attente %}
+        <div class="section-card navire-section" data-section="attente">
+            <div class="section-header">
+                <span><i class="fas fa-hourglass-half me-2"></i> Navires attendus</span>
+                <span class="section-badge">{{ navires_attente|length }} navire(s)</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table-custom mb-0">
+                    <thead>
+                        <tr><th>Navire</th><th>Type</th><th>ETA</th><th>Prêt ?</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for navire in navires_attente %}
+                        <tr class="navire-row" data-nom="{{ navire.nom|lower }}">
+                            <td><strong><i class="fas fa-shipping-fast me-1"></i> {{ navire.nom }}</strong></td>
+                            <td>{{ navire.get_type_display|default:"-" }}</td>
+                            <td>{{ navire.arrivee_datetime|date:"d/m H:i"|default:navire.arrivee|floatformat:0 }}h</div>
+                            <td>
+                                {% if navire.pret_consignataire %}
+                                    <span class="badge-status badge-success"><i class="fas fa-check-circle"></i> Prêt</span>
+                                {% else %}
+                                    <span class="badge-status badge-secondary"><i class="fas fa-clock"></i> Non prêt</span>
+                                {% endif %}
+                             </div>
+                            <td>
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="navire_id" value="{{ navire.id }}">
+                                    {% if navire.pret_consignataire %}
+                                        <button type="submit" name="annuler_pret" class="btn-outline-warning-custom btn-sm-rounded"><i class="fas fa-undo-alt me-1"></i> Annuler</button>
+                                    {% else %}
+                                        <button type="submit" name="marquer_pret" class="btn-primary-custom btn-sm-rounded"><i class="fas fa-check me-1"></i> Marquer prêt</button>
+                                    {% endif %}
+                                </form>
+                             </div>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- À quai -->
+        {% if navires_quai %}
+        <div class="section-card navire-section" data-section="quai">
+            <div class="section-header">
+                <span><i class="fas fa-ship me-2"></i> Navires à quai</span>
+                <span class="section-badge">{{ navires_quai|length }} navire(s)</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table-custom mb-0">
+                    <thead>
+                        <tr><th>Navire</th><th>Type</th><th>Début à quai</th><th>Statut</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for navire in navires_quai %}
+                        <tr class="navire-row" data-nom="{{ navire.nom|lower }}">
+                            <td><strong><i class="fas fa-anchor me-1"></i> {{ navire.nom }}</strong></td>
+                            <td>{{ navire.get_type_display|default:"-" }}</td>
+                            <td>{{ navire.debut_datetime|date:"d/m H:i"|default:navire.heure_debut|floatformat:0 }}h</div>
+                            <td><span class="badge-status badge-info"><i class="fas fa-ship me-1"></i> À quai</span></div>
+                            <td></div>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Terminés -->
+        {% if navires_termine %}
+        <div class="section-card navire-section" data-section="termine">
+            <div class="section-header">
+                <span><i class="fas fa-check-double me-2"></i> Navires terminés</span>
+                <span class="section-badge">{{ navires_termine|length }} navire(s)</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table-custom mb-0">
+                    <thead>
+                        <tr><th>Navire</th><th>Type</th><th>Fin</th><th>Statut</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for navire in navires_termine %}
+                        <tr class="navire-row" data-nom="{{ navire.nom|lower }}">
+                            <td>{{ navire.nom }}</div>
+                            <td>{{ navire.get_type_display|default:"-" }}</div>
+                            <td>{{ navire.fin_datetime|date:"d/m H:i"|default:navire.heure_fin|floatformat:0 }}h</div>
+                            <td><span class="badge-status badge-success"><i class="fas fa-check-circle me-1"></i> Terminé</span></div>
+                            <td></div>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if not navires_rade and not navires_attente and not navires_quai and not navires_termine %}
+    <div class="alert alert-info" style="border-radius: 1rem; border-left: 4px solid #3b82f6;">
+        <i class="fas fa-info-circle me-2"></i> Aucun navire associé à votre agence.
+    </div>
+    {% endif %}
+
+    <div class="text-center mt-4">
+        <a href="{% url 'dashboard' %}" class="btn-outline-secondary-custom">
+            <i class="fas fa-arrow-left me-2"></i> Retour au tableau de bord
+        </a>
+    </div>
+</div>
+
+<script>
+    // Gestion des filtres
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const sections = document.querySelectorAll('.navire-section');
+    const statCards = document.querySelectorAll('.stat-card');
+    
+    function filterSections(filterValue) {
+        sections.forEach(section => {
+            if (filterValue === 'all') {
+                section.classList.remove('hidden');
+            } else if (section.dataset.section === filterValue) {
+                section.classList.remove('hidden');
+            } else {
+                section.classList.add('hidden');
+            }
+        });
+        filterBtns.forEach(btn => {
+            if (btn.dataset.filter === filterValue) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+    
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => filterSections(btn.dataset.filter));
+    });
+    
+    statCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const filter = card.getAttribute('data-filter');
+            if (filter) filterSections(filter);
+        });
+    });
+
+    // Recherche
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function() {
+            const term = this.value.toLowerCase().trim();
+            document.querySelectorAll('.navire-row').forEach(row => {
+                const name = row.getAttribute('data-nom');
+                if (name && name.includes(term)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    // ========== NOTIFICATIONS ==========
+    function getCookie(name) {
+        let value = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    value = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return value;
+    }
+
+    function formatDate(dateString) {
+        if (!dateString) return 'À l\'instant';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMins = Math.floor((now - date) / 60000);
+        if (diffMins < 1) return 'À l\'instant';
+        if (diffMins < 60) return `Il y a ${diffMins} min`;
+        if (diffMins < 1440) return `Il y a ${Math.floor(diffMins/60)} h`;
+        if (diffMins < 2880) return 'Hier';
+        return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function getIconClass(type) {
+        switch(type) {
+            case 'danger': return 'danger';
+            case 'warning': return 'warning';
+            case 'success': return 'success';
+            default: return 'info';
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function renderNotifications(notifications) {
+        const container = document.getElementById('notificationListModal');
+        if (!notifications || notifications.length === 0) {
+            container.innerHTML = `<div class="empty-notifications-modal"><i class="fas fa-bell-slash fa-3x mb-3"></i><p>Aucune notification</p></div>`;
+            return;
+        }
+        let html = '';
+        notifications.forEach(notif => {
+            const iconClass = getIconClass(notif.type);
+            const isUnread = !notif.est_lue;
+            const unreadClass = isUnread ? 'unread' : '';
+            let iconName = 'fa-info-circle';
+            if (notif.type === 'danger') iconName = 'fa-exclamation-triangle';
+            else if (notif.type === 'warning') iconName = 'fa-clock';
+            else if (notif.type === 'success') iconName = 'fa-check-circle';
+            
+            html += `
+                <div class="notification-item-modal ${unreadClass}" data-id="${notif.id}">
+                    <div class="notification-icon-modal ${iconClass}"><i class="fas ${iconName}"></i></div>
+                    <div class="notification-content-modal">
+                        <div class="notification-message-modal">${escapeHtml(notif.message)}</div>
+                        <div class="notification-time-modal"><i class="far fa-clock"></i> ${formatDate(notif.date_creation)}</div>
+                    </div>
+                    <div class="notification-actions-modal">
+                        ${isUnread ? `<button class="mark-read-btn" data-id="${notif.id}" title="Marquer comme lue"><i class="fas fa-check-circle"></i></button>` : ''}
+                        <button class="delete-notif-btn" data-id="${notif.id}" title="Supprimer"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+        attachModalEvents();
+    }
+
+    function attachModalEvents() {
+        document.querySelectorAll('.mark-read-btn').forEach(btn => {
+            btn.onclick = async (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                try {
+                    await fetch(`/port/consignataire/notification/marquer-lu/${id}/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                    });
+                    await loadNotifications();
+                    await updateBadgeCount();
+                } catch(e) { console.error(e); }
+            };
+        });
+        document.querySelectorAll('.delete-notif-btn').forEach(btn => {
+            btn.onclick = async (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                if (!confirm('Supprimer cette notification ?')) return;
+                try {
+                    await fetch(`/port/consignataire/notification/supprimer/${id}/`, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                    });
+                    await loadNotifications();
+                    await updateBadgeCount();
+                } catch(e) { console.error(e); }
+            };
+        });
+        document.querySelectorAll('.notification-item-modal').forEach(item => {
+            item.onclick = (e) => {
+                if (e.target.closest('.mark-read-btn') || e.target.closest('.delete-notif-btn')) return;
+                const modal = document.getElementById('notificationModal');
+                if (modal) modal.style.display = 'none';
+            };
+        });
+    }
+
+    async function loadNotifications() {
+        const container = document.getElementById('notificationListModal');
+        if (container) {
+            container.innerHTML = '<div class="empty-notifications-modal"><i class="fas fa-spinner fa-spin"></i><p>Chargement...</p></div>';
+        }
+        try {
+            const response = await fetch('/port/consignataire/notifications/api/');
+            const data = await response.json();
+            renderNotifications(data.notifications || []);
+            const unread = (data.notifications || []).filter(n => !n.est_lue).length;
+            const badge = document.getElementById('notificationBadge');
+            const bell = document.getElementById('notificationBell');
+            if (unread > 0 && badge) {
+                badge.style.display = 'flex';
+                badge.innerText = unread > 99 ? '99+' : unread;
+                if (bell) {
+                    bell.classList.add('bell-animate');
+                    setTimeout(() => bell.classList.remove('bell-animate'), 600);
+                }
+            } else if (badge) {
+                badge.style.display = 'none';
+            }
+        } catch(e) {
+            if (container) {
+                container.innerHTML = `<div class="empty-notifications-modal"><i class="fas fa-exclamation-triangle fa-3x mb-3"></i><p>Erreur de chargement</p><button onclick="location.reload()" class="btn btn-primary mt-2 rounded-pill">Réessayer</button></div>`;
+            }
+        }
+    }
+
+    async function markAllRead() {
+        try {
+            await fetch('/port/consignataire/notifications/marquer-tout-lu/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            });
+            await loadNotifications();
+            await updateBadgeCount();
+        } catch(e) { console.error(e); }
+    }
+
+    async function updateBadgeCount() {
+        try {
+            const response = await fetch('/port/consignataire/notifications/api/');
+            const data = await response.json();
+            const unread = (data.notifications || []).filter(n => !n.est_lue).length;
+            const badge = document.getElementById('notificationBadge');
+            if (unread > 0 && badge) {
+                badge.style.display = 'flex';
+                badge.innerText = unread > 99 ? '99+' : unread;
+            } else if (badge) {
+                badge.style.display = 'none';
+            }
+        } catch(e) {}
+    }
+
+    const bell = document.getElementById('notificationBell');
+    const modal = document.getElementById('notificationModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const markAllReadModalBtn = document.getElementById('markAllReadModalBtn');
+
+    if (bell) {
+        bell.onclick = () => { 
+            loadNotifications(); 
+            if (modal) modal.style.display = 'flex'; 
+        };
+    }
+    if (closeModalBtn) {
+        closeModalBtn.onclick = () => { if (modal) modal.style.display = 'none'; };
+    }
+    if (modal) {
+        modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    }
+    if (markAllReadModalBtn) {
+        markAllReadModalBtn.onclick = markAllRead;
+    }
+
+    updateBadgeCount();
+    setInterval(() => {
+        updateBadgeCount();
+        if (modal && modal.style.display === 'flex') loadNotifications();
+    }, 30000);
+</script>
+{% endblock %}

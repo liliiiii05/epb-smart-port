@@ -1,0 +1,624 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Statistiques | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --primary: #0066a0;
+        --primary-dark: #004b7c;
+        --primary-light: #2c9cd4;
+        --success: #2a9d8f;
+        --warning: #e9c46a;
+        --danger: #e76f51;
+        --info: #48b5e0;
+        --dark: #1a2c3c;
+        --gray-600: #5f7d95;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        border-radius: 1.5rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .page-header::before {
+        content: '📈';
+        position: absolute;
+        bottom: -20px;
+        right: -20px;
+        font-size: 120px;
+        opacity: 0.1;
+        pointer-events: none;
+    }
+
+    .date-display {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 2rem;
+        padding: 0.5rem 1.2rem;
+        color: white !important;
+        font-weight: 500;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.2rem;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-left: 4px solid var(--primary);
+        height: 100%;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--primary);
+        line-height: 1.2;
+    }
+
+    .stat-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--gray-600);
+        margin-top: 0.5rem;
+    }
+
+    .stat-icon {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+        color: var(--primary);
+    }
+
+    .card-custom {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s;
+        height: 100%;
+    }
+
+    .card-custom:hover {
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    }
+
+    .card-custom h2 {
+        margin-top: 0;
+        margin-bottom: 1.2rem;
+        color: var(--dark);
+        font-size: 1.2rem;
+        font-weight: 600;
+        border-left: 4px solid var(--primary);
+        padding-left: 1rem;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th {
+        text-align: left;
+        padding: 10px 8px;
+        background: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
+        font-weight: 600;
+        color: var(--dark);
+        font-size: 0.8rem;
+    }
+
+    td {
+        padding: 8px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.85rem;
+    }
+
+    tr:hover {
+        background: #f8fafc;
+    }
+
+    .badge-type {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    .badge-cerealier { background: #f39c12; color: white; }
+    .badge-petrolier { background: #e74c3c; color: white; }
+    .badge-cargo { background: #7f8c8d; color: white; }
+    .badge-conteneur { background: #3498db; color: white; }
+    .badge-betail { background: #2ecc71; color: white; }
+    .badge-huillier { background: #1abc9c; color: white; }
+    .badge-gazier { background: #9b59b6; color: white; }
+    .badge-essence { background: #f1c40f; color: #1a2c3c; }
+    .badge-ferry { background: #e67e22; color: white; }
+    .badge-frigorifique { background: #1abc9c; color: white; }
+
+    body.dark-mode .stat-card,
+    body.dark-mode .card-custom {
+        background: #1e293b;
+        border-color: #334155;
+    }
+
+    body.dark-mode th {
+        background: #334155;
+        color: white;
+    }
+
+    body.dark-mode td {
+        border-bottom-color: #334155;
+    }
+
+    body.dark-mode tr:hover {
+        background: #334155;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-top: 1rem;
+    }
+
+    .btn-retour {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        padding: 0.6rem 1.5rem;
+        border-radius: 2rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s;
+    }
+
+    .btn-retour:hover {
+        transform: translateX(-3px);
+        color: white;
+    }
+
+    .progress-custom {
+        background: #e2e8f0;
+        border-radius: 10px;
+        height: 6px;
+        overflow: hidden;
+        width: 80px;
+    }
+
+    .progress-bar-custom {
+        background: var(--primary);
+        height: 100%;
+        border-radius: 10px;
+    }
+
+    .score-high {
+        color: #2a9d8f;
+        font-weight: 700;
+    }
+
+    .score-medium {
+        color: #e9c46a;
+        font-weight: 700;
+    }
+
+    .score-low {
+        color: #e76f51;
+        font-weight: 700;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.5s ease forwards;
+    }
+
+    .loading-placeholder {
+        text-align: center;
+        padding: 3rem;
+        color: var(--gray-600);
+    }
+
+    .loading-placeholder i {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+</style>
+
+<div class="container-fluid px-4">
+    <!-- En-tête -->
+    <div class="page-header animate-fade-in">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h1 class="display-5 fw-bold mb-2">
+                    <i class="fas fa-chart-line me-3"></i>Statistiques du port
+                </h1>
+                <p class="lead mb-0 opacity-75">
+                    <i class="fas fa-chart-pie me-2"></i>Analyse des performances et indicateurs clés
+                </p>
+            </div>
+            <div class="mt-3 mt-md-0">
+                <div class="date-display">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    <span id="currentDateTime"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cartes statistiques -->
+    <div class="row g-4 mb-4 animate-fade-in" style="animation-delay: 0.1s;">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-ship"></i></div>
+                <div class="stat-number">{{ stats.total_navires|default:0 }}</div>
+                <div class="stat-label">Total navires</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
+                <div class="stat-number">{{ stats.attente_moyenne|floatformat:1|default:"0.0" }}h</div>
+                <div class="stat-label">Attente moyenne</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-trophy"></i></div>
+                <div class="stat-number">{{ stats.score_moyen|floatformat:1|default:"0.0" }}</div>
+                <div class="stat-label">Score moyen EPB</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-chart-simple"></i></div>
+                <div class="stat-number">{{ stats.total_sessions|default:0 }}</div>
+                <div class="stat-label">Sessions optimisation</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4 animate-fade-in" style="animation-delay: 0.15s;">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-water"></i></div>
+                <div class="stat-number">{{ stats.navires_rade|default:0 }}</div>
+                <div class="stat-label">Navires en rade</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-anchor"></i></div>
+                <div class="stat-number">{{ stats.navires_quai|default:0 }}</div>
+                <div class="stat-label">Navires à quai</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                <div class="stat-number">{{ stats.attente_max|floatformat:1|default:"0" }}h</div>
+                <div class="stat-label">Attente maximale</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Navires par type -->
+        <div class="col-lg-6 animate-fade-in" style="animation-delay: 0.2s;">
+            <div class="card-custom">
+                <h2><i class="fas fa-chart-pie me-2"></i> Navires par type</h2>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>Type</th><th>Nombre</th><th>Répartition</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for item in stats.navires_par_type %}
+                            <tr>
+                                <td><span class="badge-type badge-{{ item.type|lower }}">{{ item.type|capfirst }}</span></td>
+                                <td class="fw-bold">{{ item.count }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress-custom"><div class="progress-bar-custom" style="width: {% widthratio item.count stats.total_navires 100 %}%"></div></div>
+                                        <small>{% widthratio item.count stats.total_navires 100 %}%</small>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center text-muted">Aucune donnée</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions récentes -->
+        <div class="col-lg-6 animate-fade-in" style="animation-delay: 0.25s;">
+            <div class="card-custom">
+                <h2><i class="fas fa-history me-2"></i> Dernières sessions</h2>
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>Date</th><th>Navires</th><th>Score</th><th>Occupation</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for session in stats.sessions|slice:":10" %}
+                            <tr>
+                                <td><small>{{ session.date_creation|date:"d/m H:i" }}</small></td>
+                                <td>{{ session.nb_navires }}</td>
+                                <td class="{% if session.score_total >= 80 %}score-high{% elif session.score_total >= 60 %}score-medium{% else %}score-low{% endif %}">{{ session.score_total|floatformat:1 }}</td>
+                                <td>{{ session.taux_occupation|floatformat:0 }}%</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center text-muted">Aucune session</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphique d'évolution des scores -->
+    <div class="row g-4 mt-2 animate-fade-in" style="animation-delay: 0.3s;">
+        <div class="col-12">
+            <div class="card-custom">
+                <h2><i class="fas fa-chart-line me-2"></i> Évolution des scores EPB</h2>
+                <div id="scoreChartContainer" class="chart-container">
+                    <div class="loading-placeholder">
+                        <i class="fas fa-chart-line"></i>
+                        <p>Chargement des données...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphique d'occupation des quais -->
+    <div class="row g-4 mt-2 animate-fade-in" style="animation-delay: 0.35s;">
+        <div class="col-12">
+            <div class="card-custom">
+                <h2><i class="fas fa-chart-bar me-2"></i> Occupation des quais</h2>
+                <div id="occupationChartContainer" class="chart-container">
+                    <div class="loading-placeholder">
+                        <i class="fas fa-chart-bar"></i>
+                        <p>Chargement des données...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top 5 des navires -->
+    <div class="row g-4 mt-2 animate-fade-in" style="animation-delay: 0.4s;">
+        <div class="col-12">
+            <div class="card-custom">
+                <h2><i class="fas fa-trophy me-2"></i> Top 5 des navires les plus fréquents</h2>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>Navire</th><th>Type</th><th>Fréquence</th><th>Score moyen</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for navire in stats.top_navires %}
+                            <tr>
+                                <td class="fw-bold">{{ navire.navire__nom }}</td>
+                                <td><span class="badge-type badge-{{ navire.navire__type|lower }}">{{ navire.navire__type|capfirst }}</span></td>
+                                <td>{{ navire.count }} fois</td>
+                                <td class="{% if navire.score_moyen >= 80 %}score-high{% elif navire.score_moyen >= 60 %}score-medium{% else %}score-low{% endif %}">{{ navire.score_moyen|floatformat:1 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center text-muted">Aucune donnée</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bouton retour -->
+    <div class="mt-4 mb-4">
+        <a href="{% url 'dashboard' %}" class="btn-retour"><i class="fas fa-arrow-left me-2"></i>Retour au tableau de bord</a>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Date et heure
+        function updateDateTime() {
+            const now = new Date();
+            const jour = String(now.getDate()).padStart(2, '0');
+            const mois = String(now.getMonth() + 1).padStart(2, '0');
+            const annee = now.getFullYear();
+            const heures = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const formatted = `${jour}/${mois}/${annee} ${heures}:${minutes}`;
+            const dateTimeEl = document.getElementById('currentDateTime');
+            if (dateTimeEl) dateTimeEl.textContent = formatted;
+        }
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+
+        // ========== GRAPHIQUE D'ÉVOLUTION DES SCORES ==========
+        fetch('{% url "api_sessions" %}')
+            .then(response => {
+                if (!response.ok) throw new Error('Erreur réseau');
+                return response.json();
+            })
+            .then(data => {
+                const container = document.getElementById('scoreChartContainer');
+                
+                if (data && data.dates && data.dates.length > 0 && data.scores && data.scores.some(s => s > 0)) {
+                    container.innerHTML = '<canvas id="scoreChart"></canvas>';
+                    const ctx = document.getElementById('scoreChart');
+                    
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: data.dates,
+                            datasets: [{
+                                label: 'Score EPB',
+                                data: data.scores,
+                                borderColor: '#0066a0',
+                                backgroundColor: 'rgba(0,102,160,0.1)',
+                                tension: 0.3,
+                                fill: true,
+                                pointBackgroundColor: '#d4af37',
+                                pointBorderColor: '#fff',
+                                pointRadius: 6,
+                                pointHoverRadius: 9,
+                                pointBorderWidth: 2,
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                    labels: { usePointStyle: true, boxWidth: 10 }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return `Score: ${context.raw} / 100`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 100,
+                                    title: { display: true, text: 'Score EPB', font: { size: 12 } },
+                                    grid: { color: 'rgba(0,0,0,0.05)' }
+                                },
+                                x: {
+                                    title: { display: true, text: 'Date', font: { size: 12 } },
+                                    ticks: { maxRotation: 45, minRotation: 45 }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    container.innerHTML = `
+                        <div class="loading-placeholder">
+                            <i class="fas fa-chart-line"></i>
+                            <p>📊 Pas assez de données pour afficher le graphique</p>
+                            <small class="text-muted">Les scores apparaîtront après les premières optimisations</small>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Erreur chargement scores:', error);
+                const container = document.getElementById('scoreChartContainer');
+                container.innerHTML = `
+                    <div class="loading-placeholder">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>⚠️ Données non disponibles</p>
+                        <small class="text-muted">Vérifiez votre connexion ou réessayez plus tard</small>
+                    </div>
+                `;
+            });
+
+        // ========== GRAPHIQUE D'OCCUPATION DES QUAIS ==========
+        fetch('{% url "api_stats_occupation_quais" %}')
+            .then(response => {
+                if (!response.ok) throw new Error('Erreur réseau');
+                return response.json();
+            })
+            .then(data => {
+                const container = document.getElementById('occupationChartContainer');
+                
+                if (data && data.labels && data.labels.length > 0) {
+                    container.innerHTML = '<canvas id="occupationChart"></canvas>';
+                    const ctx = document.getElementById('occupationChart');
+                    
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.labels,
+                            datasets: [{
+                                label: 'Nombre d\'occupations',
+                                data: data.counts,
+                                backgroundColor: 'rgba(0,102,160,0.7)',
+                                borderColor: '#0066a0',
+                                borderWidth: 1,
+                                borderRadius: 8,
+                                hoverBackgroundColor: 'rgba(0,102,160,0.9)'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'top' },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return `Occupations: ${context.raw}`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Nombre d\'occupations', font: { size: 12 } },
+                                    grid: { color: 'rgba(0,0,0,0.05)' }
+                                },
+                                x: {
+                                    title: { display: true, text: 'Quai', font: { size: 12 } },
+                                    ticks: { maxRotation: 45, minRotation: 45 }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    container.innerHTML = `
+                        <div class="loading-placeholder">
+                            <i class="fas fa-chart-bar"></i>
+                            <p>📊 Aucune donnée d'occupation disponible</p>
+                            <small class="text-muted">Les données apparaîtront après les premières affectations</small>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Erreur chargement occupation:', error);
+                const container = document.getElementById('occupationChartContainer');
+                container.innerHTML = `
+                    <div class="loading-placeholder">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>⚠️ Données non disponibles</p>
+                        <small class="text-muted">Vérifiez votre connexion ou réessayez plus tard</small>
+                    </div>
+                `;
+            });
+    });
+</script>
+{% endblock %}

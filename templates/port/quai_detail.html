@@ -1,0 +1,383 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Détail du quai {{ quai.nom }} | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    .detail-header {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        border-radius: 1.5rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .detail-header::before {
+        content: '⚓';
+        position: absolute;
+        bottom: -20px;
+        right: -20px;
+        font-size: 100px;
+        opacity: 0.1;
+        pointer-events: none;
+    }
+    .detail-header h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+    .detail-header p {
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .stat-card {
+        background: var(--card-bg);
+        border-radius: 1rem;
+        padding: 1rem;
+        text-align: center;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--gray-200);
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-3px);
+    }
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--primary);
+        line-height: 1;
+    }
+    .stat-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        color: var(--gray-500);
+        margin-top: 0.3rem;
+    }
+    .info-card {
+        background: var(--card-bg);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--gray-200);
+    }
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.6rem 0;
+        border-bottom: 1px solid var(--gray-200);
+    }
+    .info-row:last-child {
+        border-bottom: none;
+    }
+    .info-label {
+        font-weight: 600;
+        color: var(--gray-600);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .info-value {
+        font-weight: 500;
+        color: var(--dark);
+    }
+    .badge-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 2rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    .badge-available {
+        background: rgba(16,185,129,0.15);
+        color: #10b981;
+        border: 1px solid rgba(16,185,129,0.3);
+    }
+    .badge-occupied {
+        background: rgba(239,68,68,0.15);
+        color: #ef4444;
+        border: 1px solid rgba(239,68,68,0.3);
+    }
+    .postes-section {
+        background: var(--card-bg);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--gray-200);
+    }
+    .postes-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .postes-header h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--dark);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .postes-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .postes-table th {
+        background: rgba(0,0,0,0.03);
+        padding: 0.8rem;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--gray-600);
+        border-bottom: 1px solid var(--gray-200);
+    }
+    .postes-table td {
+        padding: 0.7rem;
+        border-bottom: 1px solid var(--gray-200);
+        vertical-align: middle;
+    }
+    .postes-table tr:hover {
+        background: rgba(0,102,160,0.05);
+    }
+    .poste-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 2rem;
+        font-size: 0.65rem;
+        font-weight: 600;
+    }
+    .poste-libre {
+        background: rgba(16,185,129,0.15);
+        color: #10b981;
+    }
+    .poste-occupe {
+        background: rgba(239,68,68,0.15);
+        color: #ef4444;
+    }
+    .navire-link {
+        color: var(--primary);
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .navire-link:hover {
+        text-decoration: underline;
+    }
+    .btn-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        padding: 0.6rem 1.5rem;
+        border-radius: 2rem;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s;
+        margin-top: 1rem;
+        border: none;
+        cursor: pointer;
+    }
+    .btn-back:hover {
+        transform: translateX(-4px);
+        box-shadow: 0 4px 12px rgba(0,102,160,0.3);
+        color: white;
+    }
+    .progress-bar-custom {
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10b981, #059669);
+        border-radius: 4px;
+        transition: width 0.5s;
+    }
+    @media (max-width: 768px) {
+        .detail-header { padding: 1rem; }
+        .detail-header h1 { font-size: 1.3rem; }
+        .info-grid { grid-template-columns: 1fr; }
+        .postes-table th, .postes-table td { font-size: 0.7rem; padding: 0.4rem; }
+    }
+</style>
+
+<div class="container">
+    <div class="detail-header">
+        <h1><i class="fas fa-anchor"></i> {{ quai.nom }}</h1>
+        <p>Détails du quai et de ses postes d'accostage</p>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">{{ postes|length }}</div>
+            <div class="stat-label">Total postes</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ postes_libres|default:0 }}</div>
+            <div class="stat-label">Postes libres</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ postes_occupes|default:0 }}</div>
+            <div class="stat-label">Postes occupés</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ taux_occupation|default:0 }}%</div>
+            <div class="stat-label">Taux occupation</div>
+        </div>
+    </div>
+
+    <!-- Informations du quai -->
+    <div class="info-card">
+        <div class="info-grid">
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-hashtag"></i> Identifiant</span>
+                <span class="info-value">{{ quai.id }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-ruler"></i> Longueur</span>
+                <span class="info-value">{{ quai.longueur|floatformat:0 }} m</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-water"></i> Profondeur</span>
+                <span class="info-value">{{ quai.profondeur|floatformat:1 }} m</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-microchip"></i> Spécialité</span>
+                <span class="info-value">{{ quai.specialite|default:"Général" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-toggle-on"></i> Disponibilité</span>
+                <span class="info-value">
+                    {% if quai.disponible %}
+                        <span class="badge-status badge-available"><i class="fas fa-check-circle"></i> Disponible</span>
+                    {% else %}
+                        <span class="badge-status badge-occupied"><i class="fas fa-times-circle"></i> Occupé</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-hourglass-half"></i> Libre jusqu'à</span>
+                <span class="info-value">
+                    {% if quai.occupation_jusqua > 0 %}{{ quai.occupation_jusqua|floatformat:1 }} h{% else %}—{% endif %}
+                </span>
+            </div>
+        </div>
+        {% if taux_occupation > 0 %}
+        <div class="progress-bar-custom">
+            <div class="progress-fill" style="width: {{ taux_occupation }}%"></div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Postes associés -->
+    <div class="postes-section">
+        <div class="postes-header">
+            <h3><i class="fas fa-ship"></i> Postes d'accostage</h3>
+            <span class="badge-status {% if postes|length > 0 %}badge-available{% else %}badge-occupied{% endif %}">
+                <i class="fas fa-dock"></i> {{ postes|length }} poste(s)
+            </span>
+        </div>
+
+        {% if postes %}
+        <div class="table-responsive">
+            <table class="postes-table">
+                <thead>
+                    <tr>
+                        <th>N° Poste</th>
+                        <th>Longueur</th>
+                        <th>Profondeur</th>
+                        <th>Spécialité</th>
+                        <th>Types autorisés</th>
+                        <th>Statut</th>
+                        <th>Libre jusqu'à</th>
+                        <th>Navire occupant</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for poste in postes %}
+                    <tr>
+                        <td><strong>{{ poste.numero }}</strong></div>
+                        <td>{{ poste.longueur|floatformat:0 }} m</div>
+                        <td>{{ poste.profondeur|floatformat:1 }} m</div>
+                        <td>{{ poste.specialite|default:"Général" }}</div>
+                        <td>{{ poste.type_navire_autorise|default:"Tous" }}</div>
+                        <td>
+                            {% if poste.disponible %}
+                                <span class="poste-status poste-libre"><i class="fas fa-check-circle"></i> Libre</span>
+                            {% else %}
+                                <span class="poste-status poste-occupe"><i class="fas fa-times-circle"></i> Occupé</span>
+                            {% endif %}
+                         </div>
+                        <td>
+                            {% if poste.occupation_jusqua > 0 %}
+                                {{ poste.occupation_jusqua|floatformat:1 }} h
+                            {% else %}—{% endif %}
+                         </div>
+                        <td>
+                            {% if not poste.disponible and poste.navire_occupant_nom %}
+                                <a href="{% url 'detail_navire' poste.navire_occupant_id %}" class="navire-link">
+                                    <i class="fas fa-ship"></i> {{ poste.navire_occupant_nom }}
+                                </a>
+                            {% elif not poste.disponible %}
+                                <span class="text-muted">Navire inconnu</span>
+                            {% else %}—{% endif %}
+                         </div>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info" style="background: rgba(59,130,246,0.1); border: none; border-radius: 0.75rem;">
+            <i class="fas fa-info-circle"></i> Ce quai ne possède aucun poste défini.
+        </div>
+        {% endif %}
+    </div>
+
+    <a href="javascript:history.back()" class="btn-back">
+        <i class="fas fa-arrow-left"></i> Retour à la liste des quais
+    </a>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animation des barres de progression
+        const progressFill = document.querySelector('.progress-fill');
+        if (progressFill) {
+            const targetWidth = progressFill.style.width;
+            progressFill.style.width = '0%';
+            setTimeout(() => {
+                progressFill.style.width = targetWidth;
+            }, 100);
+        }
+    });
+</script>
+{% endblock %}

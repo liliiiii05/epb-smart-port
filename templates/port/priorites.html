@@ -1,0 +1,351 @@
+<!-- epb_smart/templates/port/priorites.html -->
+{% extends "port/base.html" %}
+
+{% block title %}Grille des priorités EPB{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>📊 Grille des priorités d'accostage</h1>
+    <p class="subtitle">Selon la charte officielle de l'Entreprise Portuaire de Béjaïa (EPB)</p>
+    
+    <div class="priority-grid">
+        <!-- Priorité 1: Navires sortants -->
+        <div class="priority-card priority-1">
+            <div class="priority-header">
+                <span class="priority-number">1</span>
+                <span class="priority-icon">⬆️</span>
+                <h2>Navires sortants</h2>
+            </div>
+            <div class="priority-body">
+                <div class="priority-weight">Poids: <strong>100</strong></div>
+                <p class="priority-rule">Prioritaire sur tous les navires entrants</p>
+                <div class="priority-example">
+                    <strong>Exemple:</strong> Un ferry quittant le port passe avant tout navire entrant
+                </div>
+            </div>
+        </div>
+        
+        <!-- Priorité 2: Navires de passage -->
+        <div class="priority-card priority-2">
+            <div class="priority-header">
+                <span class="priority-number">2</span>
+                <span class="priority-icon">🔄</span>
+                <h2>Navires de passage</h2>
+            </div>
+            <div class="priority-body">
+                <div class="priority-weight">Poids: <strong>80</strong></div>
+                <p class="priority-rule">Priorité élevée pour les navires en transit</p>
+            </div>
+        </div>
+        
+        <!-- Priorité 3: Gaziers (toute l'année) -->
+        <div class="priority-card priority-3">
+            <div class="priority-header">
+                <span class="priority-number">3</span>
+                <span class="priority-icon">❄️</span>
+                <h2>Gaziers</h2>
+            </div>
+            <div class="priority-body">
+                <div class="priority-weight">Poids: <strong>150</strong></div>
+                <p class="priority-rule">Poste n°26 de préférence (toute l'année)</p>
+                <div class="priority-example">
+                    <strong>Règle :</strong> Affectation prioritaire au quai 26. En cas d'indisponibilité, les grands quais peuvent être utilisés.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Priorité 4: Caboteurs d'essence -->
+        <div class="priority-card priority-4">
+            <div class="priority-header">
+                <span class="priority-number">4</span>
+                <span class="priority-icon">⛽</span>
+                <h2>Caboteurs essence</h2>
+            </div>
+            <div class="priority-body">
+                <div class="priority-weight">Poids: <strong>70</strong></div>
+                <p class="priority-rule">Poste n°19 de préférence (quais grands acceptables si nécessaire)</p>
+            </div>
+        </div>
+        
+        <!-- Priorité 5: Navires animaliers -->
+        <div class="priority-card priority-5">
+            <div class="priority-header">
+                <span class="priority-number">5</span>
+                <span class="priority-icon">🐮</span>
+                <h2>Navires animaliers</h2>
+            </div>
+            <div class="priority-body">
+                <div class="priority-weight">Poids: <strong>90</strong></div>
+                <p class="priority-rule">Quais 12 ou 13 exclusivement. Attente maximale: <strong>12 heures</strong></p>
+                <div class="priority-warning">⚠️ Pénalité si attente > 12h</div>
+            </div>
+        </div>
+        
+        <!-- Priorité 6: Denrées périssables -->
+        <div class="priority-card priority-6">
+            <div class="priority-header">
+                <span class="priority-number">6</span>
+                <span class="priority-icon">🍌</span>
+                <h2>Denrées périssables</h2>
+            </div>
+            <div class="priority-body">
+                <div class="priority-weight">Poids: <strong>85</strong></div>
+                <p class="priority-rule">Attente maximale: <strong>24 heures</strong></p>
+                <div class="priority-warning">⚠️ Pénalité si attente > 24h</div>
+            </div>
+        </div>
+        
+        <!-- Priorité 7: Produits stratégiques -->
+        <div class="priority-card priority-7">
+            <div class="priority-header">
+                <span class="priority-number">7</span>
+                <span class="priority-icon">⭐</span>
+                <h2>Produits stratégiques</h2>
+            </div>
+            <div class="priority-body">
+                <div class="priority-weight">Poids: <strong>95</strong></div>
+                <p class="priority-rule">Priorité nationale (céréales pour l'État, etc.)</p>
+            </div>
+        </div>
+        
+        <!-- Priorité 8: Lignes régulières -->
+        <div class="priority-card priority-8">
+            <div class="priority-header">
+                <span class="priority-number">8</span>
+                <span class="priority-icon">⛴️</span>
+                <h2>Lignes régulières</h2>
+            </div>
+            <div class="priority-body">
+                <div class="priority-weight">Poids: <strong>75</strong></div>
+                <p class="priority-rule">Ferries et navires à horaire fixe. Attente maximale: <strong>4 heures</strong></p>
+                <div class="priority-warning">⚠️ Pénalité si attente > 4h</div>
+            </div>
+        </div>
+        
+        <!-- Priorité 9: Conventions spéciales -->
+        <div class="priority-card priority-9">
+            <div class="priority-header">
+                <span class="priority-number">9</span>
+                <span class="priority-icon">📝</span>
+                <h2>Conventions spéciales</h2>
+            </div>
+            <div class="priority-body">
+                <div class="priority-weight">Poids: <strong>60</strong></div>
+                <p class="priority-rule">Selon contrats spécifiques avec l'EPB</p>
+            </div>
+        </div>
+        
+        <!-- Priorité 10: Huiliers -->
+        <div class="priority-card priority-10">
+            <div class="priority-header">
+                <span class="priority-number">10</span>
+                <span class="priority-icon">🫒</span>
+                <h2>Huiliers</h2>
+            </div>
+            <div class="priority-body">
+                <div class="priority-weight">Poids: <strong>50</strong></div>
+                <p class="priority-rule">Postes 25 (Cevital) ou 26 si libre (après gaziers)</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Spécialités des quais (selon vos dernières informations) -->
+    <div class="info-box quais-box">
+        <h3>🏗️ Spécialités des quais par type de navire (affectation réelle)</h3>
+        <ul>
+            <li><strong>Poste 1 & 19</strong> → <strong>Essence (gasoil)</strong> – Caboteurs essence</li>
+            <li><strong>Postes 2 & 3</strong> → <strong>Pétrolier</strong></li>
+            <li><strong>Poste 8</strong> → <strong>Ferry / Passagers</strong></li>
+            <li><strong>Postes 22 & 24</strong> → <strong>Conteneurs</strong></li>
+            <li><strong>Poste 25</strong> → <strong>Huilier</strong> (Cevital)</li>
+            <li><strong>Poste 26</strong> → <strong>Gazier</strong> (priorité), puis <strong>Huilier</strong> (en second)</li>
+            <li><strong>Poste 21</strong> → <strong>Céréalier</strong></li>
+        </ul>
+        <p class="note">Ces règles sont intégrées dans l'optimiseur et dans le mode manuel.</p>
+    </div>
+    
+    <div class="info-box">
+        <h3>📌 Règles importantes</h3>
+        <ul>
+            <li><strong>Les navires sortants sont prioritaires</strong> sur tous les navires entrants</li>
+            <li><strong>Gaziers :</strong> Affectation prioritaire au quai 26</li>
+            <li><strong>Caboteurs essence :</strong> Quai 19 de préférence</li>
+            <li><strong>Animaliers :</strong> Quais 12 ou 13 uniquement</li>
+            <li><strong>Les poids de priorité s'additionnent</strong> (ex: un navire sortant ET stratégique aura un score de 100 + 95 = 195)</li>
+        </ul>
+    </div>
+    
+    <a href="javascript:history.back()" class="btn">← Retour</a>
+</div>
+
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    h1 {
+        color: #003366;
+        margin-bottom: 5px;
+    }
+    
+    .subtitle {
+        color: #666;
+        margin-bottom: 30px;
+        font-style: italic;
+    }
+    
+    .priority-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 20px;
+        margin: 30px 0;
+    }
+    
+    .priority-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+        transition: transform 0.3s, box-shadow 0.3s;
+        border-left: 5px solid;
+    }
+    
+    .priority-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
+    
+    .priority-1 { border-left-color: #ff4444; }
+    .priority-2 { border-left-color: #ff8800; }
+    .priority-3 { border-left-color: #00a8ff; }
+    .priority-4 { border-left-color: #00cc88; }
+    .priority-5 { border-left-color: #ffaa00; }
+    .priority-6 { border-left-color: #ff6699; }
+    .priority-7 { border-left-color: #aa66cc; }
+    .priority-8 { border-left-color: #0099ff; }
+    .priority-9 { border-left-color: #993366; }
+    .priority-10 { border-left-color: #669900; }
+    
+    .priority-header {
+        padding: 15px;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .priority-number {
+        background: #003366;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+    
+    .priority-icon {
+        font-size: 24px;
+    }
+    
+    .priority-header h2 {
+        margin: 0;
+        font-size: 1.2rem;
+        color: #333;
+        flex: 1;
+    }
+    
+    .priority-body {
+        padding: 15px;
+    }
+    
+    .priority-weight {
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+        color: #555;
+    }
+    
+    .priority-weight strong {
+        color: #003366;
+        font-size: 1.3rem;
+    }
+    
+    .priority-rule {
+        margin: 10px 0;
+        color: #333;
+    }
+    
+    .priority-example {
+        background: #f0f7ff;
+        padding: 8px 12px;
+        border-radius: 5px;
+        font-size: 0.9rem;
+        color: #0056b3;
+        margin-top: 10px;
+    }
+    
+    .priority-warning {
+        background: #fff3cd;
+        color: #856404;
+        padding: 5px 10px;
+        border-radius: 3px;
+        font-size: 0.9rem;
+        margin-top: 5px;
+    }
+    
+    .info-box {
+        background: #e8f4f8;
+        border-left: 5px solid #003366;
+        padding: 20px;
+        border-radius: 5px;
+        margin: 30px 0;
+    }
+    
+    .info-box h3 {
+        margin-top: 0;
+        color: #003366;
+    }
+    
+    .info-box ul {
+        margin: 10px 0 0 20px;
+        color: #333;
+    }
+    
+    .info-box li {
+        margin: 5px 0;
+    }
+    
+    .quais-box {
+        background: #f0f9e8;
+        border-left-color: #2e7d32;
+    }
+    
+    .note {
+        font-size: 0.85rem;
+        color: #555;
+        margin-top: 10px;
+        font-style: italic;
+    }
+    
+    .btn {
+        background: #007bff;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 1rem;
+    }
+    
+    .btn:hover {
+        background: #0056b3;
+    }
+</style>
+{% endblock %}

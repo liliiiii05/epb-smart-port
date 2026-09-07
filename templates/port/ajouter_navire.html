@@ -1,0 +1,496 @@
+{% extends "port/base.html" %}
+
+{% block title %}Ajouter un navire | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    /* Styles spécifiques à cette page (hérite des variables CSS du thème global) */
+    .add-navire-page {
+        min-height: 100vh;
+        padding: 2rem 1rem;
+    }
+    .container-custom {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    /* En-tête */
+    .page-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        border-radius: 1.5rem;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: var(--shadow-lg);
+        position: relative;
+        overflow: hidden;
+        animation: fadeSlideUp 0.5s ease-out;
+    }
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -5%;
+        width: 250px;
+        height: 250px;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+    .page-header h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.25rem;
+        font-weight: 700;
+        color: white;
+    }
+    .page-header p {
+        margin-bottom: 0;
+        opacity: 0.9;
+        font-size: 0.95rem;
+        color: rgba(255,255,255,0.9);
+    }
+
+    /* Cartes glassmorphism */
+    .form-card {
+        background: var(--light);
+        backdrop-filter: blur(12px);
+        border-radius: 1rem;
+        border: 1px solid var(--gray-200);
+        box-shadow: var(--shadow-md);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        transition: var(--transition);
+        animation: fadeSlideUp 0.5s ease-out;
+    }
+    .form-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+    .card-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--gray-200);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(0,0,0,0.02);
+    }
+    body.dark-mode .card-header {
+        background: rgba(255,255,255,0.02);
+    }
+    .card-header i {
+        font-size: 1.2rem;
+        color: var(--warning);
+    }
+    .card-header h5 {
+        margin: 0;
+        font-weight: 600;
+        color: var(--primary);
+    }
+    body.dark-mode .card-header h5 {
+        color: var(--warning);
+    }
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Champs de formulaire */
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+    .form-group label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+    }
+    .form-group label i {
+        color: var(--warning);
+        width: 20px;
+    }
+
+    .form-control, select.form-control {
+        width: 100%;
+        padding: 0.7rem 1rem;
+        background: rgba(255,255,255,0.6);
+        border: 1px solid var(--gray-300);
+        border-radius: 0.75rem;
+        font-size: 0.9rem;
+        transition: var(--transition);
+    }
+    body.dark-mode .form-control, 
+    body.dark-mode select.form-control {
+        background: #1e293b;
+        color: #f1f5f9;
+        border-color: var(--gray-600);
+    }
+    .form-control:focus, select.form-control:focus {
+        outline: none;
+        border-color: var(--warning);
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+        background: rgba(255,255,255,0.9);
+    }
+    body.dark-mode .form-control:focus,
+    body.dark-mode select.form-control:focus {
+        background: #334155;
+        border-color: #fbbf24;
+        box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2);
+    }
+
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    .form-check-input {
+        width: 1.1rem;
+        height: 1.1rem;
+        cursor: pointer;
+        accent-color: var(--warning);
+    }
+
+    /* Badge pour suggestions */
+    .suggestions {
+        font-size: 0.7rem;
+        margin-top: 0.25rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    .suggestions i {
+        color: var(--info);
+    }
+    .suggestions span {
+        background: rgba(59,130,246,0.1);
+        padding: 0.2rem 0.6rem;
+        border-radius: 1rem;
+        cursor: pointer;
+        transition: var(--transition);
+        font-size: 0.7rem;
+    }
+    .suggestions span:hover {
+        background: var(--info);
+        color: white;
+    }
+    body.dark-mode .suggestions span {
+        background: rgba(59,130,246,0.2);
+    }
+
+    /* Row/Col */
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 -0.5rem;
+    }
+    .col-md-6 {
+        padding: 0 0.5rem;
+        width: 50%;
+    }
+
+    /* Boutons */
+    .btn-group {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 1rem;
+        flex-wrap: wrap;
+    }
+    .btn-submit {
+        background: linear-gradient(135deg, var(--success), #059669);
+        border: none;
+        padding: 0.7rem 2rem;
+        border-radius: 2rem;
+        font-weight: 600;
+        color: white;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1rem;
+        cursor: pointer;
+    }
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        filter: brightness(1.05);
+    }
+    .btn-cancel {
+        background: linear-gradient(135deg, #6c757d, #495057);
+        border: none;
+        padding: 0.7rem 2rem;
+        border-radius: 2rem;
+        font-weight: 600;
+        color: white;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    .btn-cancel:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        background: linear-gradient(135deg, #5a6268, #343a40);
+        color: white;
+    }
+    body.dark-mode .btn-cancel {
+        background: linear-gradient(135deg, #475569, #334155);
+    }
+    body.dark-mode .btn-cancel:hover {
+        background: linear-gradient(135deg, #334155, #1e293b);
+    }
+
+    /* Info note */
+    .info-note {
+        background: rgba(59,130,246,0.1);
+        border-left: 4px solid var(--info);
+        border-radius: 0.75rem;
+        padding: 0.75rem 1rem;
+        margin-top: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.85rem;
+    }
+    body.dark-mode .info-note {
+        background: rgba(59,130,246,0.15);
+    }
+    .info-note i {
+        font-size: 1.2rem;
+        color: var(--info);
+    }
+    .info-note strong {
+        font-weight: 700;
+    }
+
+    /* Text muted */
+    .text-muted {
+        color: var(--gray-500) !important;
+    }
+    body.dark-mode .text-muted {
+        color: #94a3b8 !important;
+    }
+
+    /* Animation */
+    @keyframes fadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 1rem 1.5rem;
+        }
+        .page-header h1 {
+            font-size: 1.4rem;
+        }
+        .card-body {
+            padding: 1rem;
+        }
+        .col-md-6 {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+        .row {
+            flex-direction: column;
+        }
+        .btn-group {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .btn-submit, .btn-cancel {
+            justify-content: center;
+        }
+    }
+
+    /* Placeholder en mode sombre */
+    body.dark-mode .form-control::placeholder,
+    body.dark-mode select.form-control::placeholder {
+        color: #64748b;
+    }
+
+    /* Select dropdown en mode sombre */
+    body.dark-mode select.form-control option {
+        background: #1e293b;
+        color: #f1f5f9;
+    }
+</style>
+
+<div class="add-navire-page">
+    <div class="container-custom">
+        <!-- En-tête -->
+        <div class="page-header">
+            <h1><i class="fas fa-ship me-2"></i> Ajouter un navire</h1>
+            <p>Enregistrez un nouveau navire dans le système de gestion portuaire</p>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- Informations générales -->
+            <div class="form-card">
+                <div class="card-header">
+                    <i class="fas fa-info-circle"></i>
+                    <h5>Informations générales</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label><i class="fas fa-ship"></i> Nom du navire</label>
+                        <input type="text" name="nom" class="form-control" required placeholder="Ex: MSC Beatrice">
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-building"></i> Agent / Consignataire</label>
+                        <input type="text" name="agent" class="form-control" placeholder="Ex: HYPROC, NAFTAL, CNAN, COSCO, CMA CGM...">
+                        <div class="suggestions">
+                            <i class="fas fa-lightbulb"></i> Suggestions :
+                            <span onclick="fillAgent('HYPROC')">HYPROC</span>
+                            <span onclick="fillAgent('NAFTAL')">NAFTAL</span>
+                            <span onclick="fillAgent('CNAN')">CNAN</span>
+                            <span onclick="fillAgent('COSCO')">COSCO</span>
+                            <span onclick="fillAgent('CMA CGM')">CMA CGM</span>
+                            <span onclick="fillAgent('MSC')">MSC</span>
+                            <span onclick="fillAgent('MAERSK')">MAERSK</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-tag"></i> Type</label>
+                        <select name="type" class="form-control" required>
+                            <option value="conteneur">🚢 Conteneur</option>
+                            <option value="cerealier">🌾 Céréalier</option>
+                            <option value="ferry">⛴️ Ferry</option>
+                            <option value="gazier">❄️ Gazier</option>
+                            <option value="frigorifique">🧊 Frigorifique</option>
+                            <option value="betail">🐄 Bétail</option>
+                            <option value="essence">⛽ Essence</option>
+                            <option value="huilier">🫒 Huilier</option>
+                            <option value="petrolier">🛢️ Pétrolier</option>
+                            <option value="cargo">📦 Cargo</option>
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fas fa-ruler"></i> Longueur (m)</label>
+                                <input type="number" step="0.1" name="longueur" class="form-control" required placeholder="Ex: 180.5">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fas fa-water"></i> Tirant d'eau (m)</label>
+                                <input type="number" step="0.1" name="tirant" class="form-control" required placeholder="Ex: 9.2">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-clock"></i> Heure d'arrivée (format décimal)</label>
+                        <input type="number" step="0.1" name="arrivee" class="form-control" required placeholder="Ex: 14.5 = 14h30">
+                        <small class="text-muted">Saisissez l'heure au format décimal (ex: 14.5 pour 14h30)</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Marchandise et équipements -->
+            <div class="form-card">
+                <div class="card-header">
+                    <i class="fas fa-boxes"></i>
+                    <h5>Marchandise & équipements</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label><i class="fas fa-box"></i> Type de marchandise</label>
+                        <input type="text" name="marchandise_type" class="form-control" placeholder="Ex: Céréales, Conteneurs, Pétrole brut...">
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-weight-hanging"></i> Volume estimé (tonnes)</label>
+                        <input type="number" name="marchandise_volume" value="1000" class="form-control">
+                    </div>
+
+                    <div class="form-check">
+                        <input type="checkbox" name="a_grue_bord" id="a_grue_bord" class="form-check-input">
+                        <label class="form-check-label" for="a_grue_bord">
+                            <i class="fas fa-crane"></i> Navire équipé de grues de bord
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Boutons -->
+            <div class="btn-group">
+                <button type="submit" class="btn-submit">
+                    <i class="fas fa-save"></i> Enregistrer le navire
+                </button>
+                <a href="{% url 'liste_navires' %}" class="btn-cancel">
+                    <i class="fas fa-times"></i> Annuler
+                </a>
+            </div>
+
+            <!-- Note informative -->
+            <div class="info-note">
+                <i class="fas fa-lightbulb"></i>
+                <span><strong>Note :</strong> Les priorités (sortant, gazier, animalier, etc.) sont automatiquement déterminées par l'algorithme en fonction du type de navire et des règles EPB.</span>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Fonction pour remplir l'agent avec suggestions
+    function fillAgent(value) {
+        const input = document.querySelector('[name="agent"]');
+        if (input) {
+            input.value = value;
+            input.focus();
+        }
+    }
+
+    // Suggestions d'agents - clic pour remplir automatiquement
+    document.querySelectorAll('.suggestions span').forEach(span => {
+        span.addEventListener('click', function() {
+            fillAgent(this.textContent);
+        });
+    });
+
+    // Validation des champs nombre
+    document.addEventListener('DOMContentLoaded', function() {
+        const longueurInput = document.querySelector('[name="longueur"]');
+        const tirantInput = document.querySelector('[name="tirant"]');
+        const arriveeInput = document.querySelector('[name="arrivee"]');
+
+        if (longueurInput) {
+            longueurInput.addEventListener('change', function() {
+                if (this.value < 0) this.value = 0;
+                if (this.value > 500) this.value = 500;
+            });
+        }
+
+        if (tirantInput) {
+            tirantInput.addEventListener('change', function() {
+                if (this.value < 0) this.value = 0;
+                if (this.value > 20) this.value = 20;
+            });
+        }
+
+        if (arriveeInput) {
+            arriveeInput.addEventListener('change', function() {
+                if (this.value < 0) this.value = 0;
+                if (this.value > 24) this.value = 24;
+            });
+        }
+    });
+</script>
+{% endblock %}

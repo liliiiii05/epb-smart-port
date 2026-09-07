@@ -1,0 +1,542 @@
+{% extends "port/base.html" %}
+
+{% block title %}Résultats de l'optimisation | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    /* ========== VARIABLES MODERNISÉES ========== */
+    :root {
+        --epb-primary: #003366;
+        --epb-primary-dark: #002244;
+        --epb-secondary: #ff6600;
+        --epb-gray-bg: #f8fafc;
+        --epb-card-bg: rgba(255, 255, 255, 0.92);
+        --epb-border: #e2e8f0;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        --transition: all 0.3s ease;
+    }
+    body.dark-mode {
+        --epb-gray-bg: #0f172a;
+        --epb-card-bg: rgba(30, 41, 59, 0.92);
+        --epb-border: #334155;
+    }
+    .results-page { background: var(--epb-gray-bg); min-height: 100vh; padding: 2rem 1rem; }
+    .container-custom { max-width: 1400px; margin: 0 auto; }
+    .page-header {
+        background: linear-gradient(135deg, var(--epb-primary) 0%, var(--epb-primary-dark) 100%);
+        border-radius: 1.5rem; padding: 1.5rem 2rem; margin-bottom: 2rem; color: white;
+        box-shadow: var(--shadow-lg); animation: fadeSlideUp 0.5s ease-out;
+    }
+    .page-header h1 { font-size: 1.8rem; margin-bottom: 0.25rem; font-weight: 700; }
+    .page-header p { margin-bottom: 0; opacity: 0.9; }
+    .info-card {
+        background: var(--epb-card-bg); backdrop-filter: blur(12px); border-radius: 1rem;
+        border: 1px solid var(--epb-border); box-shadow: var(--shadow-md); margin-bottom: 1.5rem;
+        overflow: hidden; transition: var(--transition); animation: fadeSlideUp 0.5s ease-out;
+    }
+    .card-header-custom {
+        padding: 1rem 1.5rem; border-bottom: 1px solid var(--epb-border);
+        display: flex; align-items: center; gap: 0.5rem; background: rgba(0,0,0,0.02);
+    }
+    .card-header-custom i { font-size: 1.2rem; color: var(--epb-secondary); }
+    .card-header-custom h2 { margin: 0; font-size: 1.2rem; font-weight: 600; color: var(--epb-primary); }
+    body.dark-mode .card-header-custom h2 { color: var(--epb-secondary); }
+    .card-body-custom { padding: 1.5rem; }
+    .stats-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.2rem; margin-bottom: 1.5rem;
+    }
+    .stat-card {
+        border-radius: 1rem; padding: 1.2rem; text-align: center; color: white;
+        transition: var(--transition); box-shadow: var(--shadow-sm);
+    }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+    .stat-value { font-size: 2rem; font-weight: 800; line-height: 1.2; }
+    .stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; margin-top: 0.3rem; }
+    .scenario-badge {
+        display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 1rem;
+        border-radius: 2rem; font-size: 0.8rem; font-weight: 600;
+    }
+    .scenario-rapide { background: #fef3c7; color: #92400e; }
+    .scenario-equilibre { background: #dbeafe; color: #1e40af; }
+    .scenario-securise { background: #d1fae5; color: #065f46; }
+    body.dark-mode .scenario-rapide { background: #78350f; color: #fef3c7; }
+    body.dark-mode .scenario-equilibre { background: #1e3a5f; color: #bfdbfe; }
+    body.dark-mode .scenario-securise { background: #064e3b; color: #a7f3d0; }
+    .gantt-container { background: var(--epb-card-bg); border-radius: 1rem; padding: 1rem; border: 1px solid var(--epb-border); margin-bottom: 1.5rem; }
+    .filters-bar {
+        background: var(--epb-card-bg); border-radius: 1rem; padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem; border: 1px solid var(--epb-border);
+    }
+    .filter-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .filter-btn {
+        padding: 0.4rem 1rem; border: none; border-radius: 2rem; background: var(--epb-gray-bg);
+        color: var(--epb-primary); cursor: pointer; transition: var(--transition); font-size: 0.8rem;
+    }
+    .filter-btn:hover { background: var(--epb-secondary); color: white; transform: translateY(-1px); }
+    .filter-btn.active { background: linear-gradient(135deg, var(--epb-primary), var(--epb-primary-dark)); color: white; }
+    .table-wrapper { overflow-x: auto; margin-bottom: 1.5rem; }
+    .results-table {
+        width: 100%; border-collapse: collapse; background: var(--epb-card-bg);
+        border-radius: 1rem; overflow: hidden; box-shadow: var(--shadow-sm);
+    }
+    .results-table th {
+        background: linear-gradient(135deg, var(--epb-primary), var(--epb-primary-dark));
+        color: white; padding: 0.8rem; font-size: 0.75rem; text-transform: uppercase;
+        letter-spacing: 0.5px; text-align: left;
+    }
+    .results-table td { padding: 0.8rem; border-bottom: 1px solid var(--epb-border); font-size: 0.85rem; color: var(--epb-primary); }
+    body.dark-mode .results-table td { color: #e2e8f0; }
+    .results-table tr:hover td { background: rgba(0,51,102,0.05); }
+    body.dark-mode .results-table tr:hover td { background: rgba(255,255,255,0.05); }
+    .badge-state {
+        display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.7rem;
+        border-radius: 2rem; font-size: 0.7rem; font-weight: 600;
+    }
+    .badge-rade { background: #dbeafe; color: #1e40af; }
+    .badge-attente { background: #fef3c7; color: #92400e; }
+    body.dark-mode .badge-rade { background: #1e3a5f; color: #bfdbfe; }
+    body.dark-mode .badge-attente { background: #78350f; color: #fef3c7; }
+    .badge-equip { background: var(--epb-gray-bg); color: var(--epb-primary); padding: 0.2rem 0.5rem; border-radius: 1rem; font-size: 0.7rem; margin: 0.1rem; display: inline-block; }
+    .info-item { margin-bottom: 0.75rem; }
+    .info-label { font-size: 0.7rem; text-transform: uppercase; color: var(--epb-secondary); }
+    .info-value { font-size: 1rem; font-weight: 500; }
+    .warning-alert {
+        background: rgba(245,158,11,0.1); border-left: 4px solid #f59e0b;
+        border-radius: 0.75rem; padding: 0.75rem 1rem; margin-bottom: 1.5rem;
+        display: flex; align-items: center; gap: 0.75rem; color: #f59e0b;
+    }
+    .btn-group-custom { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.5rem; }
+    .btn-action {
+        display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.5rem;
+        border-radius: 2rem; text-decoration: none; font-weight: 600; transition: var(--transition);
+    }
+    .btn-csv { background: linear-gradient(135deg, #28a745, #20c997); color: white; }
+    .btn-pdf { background: linear-gradient(135deg, #dc3545, #c82333); color: white; }
+    .btn-back { background: linear-gradient(135deg, #6c757d, #495057); color: white; }
+    .btn-action:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); filter: brightness(1.05); }
+    .poste-badge {
+        font-weight: 600; background: var(--epb-primary); color: white;
+        padding: 0.2rem 0.6rem; border-radius: 1rem; font-size: 0.75rem;
+        display: inline-block; margin-right: 0.5rem;
+    }
+    @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="results-page">
+    <div class="container-custom">
+        <div class="page-header">
+            <h1><i class="fas fa-chart-line me-2"></i> Résultats de l'optimisation</h1>
+            <p>Analyse détaillée des affectations et performances</p>
+        </div>
+
+        {% if session %}
+            <div class="info-card">
+                <div class="card-header-custom">
+                    <i class="fas fa-calendar-alt"></i>
+                    <h2>Session : {{ session.nom }}</h2>
+                </div>
+                <div class="card-body-custom">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="info-item">
+                                <div class="info-label">Date de création</div>
+                                <div class="info-value">{{ session.date_creation|date:"d/m/Y H:i" }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="info-item">
+                                <div class="info-label">Saison</div>
+                                <div class="info-value">{{ session.get_saison_display }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="info-item">
+                                <div class="info-label">Scénario</div>
+                                <div class="info-value">
+                                    {% if session.scenario == 'rapide' %}
+                                        <span class="scenario-badge scenario-rapide"><i class="fas fa-bolt"></i> Rapide - Minimisation de l'attente</span>
+                                    {% elif session.scenario == 'securise' %}
+                                        <span class="scenario-badge scenario-securise"><i class="fas fa-shield-alt"></i> Sécurisé - Minimisation des risques</span>
+                                    {% else %}
+                                        <span class="scenario-badge scenario-equilibre"><i class="fas fa-balance-scale"></i> Équilibré - Compromis</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                    <div class="stat-value">{{ session.nb_navires }}</div>
+                    <div class="stat-label">Navires planifiés</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <div class="stat-value">{{ session.score_total|floatformat:2 }}</div>
+                    <div class="stat-label">Score total</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    <div class="stat-value">{{ session.attente_moyenne|floatformat:1 }}h</div>
+                    <div class="stat-label">Attente moyenne</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                    <div class="stat-value">{{ session.taux_occupation|floatformat:1 }}%</div>
+                    <div class="stat-label">Taux occupation</div>
+                </div>
+            </div>
+
+            <!-- Diagramme de Gantt -->
+            <div class="gantt-container">
+                <div class="card-header-custom">
+                    <i class="fas fa-chart-gantt"></i>
+                    <h2>Diagramme de Gantt par poste</h2>
+                </div>
+                <div style="height: 500px;">
+                    <canvas id="ganttChart"></canvas>
+                </div>
+            </div>
+
+            <div class="filters-bar">
+                <div class="card-header-custom" style="border-bottom: none; padding: 0 0 0.5rem 0;">
+                    <i class="fas fa-filter"></i>
+                    <h2 style="font-size: 1rem;">Filtrer par type de navire</h2>
+                </div>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all">Tous</button>
+                    <button class="filter-btn" data-filter="conteneur">Conteneurs</button>
+                    <button class="filter-btn" data-filter="gazier">Gaziers</button>
+                    <button class="filter-btn" data-filter="ferry">Ferries</button>
+                    <button class="filter-btn" data-filter="petrolier">Pétroliers</button>
+                    <button class="filter-btn" data-filter="cerealier">Céréaliers</button>
+                    <button class="filter-btn" data-filter="essence">Essence</button>
+                    <button class="filter-btn" data-filter="huilier">Huilier</button>
+                </div>
+            </div>
+
+            <!-- Navires en rade -->
+            {% if affectations_rade %}
+            <div class="info-card">
+                <div class="card-header-custom">
+                    <i class="fas fa-anchor"></i>
+                    <h2>⚓ Navires en rade (avant optimisation)</h2>
+                </div>
+                <div class="card-body-custom">
+                    <div class="table-wrapper">
+                        <table class="results-table" id="table-rade">
+                            <thead>
+                                <tr>
+                                    <th>Navire</th>
+                                    <th>Type</th>
+                                    <th>Agent</th>
+                                    <th>Arrivée (rade)</th>
+                                    <th>Poste / Quai</th>
+                                    <th>Début</th>
+                                    <th>Fin</th>
+                                    <th>Temps à quai</th>
+                                    <th>Attente</th>
+                                    <th>Priorités</th>
+                                    <th>Score</th>
+                                    <th>État</th>
+                                    <th>Équipements</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for a in affectations_rade %}
+                                <tr data-type="{{ a.navire.type }}">
+                                    <td><strong>{{ a.navire.nom }}</strong></div>
+                                    <td>{{ a.navire.get_type_display }}</div>
+                                    <td>{{ a.navire.agent|default:"-" }}</div>
+                                    <td>{{ a.navire.arrivee_datetime|date:"d/m H:i"|default:"-" }}</div>
+                                    <td>
+                                        {% if a.navire.poste_attribue %}
+                                            <span class="poste-badge">Poste {{ a.navire.poste_attribue.numero }}</span>
+                                            <small class="text-muted">{{ a.quai.nom }}</small>
+                                        {% else %}
+                                            {{ a.quai.nom }}
+                                        {% endif %}
+                                    </div>
+                                    <td class="debut-cell" data-heure="{{ a.heure_debut }}">{{ a.heure_debut|floatformat:1 }}h</div>
+                                    <td class="fin-cell" data-heure="{{ a.heure_fin }}">{{ a.heure_fin|floatformat:1 }}h</div>
+                                    <td class="duree-cell" data-debut="{{ a.heure_debut }}" data-fin="{{ a.heure_fin }}">-- h</div>
+                                    <td class="attente-cell" data-attente="{{ a.attente }}">{{ a.attente|floatformat:1 }}h</div>
+                                    <td>{{ a.priorites_texte|default:"Standard" }}</div>
+                                    <td>{{ a.score_contribution|floatformat:2 }}</div>
+                                    <td><span class="badge-state badge-rade"><i class="fas fa-anchor"></i> En rade</span></div>
+                                    <td>
+                                        {% if a.equipements %}
+                                            {% for eq in a.equipements|slice:":2" %}
+                                                <span class="badge-equip">{{ eq|truncatechars:12 }}</span>
+                                            {% endfor %}
+                                            {% if a.equipements|length > 2 %}
+                                                <span class="badge-equip">+{{ a.equipements|length|add:"-2" }}</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </div>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Navires attendus -->
+            {% if affectations_attente %}
+            <div class="info-card">
+                <div class="card-header-custom">
+                    <i class="fas fa-hourglass-half"></i>
+                    <h2>⏰ Navires attendus (ETA ≤ 24h)</h2>
+                </div>
+                <div class="card-body-custom">
+                    <div class="table-wrapper">
+                        <table class="results-table" id="table-attente">
+                            <thead>
+                                <tr>
+                                    <th>Navire</th>
+                                    <th>Type</th>
+                                    <th>Agent</th>
+                                    <th>ETA</th>
+                                    <th>Poste / Quai</th>
+                                    <th>Début</th>
+                                    <th>Fin</th>
+                                    <th>Temps à quai</th>
+                                    <th>Attente</th>
+                                    <th>Priorités</th>
+                                    <th>Score</th>
+                                    <th>État</th>
+                                    <th>Équipements</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for a in affectations_attente %}
+                                <tr data-type="{{ a.navire.type }}">
+                                    <td><strong>{{ a.navire.nom }}</strong></div>
+                                    <td>{{ a.navire.get_type_display }}</div>
+                                    <td>{{ a.navire.agent|default:"-" }}</div>
+                                    <td>{{ a.navire.arrivee_datetime|date:"d/m H:i"|default:"-" }}</div>
+                                    <td>
+                                        {% if a.navire.poste_attribue %}
+                                            <span class="poste-badge">Poste {{ a.navire.poste_attribue.numero }}</span>
+                                            <small class="text-muted">{{ a.quai.nom }}</small>
+                                        {% else %}
+                                            {{ a.quai.nom }}
+                                        {% endif %}
+                                    </div>
+                                    <td class="debut-cell" data-heure="{{ a.heure_debut }}">{{ a.heure_debut|floatformat:1 }}h</div>
+                                    <td class="fin-cell" data-heure="{{ a.heure_fin }}">{{ a.heure_fin|floatformat:1 }}h</div>
+                                    <td class="duree-cell" data-debut="{{ a.heure_debut }}" data-fin="{{ a.heure_fin }}">-- h</div>
+                                    <td class="attente-cell" data-attente="{{ a.attente }}">{{ a.attente|floatformat:1 }}h</div>
+                                    <td>{{ a.priorites_texte|default:"Standard" }}</div>
+                                    <td>{{ a.score_contribution|floatformat:2 }}</div>
+                                    <td><span class="badge-state badge-attente"><i class="fas fa-clock"></i> En attente</span></div>
+                                    <td>
+                                        {% if a.equipements %}
+                                            {% for eq in a.equipements|slice:":2" %}
+                                                <span class="badge-equip">{{ eq|truncatechars:12 }}</span>
+                                            {% endfor %}
+                                            {% if a.equipements|length > 2 %}
+                                                <span class="badge-equip">+{{ a.equipements|length|add:"-2" }}</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </div>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if not affectations_rade and not affectations_attente %}
+            <div class="warning-alert"><i class="fas fa-exclamation-triangle"></i> Aucune affectation trouvée pour cette session.</div>
+            {% endif %}
+
+            <div class="btn-group-custom">
+                <a href="{% url 'exporter_csv' session.id %}" class="btn-action btn-csv"><i class="fas fa-file-csv"></i> Exporter CSV</a>
+                <a href="{% url 'exporter_pdf' session.id %}" class="btn-action btn-pdf"><i class="fas fa-file-pdf"></i> Exporter PDF</a>
+                <a href="{% url 'cpn' %}" class="btn-action btn-back"><i class="fas fa-arrow-left"></i> Retour à la planification</a>
+            </div>
+        {% else %}
+            <div class="warning-alert"><i class="fas fa-search"></i> Session d'optimisation introuvable.</div>
+            <a href="{% url 'cpn' %}" class="btn-action btn-back"><i class="fas fa-arrow-left"></i> Retour à la planification</a>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    (function() {
+        // Fonction pour convertir heure décimale en datetime
+        function decimalToDateTime(decimalHour) {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const hours = Math.floor(decimalHour);
+            const minutes = Math.round((decimalHour - hours) * 60);
+            const date = new Date(today.getTime() + hours * 3600000 + minutes * 60000);
+            if (date < now) date.setDate(date.getDate() + 1);
+            return date;
+        }
+
+        function formatDateTime(date) {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}/${month} ${hours}:${minutes}`;
+        }
+
+        // Conversion des cellules début / fin
+        document.querySelectorAll('.debut-cell, .fin-cell').forEach(cell => {
+            const text = cell.innerText.trim();
+            if (text.endsWith('h') && !text.includes('/')) {
+                const numeric = parseFloat(text.replace('h', '').replace(',', '.'));
+                if (!isNaN(numeric)) {
+                    const date = decimalToDateTime(numeric);
+                    cell.innerText = formatDateTime(date);
+                    cell.setAttribute('title', `Heure décimale: ${numeric.toFixed(1)}h`);
+                }
+            }
+        });
+
+        // Calcul des durées
+        document.querySelectorAll('.duree-cell').forEach(cell => {
+            const debut = parseFloat(cell.dataset.debut);
+            const fin = parseFloat(cell.dataset.fin);
+            if (!isNaN(debut) && !isNaN(fin)) {
+                const duree = (fin - debut).toFixed(1);
+                cell.innerText = duree + 'h';
+            }
+        });
+    })();
+
+    // Diagramme de Gantt avec Chart.js (utilise la nouvelle API)
+    (function() {
+        const canvas = document.getElementById('ganttChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const url = "{% url 'api_gantt_poste' session.id %}";
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.data && data.data.length > 0) {
+                    // Regrouper par quai (libellé déjà formaté avec poste)
+                    const parQuai = {};
+                    let maxHeure = 0;
+                    data.data.forEach(item => {
+                        if (!parQuai[item.quai]) parQuai[item.quai] = [];
+                        parQuai[item.quai].push(item);
+                        if (item.fin > maxHeure) maxHeure = item.fin;
+                    });
+                    const quais = Object.keys(parQuai).sort();
+                    const datasets = [];
+                    const couleurs = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec489a', '#06b6d4', '#84cc16'];
+                    quais.forEach((quai, quaiIndex) => {
+                        const items = parQuai[quai];
+                        items.forEach((item, idx) => {
+                            datasets.push({
+                                label: item.navire,
+                                data: [{ x: item.debut, x2: item.fin, y: quai }],
+                                backgroundColor: couleurs[(quaiIndex + idx) % couleurs.length],
+                                borderColor: '#ffffff',
+                                borderWidth: 1,
+                                barPercentage: 0.8,
+                                categoryPercentage: 0.9
+                            });
+                        });
+                    });
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: { datasets: datasets },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (context) => {
+                                            const raw = context.raw;
+                                            const item = data.data.find(d => d.navire === context.dataset.label);
+                                            const debutDate = decimalToDateTime(raw.x);
+                                            const finDate = decimalToDateTime(raw.x2);
+                                            return [
+                                                `Navire: ${context.dataset.label}`,
+                                                `Type: ${item ? item.type : ''}`,
+                                                `Début: ${raw.x.toFixed(1)}h (${formatDateTime(debutDate)})`,
+                                                `Fin: ${raw.x2.toFixed(1)}h (${formatDateTime(finDate)})`,
+                                                `Durée: ${(raw.x2 - raw.x).toFixed(1)}h`,
+                                                `Priorité: ${item ? item.priorite : ''}`
+                                            ];
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    title: { display: true, text: 'Heure (heures)', color: '#64748b' },
+                                    min: 0,
+                                    max: Math.max(72, maxHeure + 10),
+                                    grid: { color: 'rgba(0,0,0,0.05)' }
+                                },
+                                y: {
+                                    type: 'category',
+                                    labels: quais,
+                                    title: { display: true, text: 'Poste / Quai', color: '#64748b' },
+                                    grid: { display: false }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    canvas.parentElement.innerHTML = '<div style="padding:2rem; text-align:center;">Aucune donnée de Gantt disponible.</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Gantt error:', error);
+                canvas.parentElement.innerHTML = `<div style="padding:2rem; text-align:center; color:#ef4444;">
+                    ❌ Erreur de chargement du diagramme.<br>${error.message}
+                </div>`;
+            });
+    })();
+
+    // Filtres sur les tableaux
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        const tables = document.querySelectorAll('#table-rade, #table-attente');
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                const filter = this.dataset.filter;
+                tables.forEach(table => {
+                    const rows = table.querySelectorAll('tbody tr');
+                    rows.forEach(row => {
+                        const type = row.getAttribute('data-type');
+                        if (filter === 'all' || type === filter) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

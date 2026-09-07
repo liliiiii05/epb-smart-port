@@ -1,0 +1,54 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Ajouter un poste | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card-glass animate-card">
+        <div class="card-header">
+            <h3><i class="fas fa-plus-circle me-2"></i> Ajouter un poste</h3>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-group mb-3">
+                    <label>Quai</label>
+                    <select name="quai_id" class="form-control" required>
+                        <option value="">Sélectionner un quai</option>
+                        {% for q in quais %}
+                        <option value="{{ q.id }}" {% if quai and quai.id == q.id %}selected{% endif %}>
+                            {{ q.nom }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group mb-3">
+                    <label>Numéro du poste</label>
+                    <input type="text" name="numero" class="form-control" required>
+                </div>
+                <div class="form-group mb-3">
+                    <label>Longueur (m)</label>
+                    <input type="number" step="0.01" name="longueur" class="form-control" required>
+                </div>
+                <div class="form-group mb-3">
+                    <label>Profondeur (m)</label>
+                    <input type="number" step="0.01" name="profondeur" class="form-control" required>
+                </div>
+                <div class="form-group mb-3">
+                    <label>Spécialité</label>
+                    <input type="text" name="specialite" class="form-control" placeholder="Ex: Céréalier, Container...">
+                </div>
+                <div class="form-group mb-3">
+                    <label>Type de navire autorisé</label>
+                    <input type="text" name="type_navire_autorise" class="form-control" placeholder="Ex: Céréalier, Gazier...">
+                </div>
+                <div class="modal-buttons">
+                    <a href="{% url 'liste_quais' %}" class="btn-modal btn-modal-secondary">Annuler</a>
+                    <button type="submit" class="btn-modal btn-modal-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
