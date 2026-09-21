@@ -1,6 +1,6 @@
 from pathlib import Path
 import os
-import dj_database_url  # ← NOUVEAU : pour PostgreSQL
+import dj_database_url  # ← pour PostgreSQL
 from dotenv import load_dotenv
 
 # Charger les variables d'environnement depuis le fichier .env
@@ -14,7 +14,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver', '.onrender.com', '.railway.app']  # ← AJOUT Render/Railway
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver', '.onrender.com', '.railway.app']
 
 # ==================== APPLICATION DEFINITION ====================
 INSTALLED_APPS = [
@@ -24,12 +24,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'port.apps.PortConfig',  # ✅ PortConfig explicitement
+    'port.apps.PortConfig',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # ← NOUVEAU : pour les fichiers statiques en production
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -60,7 +60,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'epb_smart.wsgi.application'
 
 # ==================== BASE DE DONNÉES ====================
-# ✅ Configuration intelligente :
+# ✅ Configuration corrigée pour Neon (conn_max_age=0)
 # - En production (Render) : utilise PostgreSQL (Neon)
 # - En local : utilise MySQL
 # - Fallback : SQLite
@@ -69,10 +69,12 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 
 if DATABASE_URL:
     # ✅ PostgreSQL (Neon) - utilisé en local ET en production
+    # ⚠️ conn_max_age=0 : ferme la connexion après chaque requête
+    #    (Neon ferme les connexions inactives après ~5 min)
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
-            conn_max_age=600,
+            conn_max_age=0,
             conn_health_checks=True,
         )
     }
@@ -92,7 +94,7 @@ else:
             },
         }
     }
-    #print("🐬 [DB] Utilisation de MySQL (local)")
+    # print("🐬 [DB] Utilisation de MySQL (local)")
 
 # ==================== AUTHENTIFICATION ====================
 LOGIN_URL = '/login/'
@@ -161,7 +163,7 @@ DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')
 if DEBUG:
     BASE_URL = 'http://127.0.0.1:8000'
 else:
-    BASE_URL = os.getenv('BASE_URL', 'https://votre-app.onrender.com')
+    BASE_URL = os.getenv('BASE_URL', 'https://epb-smart-port.onrender.com')
 
 # ==================== LOGGING ====================
 LOGGING = {

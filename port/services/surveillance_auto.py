@@ -17,8 +17,12 @@ _lock = threading.Lock()
 def executer_surveillance():
     """Fonction exécutée automatiquement toutes les 5 minutes."""
     from django.core.management import call_command
+    from django.db import close_old_connections
     from port.services.surveillance import detecter_changements_navires
     from django.utils import timezone
+
+    # ✅ Fermer les connexions obsolètes AVANT de commencer
+    close_old_connections()
 
     maintenant = timezone.now()
     logger.info(f"🛰️ [SURVEILLANCE AUTO] Démarrage à {maintenant.strftime('%d/%m/%Y %H:%M:%S')}")
@@ -27,6 +31,9 @@ def executer_surveillance():
         # 1. Synchroniser depuis le site EPB
         logger.info("📡 Synchronisation avec le site EPB...")
         call_command('import_epb', verbosity=0)
+
+        # ✅ Fermer les connexions APRÈS le scraping
+        close_old_connections()
 
         # 2. Détecter les changements
         logger.info("🔍 Détection des changements...")
@@ -46,8 +53,11 @@ def executer_surveillance():
     except Exception as e:
         logger.error(f"❌ [SURVEILLANCE AUTO] Erreur : {e}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         return None
+    finally:
+        # ✅ Toujours fermer les connexions à la fin
+        close_old_connections()
 
 
 def demarrer_surveillance():
