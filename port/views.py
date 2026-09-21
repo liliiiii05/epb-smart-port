@@ -97,7 +97,147 @@ def estimer_duree_traitement(navire, quai=None):
     
     return duree
 
+    # ============================================================
+    # ✅ FONCTION 2 : calculer_fin_estimee_complete (SANS PROLONGATION)
+    # ============================================================
+    def calculer_fin_estimee_complete(navire):
+        """
+        Calcule la fin estimée du navire avec toutes les contraintes.
+        ✅ Prend en compte : règle contractuelle, attente notes, attente équipement, coefficient dangereux.
+        ✅ AUCUNE prolongation automatique : on affiche la VRAIE fin théorique.
+        
+        Returns:
+            (fin_estimee, taux, pourcentage, attente_equip, retard_heures)
+        """
+        if not navire.debut_datetime or navire.marchandise_volume <= 0:
+            return None, None, 0, 0, 0
 
+        # ============================================================
+        # ✅ ÉTAPE 1 : DURÉE DE TRAITEMENT (RÈGLES CONTRACTUELLES)
+        # ============================================================
+        type_nav = navire.type
+        agent = (navire.agent or '').upper()
+
+        if type_nav == 'conteneur':
+            # ✅ RÈGLES CONTRACTUELLES MSC / CMA CGM / MAERSK
+            if 'MSC' in agent:
+                duree_traitement = 6 * 24  # 144 heures (6 jours)
+            elif 'CMA' in agent or 'CGM' in agent:
+                duree_traitement = 5 * 24  # 120 heures (5 jours)
+            elif 'MAERSK' in agent:
+                duree_traitement = 5 * 24  # 120 heures (5 jours)
+            else:
+                duree_traitement = 5 * 24  # 120 heures (5 jours) par défaut
+            taux = navire.marchandise_volume / duree_traitement if duree_traitement > 0 else 300
+        else:
+            # ✅ RÈGLES PAR DÉBIT POUR LES AUTRES TYPES
+            taux = get_taux_reel(navire)
+            duree_traitement = navire.marchandise_volume / taux if taux > 0 else 24.0
+
+        # ============================================================
+        # ✅ ÉTAPE 2 : COEFFICIENT MARCHANDISE DANGEREUSE
+        # ============================================================
+        if navire.marchandise_dangereuse:
+            duree_traitement = duree_traitement * 1.25  # +25% de sécurité
+
+        # ============================================================
+        # ✅ ÉTAPE 3 : ATTENTE NOTES (CONNUES)
+        # ============================================================
+        attente_notes = attente_notes_totale
+
+        # ============================================================
+        # ✅ ÉTAPE 4 : ATTENTE ÉQUIPEMENT (ESTIMATION)
+        # ============================================================
+        attente_equip = 0.0
+        if navire.type == 'gazier':
+            attente_equip = 3.0
+        elif navire.type == 'petrolier':
+            attente_equip = 2.0
+        elif navire.type == 'cerealier':
+            attente_equip = 1.0
+
+        # ============================================================
+        # ✅ ÉTAPE 5 : ARRÊT PLUIE
+        # ============================================================
+        arret_pluie = navire.temps_arret_pluie or 0
+
+        # ============================================================
+        # ✅ ÉTAPE 6 : DURÉE TOTALE
+        # ============================================================
+        duree_totale = duree_traitement + attente_notes + attente_equip + arret_pluie
+
+        # ============================================================
+        # ✅ ÉTAPE 7 : FIN ESTIMÉE (THÉORIQUE - SANS PROLONGATION)
+        # ============================================================
+        fin_estimee = navire.debut_datetime + timedelta(hours=duree_totale)
+
+        # ============================================================
+        # ✅ ÉTAPE 8 : PROGRESSION BASÉE SUR LE TEMPS ÉCOULÉ
+        # ============================================================
+        maintenant = timezone.now()
+        temps_ecoule = (maintenant - navire.debut_datetime).total_seconds() / 3600.0
+        pourcentage = min(99, (temps_ecoule / duree_totale) * 100) if duree_totale > 0 else 0
+
+        # ============================================================
+        # ✅ ÉTAPE 9 : CALCUL DU RETARD (POUR INFORMATION UNIQUEMENT)
+        # ⚠️ AUCUNE MODIFICATION DE fin_estimee
+        # On retourne la VRAIE fin théorique, même si elle est dans le passé.
+        # ============================================================
+        retard_heures = 0.0
+        if maintenant > fin_estimee:
+            retard_heures = (maintenant - fin_estimee).total_seconds() / 3600.0
+            print(f"⚠️ {navire.nom} : Retard de {retard_heures:.1f}h (fin théorique = {fin_estimee.strftime('%d/%m %H:%M')})")
+
+        return fin_estimee, round(taux, 1), pourcentage, attente_equip, retard_heures
+# =============================================================================
+# ✅ FONCTION SOURCE DE VÉRITÉ UNIQUE POUR LA DURÉE
+# =============================================================================
+def calculer_duree_contractuelle(navire):
+    """
+    Calcule la durée de traitement selon les règles contractuelles EPB.
+    ✅ MSC = 144h, CMA CGM = 120h, MAERSK = 120h
+    ✅ Autres types = volume / taux réaliste
+    
+    Cette fonction est la SOURCE DE VÉRITÉ UNIQUE pour la durée d'un navire.
+    Elle est utilisée par : detail_navire, planification_dynamique
+    """
+    if navire.marchandise_volume <= 0:
+        return 24.0
+
+    agent = (navire.agent or '').upper()
+
+    # ========== CONTENEURS (RÈGLES CONTRACTUELLES) ==========
+    if navire.type == 'conteneur':
+        if 'MSC' in agent:
+            duree = 6 * 24  # 144h
+        elif 'CMA' in agent or 'CGM' in agent:
+            duree = 5 * 24  # 120h
+        elif 'MAERSK' in agent:
+            duree = 5 * 24  # 120h
+        else:
+            duree = 5 * 24  # 120h par défaut
+    else:
+        # ========== AUTRES TYPES (CALCUL RÉALISTE) ==========
+        TAUX_PAR_TYPE = {
+            'gazier': 160,
+            'cerealier': 550,
+            'cargo': 250,
+            'petrolier': 400,
+            'essence': 250,
+            'ferry': 100,
+            'huilier': 150,
+        }
+        taux = TAUX_PAR_TYPE.get(navire.type, 250)
+        if navire.type == 'cerealier' and navire.marchandise_type and 'MAIS' in navire.marchandise_type.upper():
+            taux = 500
+        duree = navire.marchandise_volume / taux if taux > 0 else 24.0
+
+    # Coefficient dangereux
+    if navire.marchandise_dangereuse:
+        duree = duree * 1.25
+
+    return duree
+# =============================================================================
 @login_required
 def detail_navire(request, navire_id):
     from datetime import datetime, timedelta
@@ -108,7 +248,7 @@ def detail_navire(request, navire_id):
     from port.optimiseur_epb_pro import ModeleCalcul
 
     navire = get_object_or_404(NavireModel, id=navire_id)
-    
+
     # ========== MARCHANDISES DANGEREUSES ==========
     MARCHANDISES_DANGEREUSES = [
         'BUTANE', 'PROPANE', 'BUTANE & PROPANE', 'BUTANE+PROPANE',
@@ -116,44 +256,44 @@ def detail_navire(request, navire_id):
         'CHIMIQUE', 'ACIDE', 'CORROSIF', 'TOXIQUE', 'INFLAMMABLE',
         'ESSENCE', 'GAZOIL', 'GASOIL', 'PETROLE', 'FIUL'
     ]
-    
+
     marchandise = (navire.marchandise_type or '').upper()
     est_dangereux = navire.marchandise_dangereuse
-    
+
     if not est_dangereux:
         for mot in MARCHANDISES_DANGEREUSES:
             if mot in marchandise:
                 navire.marchandise_dangereuse = True
                 navire.save()
-                print(f"✅ {navire.nom}: marchandise dangereuse activée ({marchandise})")
+                print(f"OK {navire.nom}: marchandise dangereuse activee ({marchandise})")
                 break
-        
+
         if navire.type == 'gazier' and not navire.marchandise_dangereuse:
             navire.marchandise_dangereuse = True
             navire.save()
-            print(f"✅ {navire.nom}: gazier marqué comme dangereux")
-    
+            print(f"OK {navire.nom}: gazier marque comme dangereux")
+
     affectations_qs = Affectation.objects.filter(navire=navire).order_by('-date_creation')
 
-    # ========== SI AUCUNE AFFECTATION MAIS NAVIRE À QUAI ==========
+    # ========== SI AUCUNE AFFECTATION MAIS NAVIRE A QUAI ==========
     if affectations_qs.count() == 0 and navire.etat == 'quai' and navire.debut_datetime and navire.marchandise_volume > 0:
         mc = ModeleCalcul([], [])
-        
+
         taux = mc.get_taux_par_produit(navire)
         if navire.marchandise_type and 'MAIS' in navire.marchandise_type.upper():
             taux = 500
-        
+
         if navire.marchandise_dangereuse:
             taux = taux * 0.8
-        
+
         traitement_estime = navire.marchandise_volume / taux if taux > 0 else 24.0
-        
+
         quai_actuel = navire.quai_attribue
         if quai_actuel is None:
             quai_actuel = Quai.objects.first()
-        
+
         heure_debut = navire.debut_datetime.hour + navire.debut_datetime.minute / 60.0 if navire.debut_datetime else 0
-        
+
         affectation_reelle = Affectation.objects.create(
             navire=navire,
             quai=quai_actuel,
@@ -166,7 +306,7 @@ def detail_navire(request, navire_id):
             utilise_grues_bord=navire.a_grue_bord,
             date_creation=timezone.now()
         )
-        
+
         affectations_qs = Affectation.objects.filter(navire=navire).order_by('-date_creation')
 
     affectations = affectations_qs
@@ -191,30 +331,30 @@ def detail_navire(request, navire_id):
                 aff.fin_affichage = aff.debut_affichage + timedelta(hours=aff.traitement)
                 aff.date_affichage = aff.date_creation
 
-    # ========== Récupérer les notes d'attente ==========
-    notes_attente_en_attente = NoteAttente.objects.filter(navire=navire, prise_en_compte=False)
-    attente_notes_totale = sum(note.duree_attente for note in notes_attente_en_attente)
+    # ========== Notes d'attente ACTIVES (escale en cours) ==========
+    notes_attente_actives = navire.notes_attente_actives
+    attente_notes_totale = sum(note.duree_attente for note in notes_attente_actives)
 
     # ========== Statistiques ==========
     if affectations.exists():
         total_affectations = affectations.count()
-        
+
         temps_total_attente = sum(a.attente for a in affectations)
         temps_moyen_attente = temps_total_attente / total_affectations if total_affectations > 0 else 0
-        
+
         temps_total_traitement = sum(a.traitement for a in affectations)
         temps_moyen_traitement = temps_total_traitement / total_affectations if total_affectations > 0 else 0
-        
+
         scores_valides = [a.score_contribution for a in affectations if a.score_contribution > 0]
         if scores_valides:
             score_moyen = sum(scores_valides) / len(scores_valides)
         else:
             score_moyen = 0
-        
+
         if attente_notes_totale > 0 and temps_total_attente == 0:
             temps_total_attente = attente_notes_totale
             temps_moyen_attente = attente_notes_totale
-        
+
         stats = {
             'total_affectations': total_affectations,
             'temps_total_attente': temps_total_attente,
@@ -234,7 +374,7 @@ def detail_navire(request, navire_id):
             'temps_total_traitement': 0,
             'temps_moyen_traitement': 0,
             'dernier_traitement': 0,
-            'attente_notes': 0,
+            'attente_notes': attente_notes_totale,
         }
 
     if navire.etat == 'quai' and stats['total_affectations'] == 0 and navire.debut_datetime:
@@ -307,7 +447,7 @@ def detail_navire(request, navire_id):
 
     postes_compatibles = postes_compatibles[:10]
 
-    # ========== Dates d'arrivée et début ==========
+    # ========== Dates d'arrivee et debut ==========
     if navire.arrivee_datetime:
         arrivee_reelle = navire.arrivee_datetime
     else:
@@ -332,21 +472,23 @@ def detail_navire(request, navire_id):
 
     _modele_calcul = ModeleCalcul([], [])
 
-    def get_taux_dechargement(navire):
-        return _modele_calcul.get_taux_par_produit(navire)
-
-    def get_traitement_contractuel_conteneur(navire):
-        if navire.type == 'conteneur':
-            agent = getattr(navire, 'agent', '').upper()
-            if 'MSC' in agent:
-                return 6 * 24
-            else:
-                return 5 * 24
-        return None
-
+    # ============================================================
+    # ✅ FONCTION 1 : get_taux_reel (RÉELLE)
+    # ============================================================
     def get_taux_reel(navire):
+        """
+        Retourne le taux de déchargement RÉEL (t/h) selon le type de navire.
+        ✅ Gazier : 160 t/h
+        ✅ Céréalier : 550 t/h (500 pour maïs)
+        ✅ Cargo : 250 t/h
+        ✅ Conteneur : 300 t/h (mais règle contractuelle utilisée ailleurs)
+        ✅ Pétrolier : 400 t/h
+        ✅ Essence : 250 t/h
+        ✅ Ferry : 100 t/h
+        ✅ Huilier : 150 t/h
+        """
         if navire.type == 'gazier':
-            return 200
+            return 160
         if navire.type == 'cerealier':
             if navire.marchandise_type and 'MAIS' in navire.marchandise_type.upper():
                 return 500
@@ -367,98 +509,197 @@ def detail_navire(request, navire_id):
             return 150
         return 250
 
-    # ========== FONCTION CORRIGÉE POUR L'ESTIMATION DE FIN ==========
-    def calculer_fin_estimee_complete(navire, meteo=None):
+    # ============================================================
+    # ✅ FONCTION 2 : calculer_fin_estimee_complete (SANS PROLONGATION)
+    # ============================================================
+    def calculer_fin_estimee_complete(navire):
+        """
+        Calcule la fin estimée du navire avec toutes les contraintes.
+        ✅ Prend en compte : règle contractuelle, attente notes, attente équipement, coefficient dangereux.
+        ✅ AUCUNE prolongation automatique : on affiche la VRAIE fin théorique.
+        
+        Returns:
+            (fin_estimee, taux, pourcentage, attente_equip, retard_heures)
+        """
         if not navire.debut_datetime or navire.marchandise_volume <= 0:
-            return None, None, 0
-        
-        affectations_navire = Affectation.objects.filter(navire=navire)
-        
-        if affectations_navire.exists():
-            meilleure_affectation = max(affectations_navire, key=lambda a: a.traitement)
-            duree_traitement = meilleure_affectation.traitement
+            return None, None, 0, 0, 0
+
+        # ============================================================
+        # ✅ ÉTAPE 1 : DURÉE DE TRAITEMENT (RÈGLES CONTRACTUELLES)
+        # ============================================================
+        type_nav = navire.type
+        agent = (navire.agent or '').upper()
+
+        if type_nav == 'conteneur':
+            # ✅ RÈGLES CONTRACTUELLES MSC / CMA CGM / MAERSK
+            if 'MSC' in agent:
+                duree_traitement = 6 * 24  # 144 heures (6 jours)
+            elif 'CMA' in agent or 'CGM' in agent:
+                duree_traitement = 5 * 24  # 120 heures (5 jours)
+            elif 'MAERSK' in agent:
+                duree_traitement = 5 * 24  # 120 heures (5 jours)
+            else:
+                duree_traitement = 5 * 24  # 120 heures (5 jours) par défaut
             taux = navire.marchandise_volume / duree_traitement if duree_traitement > 0 else 300
         else:
-            if navire.type == 'cerealier':
-                if navire.marchandise_type and 'MAIS' in navire.marchandise_type.upper():
-                    taux = 500
-                else:
-                    taux = 550
-                duree_traitement = navire.marchandise_volume / taux if taux > 0 else 24.0
-            elif navire.type == 'conteneur':
-                taux = 300
-                duree_traitement = navire.marchandise_volume / 300
-            elif navire.type == 'gazier':
-                taux = 200
-                duree_traitement = navire.marchandise_volume / 200
-            elif navire.type == 'petrolier':
-                taux = 400
-                duree_traitement = navire.marchandise_volume / 400
-            else:
-                taux = 250
-                duree_traitement = navire.marchandise_volume / 250
-        
+            # ✅ RÈGLES PAR DÉBIT POUR LES AUTRES TYPES
+            taux = get_taux_reel(navire)
+            duree_traitement = navire.marchandise_volume / taux if taux > 0 else 24.0
+
+        # ============================================================
+        # ✅ ÉTAPE 2 : COEFFICIENT MARCHANDISE DANGEREUSE
+        # ============================================================
         if navire.marchandise_dangereuse:
-            duree_traitement = duree_traitement / 0.8
-        
-        notes_attente = NoteAttente.objects.filter(navire=navire, prise_en_compte=False)
-        attente_totale = sum(note.duree_attente for note in notes_attente)
-        duree_totale = duree_traitement + attente_totale + (navire.temps_arret_pluie or 0)
-        
+            duree_traitement = duree_traitement * 1.25  # +25% de sécurité
+
+        # ============================================================
+        # ✅ ÉTAPE 3 : ATTENTE NOTES (CONNUES)
+        # ============================================================
+        attente_notes = attente_notes_totale
+
+        # ============================================================
+        # ✅ ÉTAPE 4 : ATTENTE ÉQUIPEMENT (ESTIMATION)
+        # ============================================================
+        attente_equip = 0.0
+        if navire.type == 'gazier':
+            attente_equip = 3.0
+        elif navire.type == 'petrolier':
+            attente_equip = 2.0
+        elif navire.type == 'cerealier':
+            attente_equip = 1.0
+
+        # ============================================================
+        # ✅ ÉTAPE 5 : ARRÊT PLUIE
+        # ============================================================
+        arret_pluie = navire.temps_arret_pluie or 0
+
+        # ============================================================
+        # ✅ ÉTAPE 6 : DURÉE TOTALE
+        # ============================================================
+        duree_totale = duree_traitement + attente_notes + attente_equip + arret_pluie
+
+        # ============================================================
+        # ✅ ÉTAPE 7 : FIN ESTIMÉE (THÉORIQUE - SANS PROLONGATION)
+        # ============================================================
         fin_estimee = navire.debut_datetime + timedelta(hours=duree_totale)
-        
+
+        # ============================================================
+        # ✅ ÉTAPE 8 : PROGRESSION BASÉE SUR LE TEMPS ÉCOULÉ
+        # ============================================================
         maintenant = timezone.now()
         temps_ecoule = (maintenant - navire.debut_datetime).total_seconds() / 3600.0
         pourcentage = min(99, (temps_ecoule / duree_totale) * 100) if duree_totale > 0 else 0
-        
-        if navire.type == 'cerealier' and navire.marchandise_type and 'MAIS' in navire.marchandise_type.upper():
-            taux = 500
-        
-        return fin_estimee, round(taux, 1), pourcentage
 
-    # ========== Estimation de fin ==========
+        # ============================================================
+        # ✅ ÉTAPE 9 : CALCUL DU RETARD (POUR INFORMATION UNIQUEMENT)
+        # ⚠️ AUCUNE MODIFICATION DE fin_estimee
+        # ============================================================
+        retard_heures = 0.0
+        if maintenant > fin_estimee:
+            retard_heures = (maintenant - fin_estimee).total_seconds() / 3600.0
+            print(f"⚠️ {navire.nom} : Retard de {retard_heures:.1f}h (fin théorique = {fin_estimee.strftime('%d/%m %H:%M')})")
+
+        return fin_estimee, round(taux, 1), pourcentage, attente_equip, retard_heures
+
+    # ============================================================
+    # ✅ FONCTION 3 : ESTIMATION DE FIN + SYNCHRONISATION
+    # ============================================================
     estimation_fin = None
     taux_estime = None
     pourcentage_completion = 0
     temps_ecoule = 0
+    attente_equip_estimee = 0
+    retard_heures = 0.0  # ✅ NOUVEAU : Stocker le retard
 
     if navire.etat == 'quai' and navire.debut_datetime and navire.marchandise_volume > 0:
-        fin_estimee, taux, pourcentage = calculer_fin_estimee_complete(navire)
+        # ✅ Récupérer les 5 valeurs (dont le retard)
+        fin_estimee, taux, pourcentage, attente_eq, retard_h = calculer_fin_estimee_complete(navire)
         if fin_estimee:
             estimation_fin = fin_estimee
             pourcentage_completion = pourcentage
             temps_ecoule = (timezone.now() - navire.debut_datetime).total_seconds() / 3600.0
             taux_estime = round(taux, 1)
+            attente_equip_estimee = attente_eq
+            retard_heures = retard_h  # ✅ Stocker le retard
 
-    # ========== TONNAGE PAR SHIFT CORRIGÉ ==========
+            # ============================================================
+            # ✅ SYNCHRONISATION : Sauvegarder dans navire.fin_datetime
+            # ⚠️ On sauvegarde la VRAIE fin théorique (sans prolongation)
+            # ============================================================
+            if fin_estimee != navire.fin_datetime:
+                navire.fin_datetime = fin_estimee
+                base_dt = navire.debut_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+                navire.heure_fin = (fin_estimee - base_dt).total_seconds() / 3600.0
+                navire.save(update_fields=['fin_datetime', 'heure_fin'])
+
+                # Mettre à jour l'affectation en cours
+                derniere_affect = Affectation.objects.filter(navire=navire).order_by('-date_creation').first()
+                if derniere_affect:
+                    derniere_affect.heure_fin = navire.heure_fin
+                    derniere_affect.traitement = calculer_duree_contractuelle(navire)
+                    derniere_affect.save(update_fields=['heure_fin', 'traitement'])
+
+                # Mettre à jour le poste et le quai
+                if navire.poste_attribue:
+                    navire.poste_attribue.occupation_jusqua = navire.heure_fin
+                    navire.poste_attribue.save(update_fields=['occupation_jusqua'])
+                if navire.quai_attribue:
+                    navire.quai_attribue.occupation_jusqua = navire.heure_fin
+                    navire.quai_attribue.save(update_fields=['occupation_jusqua'])
+
+                print(f"🔄 Sync detail_navire {navire.nom}: fin = {fin_estimee.strftime('%d/%m %H:%M')}")
+
+    # ========== DETERMINER SI LE NAVIRE EST EN COURS OU TERMINE ==========
+    est_en_cours = (navire.etat in ['attente', 'rade', 'quai'])
+    est_termine = (navire.etat == 'termine')
+
+    if est_en_cours:
+        libelle_debit = "Debit prevu"
+        libelle_duree = "Duree prevue effective"
+        libelle_titre = "Tonnage prevu par shift"
+        libelle_message = "Navire en cours de traitement. Les valeurs affichees sont des previsions basees sur la duree effective prevue. Le debit reel sera calcule a la cloture de l'escale."
+    else:
+        libelle_debit = "Debit reel"
+        libelle_duree = "Duree effective reelle"
+        libelle_titre = "Tonnage traite par shift"
+        libelle_message = "Navire termine. Les valeurs affichees sont les valeurs reelles observees."
+
+    # ============================================================
+    # ✅ FONCTION 4 : TONNAGE PAR SHIFT (CORRIGÉ)
+    # ============================================================
     tonnage_par_shift = None
-    shift_seuils = {
-        "07h-13h": 400,
-        "13h-19h": 360,
-        "19h-01h": 280,
-        "01h-07h": 240,
-    }
 
-    if affectations:
+    SEUILS_PAR_TYPE = {
+        'gazier': 200, 'petrolier': 400, 'cerealier': 550,
+        'conteneur': 300, 'cargo': 250, 'ferry': 100,
+        'essence': 300, 'huilier': 150, 'betail': 100, 'frigorifique': 200,
+    }
+    seuil_nominal = SEUILS_PAR_TYPE.get(navire.type, 250)
+
+    if affectations and navire.debut_datetime:
         derniere = affectations.first()
-        if derniere and derniere.traitement > 0 and navire.marchandise_volume > 0 and navire.debut_datetime:
+        if derniere and derniere.traitement > 0 and navire.marchandise_volume > 0:
             debut_dt = navire.debut_datetime
-            fin_dt = debut_dt + timedelta(hours=derniere.traitement)
-            
+
+            # ✅ Utiliser la durée CONTRACTUELLE
+            duree_traitement = calculer_duree_contractuelle(navire)
+
+            fin_dt = debut_dt + timedelta(hours=duree_traitement)
+
             total_volume = navire.marchandise_volume
             meteo_actuelle = get_meteo_aujourdhui()
-            notes_attente = NoteAttente.objects.filter(navire=navire, prise_en_compte=False)
-            taux_reel_navire = get_taux_reel(navire)
-            traitement_total = derniere.traitement
-            
+
+            attente_totale_h = attente_notes_totale
+            duree_effective = max(duree_traitement - attente_totale_h, 0.1)
+
             segments_dict = {}
-            
             d = debut_dt
             jour_reference = debut_dt.date()
-            
+            heures_attente_restantes = attente_totale_h
+
             while d < fin_dt:
                 h = d.hour + d.minute / 60.0
-                
+
                 if 7 <= h < 13:
                     shift_tech = "07h-13h"
                     shift_nom = "Matin (07h-13h)"
@@ -478,137 +719,157 @@ def detail_navire(request, navire_id):
                     shift_tech = "01h-07h"
                     shift_nom = "Double nuit (01h-07h)"
                     fin_shift = d.replace(hour=7, minute=0, second=0, microsecond=0)
-                
+
                 seg_fin = min(fin_dt, fin_shift)
                 if seg_fin > d:
-                    duree = (seg_fin - d).total_seconds() / 3600
-                    proportion = duree / traitement_total
-                    tonnage = total_volume * proportion
-                    seuil = shift_seuils.get(shift_tech, 300)
-                    
+                    duree_segment = (seg_fin - d).total_seconds() / 3600
+
+                    if heures_attente_restantes > 0:
+                        if duree_segment <= heures_attente_restantes:
+                            duree_effective_segment = 0
+                            heures_attente_restantes -= duree_segment
+                        else:
+                            duree_effective_segment = duree_segment - heures_attente_restantes
+                            heures_attente_restantes = 0
+                    else:
+                        duree_effective_segment = duree_segment
+
+                    COEFFICIENTS_SHIFT = {
+                        '07h-13h': 1.00, '13h-19h': 0.95,
+                        '19h-01h': 0.85, '01h-07h': 0.75,
+                    }
+                    coeff_shift = COEFFICIENTS_SHIFT.get(shift_tech, 1.0)
+
+                    if meteo_actuelle:
+                        if meteo_actuelle.pluie:
+                            coeff_shift *= 0.9
+                        if meteo_actuelle.vent_force >= 8:
+                            coeff_shift *= 0.85
+
+                    poids_segment = duree_effective_segment * coeff_shift
+
                     jour = (d.date() - jour_reference).days + 1
                     if jour < 1:
                         jour = 1
-                    
-                    key = f"{shift_nom}|Jour {jour}"
-                    
-                    # ========== CAUSES SPÉCIFIQUES AU SHIFT ==========
-                    causes = []
-                    
-                    if taux_reel_navire < seuil * 0.7:
-                        causes.append("⏱️ Débit inférieur à la normale")
-                    if meteo_actuelle and meteo_actuelle.pluie:
-                        causes.append("🌧️ Pluie – réduction de cadence")
-                    if meteo_actuelle and meteo_actuelle.vent_force >= 8:
-                        causes.append("💨 Vent fort – restrictions opérationnelles")
-                    
-                    notes_ce_shift = notes_attente.filter(shift=shift_tech)
-                    if notes_ce_shift.exists():
-                        causes.append(f"📋 Note(s) d'attente sur ce shift")
-                    elif notes_attente.filter(prise_en_compte=False).exists():
-                        causes.append("⏳ Attente globale en attente")
-                    
-                    if navire.marchandise_dangereuse:
-                        causes.append("⚠️ Produit dangereux – précautions supplémentaires")
-                    
-                    # ========== STATUT CORRIGÉ (Maïs = Normal) ==========
-                    # ========== STATUT CORRIGÉ (Maïs toujours Normal) ==========
-                    est_mais = (navire.type == 'cerealier' and navire.marchandise_type and 'MAIS' in navire.marchandise_type.upper())                    
 
-                    if est_mais:
-                        statut = "Normal"
-                    else:
-                        if tonnage > seuil * 1.2:
-                            statut = "Élevé"
-                        elif tonnage < seuil * 0.8:
-                            statut = "Faible"
-                        else:
-                            statut = "Normal"
-                    
+                    key = f"{shift_nom}|Jour {jour}"
+
+                    causes = []
+                    if meteo_actuelle and meteo_actuelle.pluie:
+                        causes.append("Pluie - reduction de cadence")
+                    if meteo_actuelle and meteo_actuelle.vent_force >= 8:
+                        causes.append("Vent fort - restrictions operationnelles")
+                    if navire.marchandise_dangereuse:
+                        causes.append("Produit dangereux - precautions supplementaires")
+
                     if key in segments_dict:
-                        segments_dict[key]['tonnage'] += tonnage
-                        segments_dict[key]['pourcentage'] = (segments_dict[key]['tonnage'] / total_volume) * 100
-                        segments_dict[key]['duree'] += duree
+                        segments_dict[key]['duree_effective'] += duree_effective_segment
+                        segments_dict[key]['duree_totale'] += duree_segment
+                        segments_dict[key]['poids'] += poids_segment
                     else:
                         segments_dict[key] = {
                             'nom': f"{shift_nom} (Jour {jour})",
                             'shift_tech': shift_tech,
                             'debut': d,
                             'fin': seg_fin,
-                            'duree': duree,
-                            'tonnage': tonnage,
-                            'seuil': seuil,
-                            'debit_moyen': taux_reel_navire,
-                            'pourcentage': proportion * 100,
+                            'duree_totale': duree_segment,
+                            'duree_effective': duree_effective_segment,
+                            'poids': poids_segment,
+                            'tonnage': 0,
+                            'seuil': seuil_nominal,
+                            'debit_moyen': 0,
+                            'pourcentage': 0,
                             'causes': causes,
-                            'statut': statut,
+                            'statut': 'Normal',
                             'jour': jour
                         }
                 d = seg_fin
-            
+
+            poids_total = sum(seg['poids'] for seg in segments_dict.values())
+
+            for key, seg in segments_dict.items():
+                if poids_total > 0:
+                    proportion = seg['poids'] / poids_total
+                    seg['tonnage'] = total_volume * proportion
+                    seg['pourcentage'] = proportion * 100
+                    if seg['duree_effective'] > 0:
+                        seg['debit_moyen'] = seg['tonnage'] / seg['duree_effective']
+                    else:
+                        seg['debit_moyen'] = 0
+                else:
+                    seg['tonnage'] = 0
+                    seg['pourcentage'] = 0
+                    seg['debit_moyen'] = 0
+
+                if seg['duree_effective'] == 0:
+                    seg['statut'] = "Attente"
+                elif seg['debit_moyen'] >= seuil_nominal * 1.1:
+                    seg['statut'] = "Eleve"
+                elif seg['debit_moyen'] < seuil_nominal * 0.7:
+                    seg['statut'] = "Faible"
+                else:
+                    seg['statut'] = "Normal"
+
             segments = list(segments_dict.values())
             segments.sort(key=lambda x: (x['jour'], x['debut']))
             tonnage_par_shift = segments
 
-    # ========== Données pour le diagramme Gantt ==========
+    # ============================================================
+    # ✅ FONCTION 5 : GANTT (CORRIGÉ)
+    # ============================================================
     gantt_series = []
     shift_colors = {"07h-13h": "#3b82f6", "13h-19h": "#10b981", "19h-01h": "#f59e0b", "01h-07h": "#64748b"}
     shift_display_names = {
-        "07h-13h": "Shift 07h-13h",
-        "13h-19h": "Shift 13h-19h",
-        "19h-01h": "Shift 19h-01h",
-        "01h-07h": "Shift 01h-07h"
+        "07h-13h": "Shift 07h-13h", "13h-19h": "Shift 13h-19h",
+        "19h-01h": "Shift 19h-01h", "01h-07h": "Shift 01h-07h"
     }
 
     if navire.etat == 'quai' and affectations.exists() and navire.debut_datetime:
         debut_navire = navire.debut_datetime
-        for a in affectations:
-            try:
-                debut_dt = debut_navire
-                fin_dt = debut_dt + timedelta(hours=a.traitement)
-                
-                volume = navire.marchandise_volume if navire.marchandise_volume > 0 else 1
-                traitement = a.traitement if a.traitement > 0 else 24
-                
-                d = debut_dt
-                
-                while d < fin_dt:
-                    h = d.hour + d.minute / 60.0
-                    if 7 <= h < 13:
-                        shift_tech = "07h-13h"
-                        fin_shift = d.replace(hour=13, minute=0, second=0, microsecond=0)
-                    elif 13 <= h < 19:
-                        shift_tech = "13h-19h"
-                        fin_shift = d.replace(hour=19, minute=0, second=0, microsecond=0)
-                    elif h >= 19 or (0 <= h < 1):
-                        shift_tech = "19h-01h"
-                        if h >= 19:
-                            fin_shift = d.replace(hour=1, minute=0, second=0, microsecond=0) + timedelta(days=1)
-                        else:
-                            fin_shift = d.replace(hour=1, minute=0, second=0, microsecond=0)
-                    else:
-                        shift_tech = "01h-07h"
-                        fin_shift = d.replace(hour=7, minute=0, second=0, microsecond=0)
-                    
-                    seg_fin = min(fin_dt, fin_shift)
-                    if seg_fin > d:
-                        duree_heures = (seg_fin - d).total_seconds() / 3600
-                        proportion = duree_heures / traitement
-                        tonnage_segment = volume * proportion
-                        
-                        gantt_series.append({
-                            'x': navire.nom,
-                            'y': [int(d.timestamp() * 1000), int(seg_fin.timestamp() * 1000)],
-                            'fillColor': shift_colors.get(shift_tech, '#cccccc'),
-                            'shiftName': shift_display_names.get(shift_tech, shift_tech),
-                            'duration': round(duree_heures, 1),
-                            'tonnage': round(tonnage_segment, 1)
-                        })
-                    d = seg_fin
-            except Exception as e:
-                print(f"Erreur pour affectation {a.id}: {e}")
 
-    # ========== Notes d'attente ==========
+        # ✅ Utiliser la durée CONTRACTUELLE
+        duree_traitement = calculer_duree_contractuelle(navire)
+
+        fin_dt = debut_navire + timedelta(hours=duree_traitement)
+
+        volume = navire.marchandise_volume if navire.marchandise_volume > 0 else 1
+        d = debut_navire
+
+        while d < fin_dt:
+            h = d.hour + d.minute / 60.0
+            if 7 <= h < 13:
+                shift_tech = "07h-13h"
+                fin_shift = d.replace(hour=13, minute=0, second=0, microsecond=0)
+            elif 13 <= h < 19:
+                shift_tech = "13h-19h"
+                fin_shift = d.replace(hour=19, minute=0, second=0, microsecond=0)
+            elif h >= 19 or (0 <= h < 1):
+                shift_tech = "19h-01h"
+                if h >= 19:
+                    fin_shift = d.replace(hour=1, minute=0, second=0, microsecond=0) + timedelta(days=1)
+                else:
+                    fin_shift = d.replace(hour=1, minute=0, second=0, microsecond=0)
+            else:
+                shift_tech = "01h-07h"
+                fin_shift = d.replace(hour=7, minute=0, second=0, microsecond=0)
+
+            seg_fin = min(fin_dt, fin_shift)
+            if seg_fin > d:
+                duree_heures = (seg_fin - d).total_seconds() / 3600
+                proportion = duree_heures / duree_traitement
+                tonnage_segment = volume * proportion
+
+                gantt_series.append({
+                    'x': navire.nom,
+                    'y': [int(d.timestamp() * 1000), int(seg_fin.timestamp() * 1000)],
+                    'fillColor': shift_colors.get(shift_tech, '#cccccc'),
+                    'shiftName': shift_display_names.get(shift_tech, shift_tech),
+                    'duration': round(duree_heures, 1),
+                    'tonnage': round(tonnage_segment, 1)
+                })
+            d = seg_fin
+
+    # ========== Notes d'attente (toutes, pour affichage historique) ==========
     notes_attente_list = NoteAttente.objects.filter(navire=navire).order_by('-date_creation')
 
     # ========== Compteurs ==========
@@ -642,6 +903,15 @@ def detail_navire(request, navire_id):
         'etat_actif': None,
         'filtre_actif': None,
         'now': timezone.now(),
+        # Nouveaux libellés
+        'est_en_cours': est_en_cours,
+        'est_termine': est_termine,
+        'libelle_debit': libelle_debit,
+        'libelle_duree': libelle_duree,
+        'libelle_titre': libelle_titre,
+        'libelle_message': libelle_message,
+        'attente_equip_estimee': attente_equip_estimee,
+        'retard_heures': retard_heures,  # ✅ AJOUT
     }
     return render(request, 'port/navire_detail.html', context)
 
@@ -2979,11 +3249,27 @@ def terminer_navires_execute(request):
         if navire_ids:
             navires = Navire.objects.filter(id__in=navire_ids, etat='quai')
             nb = navires.count()
+            
             for navire in navires:
-                affect = Affectation.objects.filter(navire=navire).order_by('-date_creation').first()
+                # ============================================================
+                # INITIALISATION DES VARIABLES (AVANT TOUTE CONDITION)
+                # Évite le bug "UnboundLocalError: debit_reel"
+                # ============================================================
                 duree_reelle = None
+                duree_estimee = None
+                equipements_utilises = ""
+                nb_equipes = 0
+                shift = None
+                debit_reel = 0.0
+                # ============================================================
+                
+                # Récupérer la dernière affectation
+                affect = Affectation.objects.filter(navire=navire).order_by('-date_creation').first()
+                
+                # Traitement SI l'affectation existe et est complète
                 if affect and affect.heure_debut is not None and affect.heure_fin is not None:
                     duree_estimee = affect.traitement
+                    
                     if navire.debut_datetime:
                         now = timezone.now()
                         duree_reelle = (now - navire.debut_datetime).total_seconds() / 3600.0
@@ -2992,8 +3278,6 @@ def terminer_navires_execute(request):
                         equipements_utilises = affect.equipements_utilises if hasattr(affect, 'equipements_utilises') else ""
                         
                         # Récupérer le nombre d'équipes et le shift via AffectationEquipe
-                        nb_equipes = 0
-                        shift = None
                         affect_equipes = AffectationEquipe.objects.filter(navire=navire)
                         if affect_equipes.exists():
                             nb_equipes = affect_equipes.count()
@@ -3001,10 +3285,10 @@ def terminer_navires_execute(request):
                             shift = affect_equipes.first().shift
                         
                         # Calcul du débit réel (tonnes/heure)
-                        debit_reel = 0.0
-                        if duree_reelle > 0:
+                        if duree_reelle > 0 and navire.marchandise_volume:
                             debit_reel = navire.marchandise_volume / duree_reelle
                         
+                        # Créer l'historique d'opération
                         HistoriqueOperation.objects.create(
                             navire_type=navire.type,
                             quai_id=navire.quai_attribue.id if navire.quai_attribue else None,
@@ -3017,36 +3301,67 @@ def terminer_navires_execute(request):
                             equipements_utilises=equipements_utilises,
                             debit_reel=debit_reel
                         )
-                # Libérer le poste et le quai
+                
+                # ============================================================
+                # LIBÉRATION DU POSTE ET DU QUAI
+                # ============================================================
                 if navire.poste_attribue:
                     poste = navire.poste_attribue
                     poste.disponible = True
                     poste.occupation_jusqua = 0.0
                     poste.save()
+                    
                     if poste.quai:
                         poste.quai.disponible = True
                         poste.quai.occupation_jusqua = 0.0
                         poste.quai.save()
+                
                 elif navire.quai_attribue:
                     quai = navire.quai_attribue
                     quai.disponible = True
                     quai.occupation_jusqua = 0.0
                     quai.save()
+                
+                # ============================================================
+                # CHANGEMENT D'ÉTAT DU NAVIRE
+                # ============================================================
                 navire.etat = 'termine'
                 navire.poste_attribue = None
                 navire.quai_attribue = None
                 navire.save()
-
+                
+                # ============================================================
+                # ENREGISTREMENT DANS L'HISTORIQUE
+                # (toutes les variables sont maintenant définies)
+                # ============================================================
                 ajouter_historique(
                     utilisateur=request.user,
                     type_action='terminaison',
                     description=f"Navire {navire.nom} marqué comme terminé",
                     navire=navire,
-                    details={'duree_reelle': duree_reelle, 'debit_reel': debit_reel, 'nb_equipes': nb_equipes, 'shift': shift}
+                    details={
+                        'duree_reelle': duree_reelle,
+                        'debit_reel': debit_reel,
+                        'nb_equipes': nb_equipes,
+                        'shift': shift
+                    }
                 )
+                
+                # ============================================================
+                # CLÔTURER L'ESCALE ASSOCIÉE (optionnel, recommandé)
+                # ============================================================
+                try:
+                    from port.utils_escales import cloturer_escale
+                    escale = cloturer_escale(navire)
+                    if escale:
+                        print(f"✅ Escale #{escale.id} clôturée pour {navire.nom}")
+                except Exception as e:
+                    print(f"⚠️ Erreur clôture escale pour {navire.nom}: {e}")
+            
             messages.success(request, f"✅ {nb} navires terminés et historiques enregistrés.")
         else:
             messages.warning(request, "Aucun navire sélectionné.")
+    
     return redirect('dashboard')
 
 # =============================================================================
@@ -4912,10 +5227,14 @@ from .models import NoteAttente
 
 @login_required
 @group_required('Officier_port', 'Directeur')
+@login_required
+@group_required('Officier_port', 'Directeur')
 def ajouter_note_attente(request):
-    """Ajoute une note d'attente et ajuste l'estimation de fin du navire.
-    Si la durée n'est pas fournie, elle est prédite par un modèle IA.
-    """
+    """Ajoute une note d'attente liée à l'escale ACTIVE du navire."""
+    from port.models import NoteAttente, Escale
+    from port.utils_escales import gerer_nouvelle_escale
+    from datetime import timedelta
+    
     if request.method == 'POST':
         navire_id = request.POST.get('navire_id')
         duree_attente_str = request.POST.get('duree_attente', '').strip()
@@ -4924,83 +5243,84 @@ def ajouter_note_attente(request):
         
         navire = get_object_or_404(Navire, id=navire_id)
         
-        # ========== PRÉDICTION IA SI DURÉE NON FOURNIE ==========
+        # 1. Recuperer ou creer l'escale active
+        escale = Escale.objects.filter(navire=navire, active=True).first()
+        if not escale:
+            escale = gerer_nouvelle_escale(navire)
+            messages.info(request, f"Nouvelle escale creee pour {navire.nom}")
+        
+        # 2. Prediction IA si duree non fournie
         if not duree_attente_str:
-            # Utiliser un modèle IA pour prédire la durée d'attente
             try:
-                from .ml_attente import AttentePredictor
+                from port.ml_attente import AttentePredictor
                 predictor = AttentePredictor()
-                # Récupérer la météo du jour (optionnel)
                 meteo = get_meteo_aujourdhui()
                 duree_attente = predictor.predire_attente(navire, meteo=meteo)
-                commentaire = f"[IA] {commentaire}" if commentaire else "Prédiction IA"
+                commentaire = f"[IA] {commentaire}" if commentaire else "Prediction IA"
             except Exception as e:
-                # Fallback: durée par défaut (par exemple 6h)
                 duree_attente = 6.0
-                commentaire = f"[Défaut] {commentaire}" if commentaire else "Durée par défaut"
-                logger.error(f"Erreur prédiction IA: {e}")
+                commentaire = f"[Defaut] {commentaire}" if commentaire else "Duree par defaut"
+                logger.error(f"Erreur prediction IA: {e}")
         else:
             duree_attente = float(duree_attente_str)
         
-        # Créer la note
+        # 3. Creer la note liee a l'escale
         NoteAttente.objects.create(
             navire=navire,
+            escale=escale,
             shift=shift,
             duree_attente=duree_attente,
             commentaire=commentaire,
-            prise_en_compte=False
+            prise_en_compte=False,
+            archive=False
         )
         
-        # ========== RECALCUL DE LA FIN SI NAVIRE À QUAI ==========
+        # 4. Recalculer la fin si le navire est a quai
         if navire.etat == 'quai' and navire.debut_datetime:
-            from datetime import timedelta
-            
-            # 1. Calculer la durée de traitement pure (selon type et volume)
             volume = navire.marchandise_volume or 0
             if navire.type == 'cerealier':
                 duree_traitement = volume / 550
             elif navire.type == 'cargo':
-                duree_traitement = volume / 400
+                duree_traitement = volume / 250
             elif navire.type == 'conteneur':
                 duree_traitement = volume / 300
+            elif navire.type == 'petrolier':
+                duree_traitement = volume / 400
             else:
-                duree_traitement = volume / 200  # valeur par défaut
+                duree_traitement = volume / 200
             
-            # 2. Récupérer toutes les notes d'attente non prises en compte pour ce navire
-            notes_attente = NoteAttente.objects.filter(navire=navire, prise_en_compte=False)
-            attente_totale = sum(note.duree_attente for note in notes_attente)
+            # UNIQUEMENT les notes de l'escale active
+            notes_attente = NoteAttente.objects.filter(
+                escale=escale,
+                archive=False,
+                prise_en_compte=False
+            )
+            attente_totale = sum(n.duree_attente for n in notes_attente)
             
-            # 3. Temps déjà écoulé depuis le début
             maintenant = timezone.now()
             temps_ecoule = (maintenant - navire.debut_datetime).total_seconds() / 3600.0
-            
-            # 4. Temps restant = (traitement + attente) - temps écoulé
             temps_restant = max(0, (duree_traitement + attente_totale) - temps_ecoule)
-            
-            # 5. Nouvelle date de fin = maintenant + temps restant
             nouvelle_fin = maintenant + timedelta(hours=temps_restant)
             
-            # 6. Mettre à jour le navire
             base = nouvelle_fin.replace(hour=0, minute=0, second=0, microsecond=0)
             navire.heure_fin = (nouvelle_fin - base).total_seconds() / 3600
+            navire.fin_datetime = nouvelle_fin
             navire.save()
             
-            # 7. Mettre à jour l'affectation correspondante
-            affectation = Affectation.objects.filter(navire=navire).first()
+            affectation = Affectation.objects.filter(navire=navire).order_by('-date_creation').first()
             if affectation:
                 affectation.heure_fin = navire.heure_fin
                 affectation.save()
             
             messages.success(
                 request,
-                f"✅ Attente de {duree_attente:.1f}h ajoutée pour {navire.nom}\n"
-                f"⏱️ Nouvelle fin estimée: {nouvelle_fin.strftime('%d/%m/%Y %H:%M')}"
+                f"Attente de {duree_attente:.1f}h ajoutee pour {navire.nom}\n"
+                f"Nouvelle fin estimee: {nouvelle_fin.strftime('%d/%m/%Y %H:%M')}"
             )
         else:
             messages.success(
                 request,
-                f"✅ Note d'attente de {duree_attente:.1f}h enregistrée pour {navire.nom}.\n"
-                f"Elle sera prise en compte lors de la prochaine optimisation."
+                f"Note d'attente de {duree_attente:.1f}h enregistree pour {navire.nom}."
             )
         
         return redirect('detail_navire', navire_id=navire_id)
@@ -5574,33 +5894,38 @@ import json
 @group_required('Officier_port', 'Directeur')
 @csrf_exempt
 def supprimer_note_attente(request, note_id):
-    """Supprime une note d'attente"""
-    from .models import NoteAttente
+    """Supprime une note d'attente de l'escale ACTIVE."""
+    from port.models import NoteAttente
+    from datetime import timedelta
     
     if request.method == 'POST':
         try:
-            # Récupérer la note
             note = NoteAttente.objects.get(id=note_id)
+            
+            # Verifier que la note appartient a une escale active
+            if note.archive or (note.escale and not note.escale.active):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Cette note est archivee et ne peut pas etre supprimee.'
+                }, status=400)
+            
             navire = note.navire
+            escale = note.escale
             duree = note.duree_attente
             navire_nom = navire.nom
-            
-            # Sauvegarder l'ID du navire pour la redirection
             navire_id = navire.id
             
-            # Supprimer la note
             note.delete()
             
-            # Recalculer l'estimation de fin si le navire est à quai
-            if navire.etat == 'quai' and navire.debut_datetime:
-                from datetime import timedelta
-                from django.utils import timezone
-                
-                # Récupérer les autres notes d'attente
-                autres_notes = NoteAttente.objects.filter(navire=navire, prise_en_compte=False)
+            # Recalculer l'estimation de fin
+            if navire.etat == 'quai' and navire.debut_datetime and escale:
+                autres_notes = NoteAttente.objects.filter(
+                    escale=escale,
+                    archive=False,
+                    prise_en_compte=False
+                )
                 attente_totale = sum(n.duree_attente for n in autres_notes)
                 
-                # Calculer la durée de traitement restante
                 volume = navire.marchandise_volume or 0
                 if navire.type == 'cerealier':
                     duree_traitement = volume / 550
@@ -5613,7 +5938,6 @@ def supprimer_note_attente(request, note_id):
                 else:
                     duree_traitement = volume / 200
                 
-                # Recalculer la fin
                 maintenant = timezone.now()
                 temps_ecoule = (maintenant - navire.debut_datetime).total_seconds() / 3600
                 temps_restant = max(0, (duree_traitement + attente_totale) - temps_ecoule)
@@ -5624,25 +5948,23 @@ def supprimer_note_attente(request, note_id):
                 navire.fin_datetime = nouvelle_fin
                 navire.save()
                 
-                # Mettre à jour l'affectation
-                from .models import Affectation
                 affectation = Affectation.objects.filter(navire=navire).order_by('-date_creation').first()
                 if affectation:
                     affectation.heure_fin = navire.heure_fin
                     affectation.save()
             
             return JsonResponse({
-                'success': True, 
-                'message': f'Note de {duree}h supprimée pour {navire_nom}',
+                'success': True,
+                'message': f'Note de {duree}h supprimee pour {navire_nom}',
                 'navire_id': navire_id
             })
-            
+        
         except NoteAttente.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Note non trouvée'}, status=404)
+            return JsonResponse({'success': False, 'error': 'Note non trouvee'}, status=404)
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
     
-    return JsonResponse({'success': False, 'error': 'Méthode non autorisée'}, status=405)
+    return JsonResponse({'success': False, 'error': 'Methode non autorisee'}, status=405)
 from django.core.management import call_command
 
 @login_required
@@ -5732,3 +6054,841 @@ def desactiver_utilisateur(request, user_id):
     user.save()
     messages.warning(request, f"⚠️ Compte de {user.username} désactivé.")
     return redirect('gestion_utilisateurs')
+# =============================================================================
+# HISTORIQUE DES ESCALES
+# =============================================================================
+
+@login_required
+def historique_escales_navire(request, navire_id):
+    """Affiche l'historique des escales d'un navire.
+    
+    Pour les escales ACTIVES : calcul en temps réel des statistiques.
+    Pour les escales CLÔTURÉES : lecture des valeurs figées.
+    
+    Le débit réel est calculé sur la DURÉE EFFECTIVE (hors attentes).
+    """
+    from port.models import Escale, NoteAttente
+    from django.utils import timezone
+    
+    navire = get_object_or_404(Navire, id=navire_id)
+    escales_qs = Escale.objects.filter(navire=navire).order_by('-date_debut')
+    
+    # ========== ENRICHISSEMENT DES ESCALES ==========
+    escales = []
+    for escale in escales_qs:
+        escale_data = {
+            'id': escale.id,
+            'date_debut': escale.date_debut,
+            'date_fin': escale.date_fin,
+            'active': escale.active,
+            'volume_marchandise': escale.volume_marchandise,
+            'meteo_pluie': escale.meteo_pluie,
+            'meteo_vent_force': escale.meteo_vent_force,
+            'shift_debut': escale.shift_debut,
+        }
+        
+        # ========== RÉCUPÉRATION DU QUAI ET POSTE ==========
+        # Priorité 1 : le quai/poste de l'escale (si renseigné)
+        # Priorité 2 : le quai/poste actuel du navire (si actif)
+        quai_utilise = escale.quai_utilise
+        poste_utilise = escale.poste_utilise
+        
+        if escale.active:
+            # Pour une escale active, prendre le quai/poste ACTUEL du navire
+            if navire.quai_attribue:
+                quai_utilise = navire.quai_attribue
+            if navire.poste_attribue:
+                poste_utilise = navire.poste_attribue
+        
+        escale_data['quai_utilise'] = quai_utilise
+        escale_data['poste_utilise'] = poste_utilise
+        
+        # ========== NOTES D'ATTENTE DE L'ESCALE ==========
+        notes = NoteAttente.objects.filter(escale=escale)
+        escale_data['nb_notes_attente'] = notes.count()
+        
+        # ========== ATTENTE TOTALE ==========
+        if escale.active:
+            attente_totale = sum(n.duree_attente for n in notes)
+        else:
+            attente_totale = escale.attente_totale
+        
+        escale_data['attente_totale'] = attente_totale
+        
+        # ========== DURÉE TOTALE ==========
+        if escale.active:
+            if navire.debut_datetime:
+                duree_totale = (
+                    (timezone.now() - navire.debut_datetime).total_seconds() / 3600
+                )
+            else:
+                duree_totale = (
+                    (timezone.now() - escale.date_debut).total_seconds() / 3600
+                )
+        else:
+            duree_totale = escale.duree_reelle
+        
+        escale_data['duree_totale'] = duree_totale
+        
+        # ========== DURÉE EFFECTIVE (hors attentes) ==========
+        duree_effective = max(duree_totale - attente_totale, 0.1)
+        escale_data['duree_effective'] = duree_effective
+        
+        # ========== DÉBIT RÉEL (sur durée effective) ==========
+        if escale.volume_marchandise > 0 and duree_effective > 0:
+            debit_reel = escale.volume_marchandise / duree_effective
+        else:
+            debit_reel = 0
+        
+        escale_data['debit_reel'] = debit_reel
+        
+        escales.append(escale_data)
+    
+    # ========== STATISTIQUES GLOBALES ==========
+    nb_escales = len(escales)
+    
+    if nb_escales > 0:
+        attente_moyenne = sum(e['attente_totale'] for e in escales) / nb_escales
+        duree_moyenne = sum(e['duree_totale'] for e in escales) / nb_escales
+        
+        debits_valides = [e['debit_reel'] for e in escales if e['debit_reel'] > 0]
+        debit_moyen = sum(debits_valides) / len(debits_valides) if debits_valides else 0
+    else:
+        attente_moyenne = 0
+        duree_moyenne = 0
+        debit_moyen = 0
+    
+    # ========== ESCALE ACTIVE ==========
+    escale_active_data = None
+    for e in escales:
+        if e['active']:
+            escale_active_data = e
+            break
+    
+    # ========== CONTEXTE ==========
+    context = {
+        'navire': navire,
+        'escales': escales,
+        'nb_escales': nb_escales,
+        'escale_active': escale_active_data,
+        'attente_moyenne': attente_moyenne,
+        'duree_moyenne': duree_moyenne,
+        'debit_moyen': debit_moyen,
+    }
+    return render(request, 'port/historique_escales.html', context)
+
+@login_required
+@group_required('Officier_port', 'Directeur')
+def cloturer_escale_manuelle(request, navire_id):
+    """Cloture manuellement l'escale active d'un navire."""
+    from port.utils_escales import cloturer_escale
+    
+    navire = get_object_or_404(Navire, id=navire_id)
+    
+    if request.method == 'POST':
+        escale = cloturer_escale(navire)
+        if escale:
+            messages.success(
+                request,
+                f"Escale de {navire.nom} cloturee "
+                f"(attente: {escale.attente_totale:.1f}h)"
+            )
+        else:
+            messages.warning(request, f"Aucune escale active pour {navire.nom}")
+    
+    return redirect('historique_escales_navire', navire_id=navire_id)
+# =============================================================================
+# PLANIFICATION DYNAMIQUE (mise à jour toutes les 3h + à 10h)
+# =============================================================================
+
+# =============================================================================
+# PLANIFICATION DYNAMIQUE — 4 FONCTIONS
+# =============================================================================
+
+@login_required
+def planification_dynamique(request):
+    """
+    Page de planification dynamique avec double validation.
+    ✅ TOUS les navires en attente (validés par consignataire) sont affichés.
+    ✅ Pas de filtre ETA.
+    ✅ SYNCHRONISATION FORCÉE avec la MÊME formule que detail_navire.
+    """
+    from datetime import datetime, timedelta
+    from django.utils import timezone
+    from django.core.management import call_command
+    from port.models import Navire, Quai, Poste, Meteo, Equipement, Affectation, HistoriqueOperation, NoteAttente, Escale
+    from port.optimiseur_epb_pro import PlanificateurEPB, GestionnaireDonnees
+    from port.adaptateurs import AdaptateurDonnees
+    import io
+
+    now = timezone.now()
+    heure_actuelle = now.hour + now.minute / 60.0
+    base = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # ========== SYNCHRONISATION ==========
+    derniere_maj = request.session.get('derniere_sync_epb')
+    doit_synchroniser = True
+    sync_message = ""
+
+    if derniere_maj:
+        try:
+            derniere_maj_dt = datetime.fromisoformat(derniere_maj)
+            temps_ecoule = (now - derniere_maj_dt).total_seconds() / 60
+            if temps_ecoule < 30:
+                doit_synchroniser = False
+                sync_message = f"Synchronisation ignorée (MAJ il y a {temps_ecoule:.0f} min)"
+        except (ValueError, TypeError):
+            pass
+
+    if doit_synchroniser:
+        try:
+            output = io.StringIO()
+            call_command('import_epb', stdout=output)
+            request.session['derniere_sync_epb'] = now.isoformat()
+            sync_message = "Synchronisation réussie"
+        except Exception as e:
+            sync_message = f"Erreur sync : {str(e)}"
+
+    # ========== MÉTÉO ==========
+    meteo = Meteo.objects.filter(date=now.date()).first()
+    meteo_restrictions = []
+    meteo_pluie = False
+    meteo_vent_force = 0
+    meteo_temperature = 20
+    pluie_debut_prevue = None
+    pluie_fin_prevue = None
+
+    if meteo:
+        if meteo.restrictions:
+            meteo_restrictions = [q.strip() for q in meteo.restrictions.split(',') if q.strip()]
+        meteo_pluie = meteo.pluie
+        meteo_vent_force = meteo.vent_force
+        meteo_temperature = meteo.temperature
+        pluie_debut_prevue = getattr(meteo, 'pluie_debut_prevue', None)
+        pluie_fin_prevue = getattr(meteo, 'pluie_fin_prevue', None)
+
+    # ========== RÉCUPÉRATION DE LA SÉLECTION ==========
+    ids_selectionnes = request.session.get('navires_selectionnes_planification', [])
+    ids_selectionnes = [int(i) for i in ids_selectionnes]
+
+    # ========== INITIALISATION PLANIFICATEUR ==========
+    postes_model = Poste.objects.filter(gestion_manuelle=False).select_related('quai')
+    quais_data = [AdaptateurDonnees.vers_quai_depuis_poste(p) for p in postes_model]
+
+    equipements_model = Equipement.objects.all()
+    equipements_data = [AdaptateurDonnees.vers_equipement(e) for e in equipements_model]
+
+    from django.db.models import Avg, F
+    coeffs_historiques = {}
+    for row in HistoriqueOperation.objects.values('navire_type', 'quai_id').annotate(
+        ratio_moyen=Avg(F('duree_reelle') / F('duree_estimee'))
+    ):
+        coeffs_historiques[(row['navire_type'], row['quai_id'])] = row['ratio_moyen']
+
+    planificateur = PlanificateurEPB(
+        quais=quais_data, equipements=equipements_data, mois=now.month,
+        incertitude=False, amplitude=0.0, pourcentage_buffer=0.0,
+        meteo_restrictions=meteo_restrictions, meteo_pluie=meteo_pluie,
+        meteo_vent_force=meteo_vent_force, meteo_temperature=meteo_temperature,
+        scenario=request.session.get('scenario', 'equilibre'),
+        coeffs_historiques=coeffs_historiques,
+        pluie_debut_prevue=pluie_debut_prevue, pluie_fin_prevue=pluie_fin_prevue,
+    )
+
+    def verifier_compatibilite_navire_poste(navire_django, poste_django):
+        try:
+            navire_data = AdaptateurDonnees.vers_navire(navire_django, coeff_variation=0)
+            quai_data = AdaptateurDonnees.vers_quai_depuis_poste(poste_django)
+            compatible, raison = planificateur.verifier_compatibilite(
+                navire_data, quai_data, debut=None, traitement=None
+            )
+            return compatible, raison
+        except Exception as e:
+            return False, f"Erreur: {str(e)}"
+
+    def get_postes_compatibles_pour_navire(navire_django):
+        resultats = []
+        for poste in postes_model:
+            compatible, raison = verifier_compatibilite_navire_poste(navire_django, poste)
+            if compatible:
+                resultats.append({'poste': poste, 'quai': poste.quai, 'raison': raison})
+        return resultats
+
+    # ============================================================
+    # ✅ SYNCHRONISATION FORCÉE DES FIN_DATETIME
+    # Recalculer fin_datetime avec la MÊME formule que detail_navire
+    # (durée + attentes notes + attente équipement + arrêt pluie)
+    # ============================================================
+    navires_a_quai = Navire.objects.filter(
+        etat='quai', quai_attribue__isnull=False
+    ).select_related('quai_attribue', 'poste_attribue').order_by('heure_fin')
+
+    for navire_sync in navires_a_quai:
+        if navire_sync.debut_datetime and navire_sync.marchandise_volume > 0:
+            # ✅ ÉTAPE 1 : Durée de traitement (règles contractuelles)
+            duree_traitement = calculer_duree_contractuelle(navire_sync)
+            
+            # ✅ ÉTAPE 2 : Attente notes (via l'escale ACTIVE, comme detail_navire)
+            # On utilise la même logique que detail_navire : notes de l'escale active, non archivées
+            escale_active = Escale.objects.filter(navire=navire_sync, active=True).first()
+            if escale_active:
+                notes_attente_actives = NoteAttente.objects.filter(
+                    escale=escale_active,
+                    archive=False
+                )
+            else:
+                # Fallback : toutes les notes non archivées du navire
+                notes_attente_actives = NoteAttente.objects.filter(
+                    navire=navire_sync,
+                    archive=False
+                )
+            attente_notes = sum(n.duree_attente for n in notes_attente_actives)
+            
+            # ✅ ÉTAPE 3 : Attente équipement (estimation)
+            attente_equip = 0.0
+            if navire_sync.type == 'gazier':
+                attente_equip = 3.0
+            elif navire_sync.type == 'petrolier':
+                attente_equip = 2.0
+            elif navire_sync.type == 'cerealier':
+                attente_equip = 1.0
+            
+            # ✅ ÉTAPE 4 : Arrêt pluie
+            arret_pluie = navire_sync.temps_arret_pluie or 0
+            
+            # ✅ ÉTAPE 5 : Durée totale (formule IDENTIQUE à detail_navire)
+            duree_totale = duree_traitement + attente_notes + attente_equip + arret_pluie
+            nouvelle_fin = navire_sync.debut_datetime + timedelta(hours=duree_totale)
+
+            if navire_sync.fin_datetime != nouvelle_fin:
+                navire_sync.fin_datetime = nouvelle_fin
+                base_dt = navire_sync.debut_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+                navire_sync.heure_fin = (nouvelle_fin - base_dt).total_seconds() / 3600.0
+                navire_sync.save(update_fields=['fin_datetime', 'heure_fin'])
+                print(f"🔄 Sync {navire_sync.nom}: fin = {nouvelle_fin.strftime('%d/%m %H:%M')} "
+                      f"(durée = {duree_totale:.1f}h = {duree_traitement:.1f}h + {attente_notes:.1f}h + {attente_equip:.1f}h)")
+
+                # Mettre à jour l'affectation
+                derniere_affect = Affectation.objects.filter(navire=navire_sync).order_by('-date_creation').first()
+                if derniere_affect:
+                    derniere_affect.heure_fin = navire_sync.heure_fin
+                    derniere_affect.traitement = duree_totale
+                    derniere_affect.save(update_fields=['heure_fin', 'traitement'])
+
+                # Mettre à jour le poste et le quai
+                if navire_sync.poste_attribue:
+                    navire_sync.poste_attribue.occupation_jusqua = navire_sync.heure_fin
+                    navire_sync.poste_attribue.save(update_fields=['occupation_jusqua'])
+                if navire_sync.quai_attribue:
+                    navire_sync.quai_attribue.occupation_jusqua = navire_sync.heure_fin
+                    navire_sync.quai_attribue.save(update_fields=['occupation_jusqua'])
+
+    # Recharger après synchronisation
+    navires_a_quai = Navire.objects.filter(
+        etat='quai', quai_attribue__isnull=False
+    ).select_related('quai_attribue', 'poste_attribue').order_by('heure_fin')
+    # ============================================================
+
+    # ========== NAVIRES SÉLECTIONNÉS ==========
+    navires_selectionnes_qs = Navire.objects.filter(
+        id__in=ids_selectionnes,
+        pret_consignataire=True,
+        etat__in=['rade', 'attente']
+    ).order_by('arrivee_datetime')
+
+    # ========== APPEL OPTIMISEUR ==========
+    navires_a_planifier = []
+    for n in navires_selectionnes_qs:
+        nd = AdaptateurDonnees.vers_navire(n, coeff_variation=0)
+        if nd.est_en_rade or n.etat == 'attente':
+            if n.arrivee_datetime:
+                heure_originale = n.arrivee_datetime.hour + n.arrivee_datetime.minute / 60.0
+            else:
+                heure_originale = n.arrivee
+            nd.arrivee = heure_originale
+            nd.arrivee_datetime = base + timedelta(hours=heure_originale)
+        navires_a_planifier.append(nd)
+
+    navires_quai_model = Navire.objects.filter(etat='quai', quai_attribue__isnull=False)
+    navires_a_quai_data = []
+    for n in navires_quai_model:
+        nd = AdaptateurDonnees.vers_navire(n, coeff_variation=0)
+        nd.fin_prevue = n.heure_fin
+        navires_a_quai_data.append(nd)
+
+    affectations_resultat = []
+    if navires_a_planifier:
+        try:
+            affectations_resultat, _, _ = planificateur.planifier(
+                navires_a_planifier, navires_a_quai_data, date_reference=now
+            )
+        except Exception as e:
+            print(f"❌ Erreur optimiseur: {e}")
+
+    # ========== PRÉ-AFFECTATION ==========
+    affectation_proposee = {}
+    postes_utilises = set()
+
+    for aff in affectations_resultat:
+        navire_pret = next((n for n in navires_selectionnes_qs if n.id == aff.navire_id), None)
+        if navire_pret is None:
+            continue
+
+        poste_django = next((p for p in postes_model if p.id == aff.quai_id), None)
+        if poste_django is None:
+            continue
+
+        if navire_pret.etat == 'rade':
+            temps_attente = (now - navire_pret.arrivee_datetime).total_seconds() / 3600
+            type_source = 'rade'
+        else:
+            temps_attente = (navire_pret.arrivee_datetime - now).total_seconds() / 3600
+            type_source = 'attente'
+
+        affectation_proposee[navire_pret.id] = {
+            'poste': poste_django,
+            'navire_actuel': Navire.objects.filter(poste_attribue=poste_django, etat='quai').first(),
+            'type_source': type_source,
+            'temps_attente': temps_attente,
+            'est_en_retard': temps_attente < 0,
+            'priorites': get_priorites_liste(navire_pret),
+            'postes_alternatifs': [],
+        }
+        postes_utilises.add(poste_django.id)
+
+    for navire_id, aff in affectation_proposee.items():
+        navire_pret = next((n for n in navires_selectionnes_qs if n.id == navire_id), None)
+        if not navire_pret:
+            continue
+        alternatives = []
+        for poste in postes_model:
+            if poste.id == aff['poste'].id or poste.id in postes_utilises:
+                continue
+            compatible, _ = verifier_compatibilite_navire_poste(navire_pret, poste)
+            if compatible:
+                alternatives.append({
+                    'numero': poste.numero,
+                    'quai_nom': poste.quai.nom,
+                    'est_occupe': Navire.objects.filter(poste_attribue=poste, etat='quai').exists(),
+                })
+            if len(alternatives) >= 4:
+                break
+        aff['postes_alternatifs'] = alternatives
+
+    # ============================================================
+    # ✅ SORTIES PRÉVUES (UTILISE fin_datetime EN PRIORITÉ)
+    # ============================================================
+    sorties_prevues = []
+    for navire in navires_a_quai:
+        # ✅ PRIORITÉ 1 : Utiliser fin_datetime (source de vérité)
+        if navire.fin_datetime:
+            fin_dt = navire.fin_datetime
+        elif navire.heure_fin:
+            heures = int(navire.heure_fin)
+            minutes = int((navire.heure_fin - heures) * 60)
+            fin_dt = base + timedelta(hours=heures, minutes=minutes)
+        else:
+            continue
+
+        # ⚠️ NE PAS ajouter de jour si la date est passée (afficher le retard)
+        temps_restant = (fin_dt - now).total_seconds() / 3600
+
+        debit_estime = 0
+        if navire.marchandise_volume:
+            derniere_affect = Affectation.objects.filter(navire=navire).order_by('-date_creation').first()
+            if derniere_affect and derniere_affect.traitement > 0:
+                debit_estime = navire.marchandise_volume / derniere_affect.traitement
+
+        sorties_prevues.append({
+            'navire': navire,
+            'fin_dt': fin_dt,
+            'temps_restant': temps_restant,
+            'quai': navire.quai_attribue,
+            'poste': navire.poste_attribue,
+            'est_imminent': temps_restant <= 3 and temps_restant > 0,
+            'est_proche': temps_restant <= 6 and temps_restant > 0,
+            'est_en_retard': temps_restant < 0,
+            'longueur': navire.longueur,
+            'tonnage': navire.marchandise_volume,
+            'agent': navire.agent or 'Inconnu',
+            'debit_estime': round(debit_estime, 1) if debit_estime > 0 else 0,
+            'priorites': get_priorites_liste(navire),
+        })
+    sorties_prevues.sort(key=lambda x: x['temps_restant'])
+
+    # ========== ✅ TOUS LES NAVIRES EN ATTENTE (PAS DE FILTRE ETA) ==========
+    navires_attendus = Navire.objects.filter(
+        etat='attente',
+        arrivee_datetime__isnull=False,
+        pret_consignataire=True
+    ).order_by('arrivee_datetime')
+
+    TAUX_PAR_TYPE = {
+        'gazier': 200, 'petrolier': 400, 'cerealier': 550,
+        'conteneur': 300, 'cargo': 250, 'ferry': 100,
+        'essence': 300, 'huilier': 150, 'betail': 100, 'frigorifique': 200,
+    }
+
+    entrees_prevues = []
+    for navire in navires_attendus:
+        temps_avant = (navire.arrivee_datetime - now).total_seconds() / 3600
+        postes_comp = get_postes_compatibles_pour_navire(navire)
+        entrees_prevues.append({
+            'navire': navire,
+            'arrivee_dt': navire.arrivee_datetime,
+            'temps_avant': temps_avant,
+            'type': navire.type,
+            'est_imminent': temps_avant <= 3,
+            'est_proche': temps_avant <= 6,
+            'est_en_retard': temps_avant < 0,
+            'longueur': navire.longueur,
+            'tonnage': navire.marchandise_volume,
+            'agent': navire.agent or 'Inconnu',
+            'debit_estime': TAUX_PAR_TYPE.get(navire.type, 250),
+            'priorites': get_priorites_liste(navire),
+            'postes_compatibles': postes_comp[:5],
+            'nb_postes_compatibles': len(postes_comp),
+            'est_selectionne': navire.id in ids_selectionnes,
+        })
+
+    # ========== NAVIRES EN RADE ==========
+    navires_rade_qs = Navire.objects.filter(
+        etat='rade', pret_consignataire=True
+    ).order_by('arrivee_datetime')
+
+    rade_info = []
+    for navire in navires_rade_qs:
+        temps_rade = (now - navire.arrivee_datetime).total_seconds() / 3600 if navire.arrivee_datetime else 0
+        postes_comp = get_postes_compatibles_pour_navire(navire)
+        rade_info.append({
+            'navire': navire,
+            'temps_rade': temps_rade,
+            'agent': navire.agent or 'Inconnu',
+            'type': navire.type,
+            'longueur': navire.longueur,
+            'tonnage': navire.marchandise_volume,
+            'priorites': get_priorites_liste(navire),
+            'postes_compatibles': postes_comp[:5],
+            'nb_postes_compatibles': len(postes_comp),
+            'est_selectionne': navire.id in ids_selectionnes,
+        })
+
+    # ============================================================
+    # ✅ TABLEAU UNIFIÉ (UTILISE fin_datetime EN PRIORITÉ)
+    # ============================================================
+    tous_les_postes = list(Poste.objects.select_related('quai').order_by('quai__nom', 'numero'))
+    tableau_unifie = []
+
+    for poste in tous_les_postes:
+        navire_actuel = Navire.objects.filter(poste_attribue=poste, etat='quai').first()
+
+        navires_prets_compatibles = []
+        for navire_id, aff in affectation_proposee.items():
+            if aff['poste'].id == poste.id:
+                navire_pret = next((n for n in navires_selectionnes_qs if n.id == navire_id), None)
+                if navire_pret:
+                    navires_prets_compatibles.append({
+                        'navire': navire_pret,
+                        'type_source': aff['type_source'],
+                        'temps_attente': aff['temps_attente'],
+                        'est_en_retard': aff['est_en_retard'],
+                        'priorites': aff['priorites'],
+                        'postes_alternatifs': aff.get('postes_alternatifs', []),
+                    })
+
+        est_occupe = navire_actuel is not None
+        a_des_candidats = len(navires_prets_compatibles) > 0
+
+        if not est_occupe and not a_des_candidats:
+            continue
+
+        # ✅ Utiliser fin_datetime en PRIORITÉ
+        liberation_dt = None
+        temps_restant = None
+        if navire_actuel:
+            if navire_actuel.fin_datetime:
+                liberation_dt = navire_actuel.fin_datetime
+            elif navire_actuel.heure_fin:
+                h = int(navire_actuel.heure_fin)
+                m = int((navire_actuel.heure_fin - h) * 60)
+                liberation_dt = base + timedelta(hours=h, minutes=m)
+
+            if liberation_dt:
+                # ⚠️ NE PAS ajouter de jour si la date est passée (afficher le retard)
+                temps_restant = (liberation_dt - now).total_seconds() / 3600
+
+        tableau_unifie.append({
+            'poste': poste,
+            'quai': poste.quai,
+            'est_occupe': est_occupe,
+            'navire_actuel': navire_actuel,
+            'liberation_dt': liberation_dt,
+            'temps_restant': temps_restant,
+            'navires_prets_compatibles': navires_prets_compatibles,
+            'nb_navires_prets': len(navires_prets_compatibles),
+            'remplacant_optimal': navires_prets_compatibles[0] if navires_prets_compatibles else None,
+        })
+
+    tableau_unifie.sort(key=lambda x: (
+        not x['est_occupe'],
+        x['temps_restant'] if x['temps_restant'] is not None else 999,
+        int(x['poste'].numero) if str(x['poste'].numero).isdigit() else 9999,
+    ))
+
+    # ========== PROCHAINE MAJ ==========
+    heures_maj = [1, 4, 7, 10, 13, 16, 19, 22]
+    prochaine_maj = None
+    for h in heures_maj:
+        if h > heure_actuelle:
+            prochaine_maj = base + timedelta(hours=h)
+            break
+    if prochaine_maj is None:
+        prochaine_maj = base + timedelta(days=1, hours=heures_maj[0])
+    temps_avant_maj = (prochaine_maj - now).total_seconds() / 3600
+
+    # ========== STATS ==========
+    nb_prets = len(navires_selectionnes_qs)
+    nb_en_retard = sum(1 for e in entrees_prevues if e['est_en_retard'])
+    nb_postes_occupes = sum(1 for item in tableau_unifie if item['est_occupe'])
+    nb_attente_consignataire = Navire.objects.filter(
+        etat__in=['rade', 'attente'], pret_consignataire=False
+    ).count()
+
+    context = {
+        'now': now,
+        'heure_actuelle': heure_actuelle,
+        'sorties_prevues': sorties_prevues,
+        'entrees_prevues': entrees_prevues,
+        'navires_rade': rade_info,
+        'tableau_unifie': tableau_unifie,
+        'nb_navires_prets': nb_prets,
+        'nb_postes_occupes': nb_postes_occupes,
+        'nb_postes_libres': len(tableau_unifie) - nb_postes_occupes,
+        'prochaine_maj': prochaine_maj,
+        'temps_avant_maj': temps_avant_maj,
+        'nb_sorties_imminentes': sum(1 for s in sorties_prevues if s['est_imminent']),
+        'nb_entrees_imminentes': sum(1 for e in entrees_prevues if e['est_imminent']),
+        'nb_navires_quai': navires_a_quai.count(),
+        'nb_navires_attente': navires_attendus.count(),
+        'nb_navires_rade': navires_rade_qs.count(),
+        'nb_prets': nb_prets,
+        'nb_en_retard': nb_en_retard,
+        'nb_attente_consignataire': nb_attente_consignataire,
+        'heures_maj': heures_maj,
+        'sync_message': sync_message,
+        'derniere_sync': derniere_maj,
+        'ids_selectionnes': ids_selectionnes,
+        'param_incertitude': request.session.get('param_incertitude', False),
+        'param_amplitude': request.session.get('param_amplitude', '20'),
+        'param_buffer': request.session.get('param_buffer', '15'),
+        'scenario_session': request.session.get('scenario', 'equilibre'),
+    }
+    return render(request, 'port/planification_dynamique.html', context)
+
+# =============================================================================
+# ✅ TOGGLE SÉLECTION
+# =============================================================================
+@login_required
+def toggle_selection_navire(request, navire_id):
+    ids_selectionnes = request.session.get('navires_selectionnes_planification', [])
+    ids_selectionnes = [int(i) for i in ids_selectionnes]
+
+    if navire_id in ids_selectionnes:
+        ids_selectionnes.remove(navire_id)
+        messages.info(request, f"❌ Navire retiré de la sélection")
+    else:
+        ids_selectionnes.append(navire_id)
+        messages.success(request, f"✅ Navire ajouté à la sélection")
+
+    request.session['navires_selectionnes_planification'] = ids_selectionnes
+    request.session.modified = True
+
+    return redirect('planification_dynamique')
+
+
+# =============================================================================
+# ✅ VIDER LA SÉLECTION
+# =============================================================================
+@login_required
+def vider_selection(request):
+    request.session['navires_selectionnes_planification'] = []
+    request.session.modified = True
+    messages.info(request, "🗑️ Sélection vidée")
+    return redirect('planification_dynamique')
+
+
+# =============================================================================
+# ✅ LANCER L'OPTIMISATION
+# =============================================================================
+@login_required
+def lancer_optimisation_selection(request):
+    if request.method != 'POST':
+        return redirect('planification_dynamique')
+
+    ids_selectionnes = request.session.get('navires_selectionnes_planification', [])
+    ids_selectionnes = [int(i) for i in ids_selectionnes]
+
+    request.session['param_incertitude'] = request.POST.get('incertitude') == 'on'
+    request.session['param_amplitude'] = request.POST.get('amplitude', '20')
+    request.session['param_buffer'] = request.POST.get('buffer', '15')
+    request.session['scenario'] = request.POST.get('scenario', 'equilibre')
+
+    if not ids_selectionnes:
+        messages.warning(request, "⚠️ Aucun navire sélectionné.")
+        return redirect('planification_dynamique')
+
+    Navire.objects.filter(
+        id__in=ids_selectionnes,
+        pret_consignataire=True
+    ).update(pret_par_client=True)
+
+    Navire.objects.filter(
+        etat__in=['rade', 'attente'],
+        pret_consignataire=True
+    ).exclude(id__in=ids_selectionnes).update(pret_par_client=False)
+
+    request.session['navires_cpn_ids'] = ids_selectionnes
+    messages.success(request, f"✅ {len(ids_selectionnes)} navire(s) prêt(s). Lancement...")
+    return redirect('optimiser_depuis_cpn')
+@login_required
+def api_synchroniser_epb(request):
+    """
+    API pour synchroniser manuellement les données avec le site EPB.
+    Retourne un JSON avec le résultat.
+    """
+    from django.core.management import call_command
+    from django.utils import timezone
+    import io
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Méthode non autorisée'}, status=405)
+    
+    try:
+        # Capturer la sortie de la commande
+        output = io.StringIO()
+        call_command('import_epb', stdout=output)
+        resultat = output.getvalue()
+        
+        # Sauvegarder la date de synchronisation
+        request.session['derniere_sync_epb'] = timezone.now().isoformat()
+        
+        return JsonResponse({
+            'success': True,
+            'message': '✅ Synchronisation réussie',
+            'details': resultat[-500:] if len(resultat) > 500 else resultat,
+            'timestamp': timezone.now().isoformat()
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+def get_priorites_liste(navire):
+    """
+    Retourne la liste des priorités d'un navire avec leurs couleurs et icônes.
+    """
+    priorites = []
+    
+    if navire.sortant:
+        priorites.append({'nom': 'Sortant', 'couleur': 'danger', 'icone': 'fa-sign-out-alt'})
+    if navire.passage:
+        priorites.append({'nom': 'Passage', 'couleur': 'info', 'icone': 'fa-route'})
+    if navire.gazier:
+        priorites.append({'nom': 'Gazier', 'couleur': 'warning', 'icone': 'fa-fire'})
+    if navire.essence:
+        priorites.append({'nom': 'Essence', 'couleur': 'warning', 'icone': 'fa-gas-pump'})
+    if navire.animalier:
+        priorites.append({'nom': 'Animalier', 'couleur': 'success', 'icone': 'fa-paw'})
+    if navire.perissable:
+        priorites.append({'nom': 'Périssable', 'couleur': 'info', 'icone': 'fa-snowflake'})
+    if navire.strategique:
+        priorites.append({'nom': 'Stratégique', 'couleur': 'primary', 'icone': 'fa-star'})
+    if navire.ligne_reguliere:
+        priorites.append({'nom': 'Ligne régulière', 'couleur': 'success', 'icone': 'fa-ship'})
+    if navire.convention:
+        priorites.append({'nom': 'Convention', 'couleur': 'info', 'icone': 'fa-handshake'})
+    if navire.huilier:
+        priorites.append({'nom': 'Huilier', 'couleur': 'warning', 'icone': 'fa-oil-can'})
+    
+    return priorites   # ✅ CORRECTION : "priorites" (sans "po")
+# =============================================================================
+# SURVEILLANCE DES MOUVEMENTS (24h/24)
+# =============================================================================
+
+@login_required
+def mouvements_navires(request):
+    """
+    Page de consultation des mouvements de navires détectés automatiquement.
+    Affiche les entrées/sorties sur les N dernières heures.
+    """
+    from port.models import MouvementNavire
+    from datetime import timedelta
+    
+    # Récupérer les mouvements des dernières N heures
+    try:
+        heures = int(request.GET.get('heures', 24))
+    except ValueError:
+        heures = 24
+    
+    # Limiter à 168h (7 jours) max
+    heures = min(max(heures, 1), 168)
+    
+    depuis = timezone.now() - timedelta(hours=heures)
+    
+    mouvements = MouvementNavire.objects.filter(
+        date_detection__gte=depuis
+    ).select_related('navire', 'quai_avant', 'quai_apres').order_by('-date_detection')
+    
+    # Statistiques
+    stats = {
+        'total': mouvements.count(),
+        'entrees_rade': mouvements.filter(type_mouvement='entree_rade').count(),
+        'entrees_quai': mouvements.filter(type_mouvement='entree_quai').count(),
+        'sorties_quai': mouvements.filter(type_mouvement='sortie_quai').count(),
+        'sorties_port': mouvements.filter(type_mouvement='sortie_port').count(),
+    }
+    
+    context = {
+        'mouvements': mouvements,
+        'stats': stats,
+        'heures': heures,
+        'now': timezone.now(),
+    }
+    return render(request, 'port/mouvements.html', context)
+
+
+@login_required
+def statut_surveillance(request):
+    """
+    Page de statut de la surveillance automatique.
+    Permet de vérifier que le scheduler tourne.
+    """
+    from port.services.surveillance_auto import _scheduler
+    from port.models import MouvementNavire
+    
+    est_actif = _scheduler is not None and getattr(_scheduler, 'running', False)
+    
+    # Prochaine exécution
+    prochaine_execution = None
+    if est_actif and _scheduler:
+        try:
+            job = _scheduler.get_job('surveillance_epb')
+            if job:
+                prochaine_execution = job.next_run_time
+        except Exception:
+            pass
+    
+    # Derniers mouvements
+    derniers_mouvements = MouvementNavire.objects.order_by('-date_detection')[:20]
+    
+    # Dernière synchronisation depuis la session
+    derniere_sync = request.session.get('derniere_sync_epb')
+    
+    context = {
+        'est_actif': est_actif,
+        'prochaine_execution': prochaine_execution,
+        'derniers_mouvements': derniers_mouvements,
+        'derniere_sync': derniere_sync,
+        'now': timezone.now(),
+    }
+    return render(request, 'port/statut_surveillance.html', context)

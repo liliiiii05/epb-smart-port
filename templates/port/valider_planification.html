@@ -5,7 +5,6 @@
 
 {% block content %}
 <style>
-    /* ========== STYLES PRINCIPAUX ========== */
     :root {
         --primary: #0066a0;
         --primary-dark: #004b7c;
@@ -558,6 +557,77 @@
             max-width: 200px;
         }
     }
+
+    /* ========== BARRE DE PROGRESSION DÉTAILLÉE ========== */
+    .shift-bar-container {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin-bottom: 4px;
+    }
+    .shift-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.6rem;
+    }
+    .shift-bar-label {
+        min-width: 50px;
+        font-weight: 600;
+        color: var(--gray-700);
+    }
+    .shift-bar-track {
+        flex: 1;
+        height: 12px;
+        background: var(--gray-200);
+        border-radius: 6px;
+        overflow: hidden;
+        position: relative;
+    }
+    .shift-bar-fill {
+        height: 100%;
+        transition: width 0.3s;
+    }
+    .shift-bar-value {
+        min-width: 40px;
+        text-align: right;
+        font-weight: 600;
+        color: var(--primary);
+    }
+
+    /* ========== CARTE DE DÉBIT PAR SHIFT ========== */
+    .debit-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+    .debit-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 1rem;
+        padding: 1rem;
+        text-align: center;
+        color: white;
+        transition: transform 0.2s;
+    }
+    .debit-card:hover {
+        transform: translateY(-3px);
+    }
+    .debit-card .shift-name {
+        font-size: 0.75rem;
+        opacity: 0.9;
+        margin-bottom: 0.3rem;
+    }
+    .debit-card .debit-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #ffdd99;
+    }
+    .debit-card .debit-detail {
+        font-size: 0.65rem;
+        opacity: 0.85;
+        margin-top: 0.3rem;
+    }
 </style>
 
 <div class="container">
@@ -644,6 +714,29 @@
         </div>
     </div>
 
+    <!-- ========== DÉBIT PAR SHIFT (CARTES) ========== -->
+    {% if debits_par_shift %}
+    <div class="section-title animate-card">
+        <i class="fas fa-tachometer-alt"></i> Débit prévu par shift
+        <i class="fas fa-question-circle icon-tooltip" data-tooltip="Débit estimé pour chaque shift selon le type de navire et le tonnage"></i>
+    </div>
+    <div class="debit-grid animate-card">
+        {% for shift, debit in debits_par_shift.items %}
+        <div class="debit-card" data-tooltip="Débit prévu pour le shift {{ shift }} : {{ debit }} t/h">
+            <div class="shift-name">
+                {% if shift == '07h_13h' %}🌅 Matin (07h-13h)
+                {% elif shift == '13h_19h' %}☀️ Soir (13h-19h)
+                {% elif shift == '19h_01h' %}🌙 Nuit (19h-01h)
+                {% elif shift == '01h_07h' %}🌃 Double nuit (01h-07h)
+                {% else %}{{ shift }}{% endif %}
+            </div>
+            <div class="debit-value">{{ debit }} t/h</div>
+            <div class="debit-detail">Débit prévu</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- Toolbar -->
     <div class="toolbar animate-card">
         <div class="btn-group">
@@ -704,7 +797,7 @@
                     <th data-tooltip="Durée totale du traitement à quai">Traitement</th>
                     <th data-tooltip="Détail du temps à quai">Détail</th>
                     <th data-tooltip="Contribution au score d'optimisation">Score</th>
-                    <th class="progress-column" data-tooltip="Répartition du temps par shift (couleurs: matin 🔵, soir 🟢, nuit 🟠, double nuit ⚪)">Progression</th>
+                    <th class="progress-column" data-tooltip="Répartition du temps par shift">Progression</th>
                     <th class="shift-column" data-tooltip="Shifts de travail couverts pendant l'opération">Shifts</th>
                     <th data-tooltip="Équipements nécessaires pour le déchargement/chargement">Équipements</th>
                     <th data-tooltip="Actions disponibles">Actions</th>
@@ -740,25 +833,37 @@
                         <i class="fas fa-file-signature me-1" data-tooltip="Formalités douanières et administratives (2h)"></i> {{ a.formalites|floatformat:1 }}h
                     </td>
                     <td data-tooltip="Contribution au score total (plus bas = meilleur)">{{ a.score_contribution|floatformat:1 }}</td>
+                    
+                    <!-- PROGRESSION DÉTAILLÉE -->
                     <td class="progress-cell progress-column">
-                        <div class="progress-wrapper" data-tooltip="Shift Matin (07h-13h)">
-                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.07h_13h|default:0 a.traitement 100 %}%; background: #3b82f6;">
-                                {{ a.temps_par_shift.07h_13h|default:0|floatformat:1 }}h
+                        <div class="shift-bar-container">
+                            <div class="shift-bar" data-tooltip="Shift Matin (07h-13h) : {{ a.temps_par_shift.07h_13h|default:0|floatformat:1 }}h">
+                                <span class="shift-bar-label">07-13</span>
+                                <div class="shift-bar-track">
+                                    <div class="shift-bar-fill" style="width: {% widthratio a.temps_par_shift.07h_13h|default:0 a.traitement 100 %}%; background: #3b82f6;"></div>
+                                </div>
+                                <span class="shift-bar-value">{{ a.temps_par_shift.07h_13h|default:0|floatformat:1 }}h</span>
                             </div>
-                        </div>
-                        <div class="progress-wrapper mt-1" data-tooltip="Shift Soir (13h-19h)">
-                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.13h_19h|default:0 a.traitement 100 %}%; background: #10b981;">
-                                {{ a.temps_par_shift.13h_19h|default:0|floatformat:1 }}h
+                            <div class="shift-bar" data-tooltip="Shift Soir (13h-19h) : {{ a.temps_par_shift.13h_19h|default:0|floatformat:1 }}h">
+                                <span class="shift-bar-label">13-19</span>
+                                <div class="shift-bar-track">
+                                    <div class="shift-bar-fill" style="width: {% widthratio a.temps_par_shift.13h_19h|default:0 a.traitement 100 %}%; background: #10b981;"></div>
+                                </div>
+                                <span class="shift-bar-value">{{ a.temps_par_shift.13h_19h|default:0|floatformat:1 }}h</span>
                             </div>
-                        </div>
-                        <div class="progress-wrapper mt-1" data-tooltip="Shift Nuit (19h-01h)">
-                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.19h_01h|default:0 a.traitement 100 %}%; background: #f59e0b;">
-                                {{ a.temps_par_shift.19h_01h|default:0|floatformat:1 }}h
+                            <div class="shift-bar" data-tooltip="Shift Nuit (19h-01h) : {{ a.temps_par_shift.19h_01h|default:0|floatformat:1 }}h">
+                                <span class="shift-bar-label">19-01</span>
+                                <div class="shift-bar-track">
+                                    <div class="shift-bar-fill" style="width: {% widthratio a.temps_par_shift.19h_01h|default:0 a.traitement 100 %}%; background: #f59e0b;"></div>
+                                </div>
+                                <span class="shift-bar-value">{{ a.temps_par_shift.19h_01h|default:0|floatformat:1 }}h</span>
                             </div>
-                        </div>
-                        <div class="progress-wrapper mt-1" data-tooltip="Shift Double nuit (01h-07h)">
-                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.01h_07h|default:0 a.traitement 100 %}%; background: #64748b;">
-                                {{ a.temps_par_shift.01h_07h|default:0|floatformat:1 }}h
+                            <div class="shift-bar" data-tooltip="Shift Double nuit (01h-07h) : {{ a.temps_par_shift.01h_07h|default:0|floatformat:1 }}h">
+                                <span class="shift-bar-label">01-07</span>
+                                <div class="shift-bar-track">
+                                    <div class="shift-bar-fill" style="width: {% widthratio a.temps_par_shift.01h_07h|default:0 a.traitement 100 %}%; background: #64748b;"></div>
+                                </div>
+                                <span class="shift-bar-value">{{ a.temps_par_shift.01h_07h|default:0|floatformat:1 }}h</span>
                             </div>
                         </div>
                     </td>
@@ -843,49 +948,61 @@
                         {% if a.raison_attente %}
                         <i class="fas fa-info-circle icon-tooltip" data-tooltip="{{ a.raison_attente }}"></i>
                         {% endif %}
-                    </div>
-                    <td data-tooltip="Type: {{ a.type_navire }}">{{ a.type_navire|capfirst }}</div>
-                    <td data-tooltip="Date et heure d'arrivée estimée (ETA)">{{ a.arrivee_datetime|date:"d/m H:i"|default:"-" }}</div>
-                    <td data-tooltip="Poste/Quai d'affectation">{{ a.quai_nom }}</div>
-                    <td class="debut-cell" data-tooltip="Début d'accostage prévu"><strong>{{ a.debut_datetime|date:"d/m H:i"|default:"-" }}</strong></div>
-                    <td class="fin-cell" data-tooltip="Fin estimée des opérations">{{ a.fin_datetime|date:"d/m H:i"|default:"-" }}</div>
+                    </td>
+                    <td data-tooltip="Type: {{ a.type_navire }}">{{ a.type_navire|capfirst }}</td>
+                    <td data-tooltip="Date et heure d'arrivée estimée (ETA)">{{ a.arrivee_datetime|date:"d/m H:i"|default:"-" }}</td>
+                    <td data-tooltip="Poste/Quai d'affectation">{{ a.quai_nom }}</td>
+                    <td class="debut-cell" data-tooltip="Début d'accostage prévu"><strong>{{ a.debut_datetime|date:"d/m H:i"|default:"-" }}</strong></td>
+                    <td class="fin-cell" data-tooltip="Fin estimée des opérations">{{ a.fin_datetime|date:"d/m H:i"|default:"-" }}</td>
                     <td class="attente-cell {% if a.attente > 48 %}text-danger fw-bold{% elif a.attente > 24 %}text-warning{% else %}text-success{% endif %}" data-tooltip="Temps d'attente estimé entre ETA et accostage">
                         {% if a.attente > 48 %}<i class="fas fa-exclamation-triangle me-1"></i>{% elif a.attente > 24 %}<i class="fas fa-clock me-1"></i>{% else %}<i class="fas fa-check-circle me-1"></i>{% endif %}
                         {{ a.attente|floatformat:1 }}h
-                    </div>
-                    <td data-tooltip="Taux de déchargement/chargement estimé">{{ a.debit_estime|floatformat:1|default:"—" }}</div>
-                    <td data-tooltip="Nombre d'équipements requis">{{ a.nb_equipements|default:"—" }}</div>
-                    <td data-tooltip="Temps d'attente dû aux équipements">{% if a.attente_equipements %}{{ a.attente_equipements|floatformat:1 }}h{% else %}—{% endif %}</div>
-                    <td class="duree-value" data-tooltip="Durée totale à quai">{{ a.traitement|floatformat:1 }}h</div>
+                    </td>
+                    <td data-tooltip="Taux de déchargement/chargement estimé">{{ a.debit_estime|floatformat:1|default:"—" }}</td>
+                    <td data-tooltip="Nombre d'équipements requis">{{ a.nb_equipements|default:"—" }}</td>
+                    <td data-tooltip="Temps d'attente dû aux équipements">{% if a.attente_equipements %}{{ a.attente_equipements|floatformat:1 }}h{% else %}—{% endif %}</td>
+                    <td class="duree-value" data-tooltip="Durée totale à quai">{{ a.traitement|floatformat:1 }}h</td>
                     <td class="detail-temps" data-tooltip="Détail du temps à quai">
                         <i class="fas fa-ship me-1" data-tooltip="Manœuvre (1h)"></i> {{ a.manoeuvre|floatformat:1 }}h<br>
                         <i class="fas fa-cogs me-1" data-tooltip="Opérations"></i> {{ a.operations|floatformat:1 }}h<br>
                         <i class="fas fa-file-signature me-1" data-tooltip="Formalités (2h)"></i> {{ a.formalites|floatformat:1 }}h
-                    </div>
-                    <td data-tooltip="Contribution au score">{{ a.score_contribution|floatformat:1 }}</div>
+                    </td>
+                    <td data-tooltip="Contribution au score">{{ a.score_contribution|floatformat:1 }}</td>
+                    
+                    <!-- PROGRESSION DÉTAILLÉE -->
                     <td class="progress-cell progress-column">
-                        <div class="progress-wrapper" data-tooltip="Shift Matin (07h-13h)">
-                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.07h_13h|default:0 a.traitement 100 %}%; background: #3b82f6;">
-                                {{ a.temps_par_shift.07h_13h|default:0|floatformat:1 }}h
+                        <div class="shift-bar-container">
+                            <div class="shift-bar" data-tooltip="Shift Matin (07h-13h) : {{ a.temps_par_shift.07h_13h|default:0|floatformat:1 }}h">
+                                <span class="shift-bar-label">07-13</span>
+                                <div class="shift-bar-track">
+                                    <div class="shift-bar-fill" style="width: {% widthratio a.temps_par_shift.07h_13h|default:0 a.traitement 100 %}%; background: #3b82f6;"></div>
+                                </div>
+                                <span class="shift-bar-value">{{ a.temps_par_shift.07h_13h|default:0|floatformat:1 }}h</span>
+                            </div>
+                            <div class="shift-bar" data-tooltip="Shift Soir (13h-19h) : {{ a.temps_par_shift.13h_19h|default:0|floatformat:1 }}h">
+                                <span class="shift-bar-label">13-19</span>
+                                <div class="shift-bar-track">
+                                    <div class="shift-bar-fill" style="width: {% widthratio a.temps_par_shift.13h_19h|default:0 a.traitement 100 %}%; background: #10b981;"></div>
+                                </div>
+                                <span class="shift-bar-value">{{ a.temps_par_shift.13h_19h|default:0|floatformat:1 }}h</span>
+                            </div>
+                            <div class="shift-bar" data-tooltip="Shift Nuit (19h-01h) : {{ a.temps_par_shift.19h_01h|default:0|floatformat:1 }}h">
+                                <span class="shift-bar-label">19-01</span>
+                                <div class="shift-bar-track">
+                                    <div class="shift-bar-fill" style="width: {% widthratio a.temps_par_shift.19h_01h|default:0 a.traitement 100 %}%; background: #f59e0b;"></div>
+                                </div>
+                                <span class="shift-bar-value">{{ a.temps_par_shift.19h_01h|default:0|floatformat:1 }}h</span>
+                            </div>
+                            <div class="shift-bar" data-tooltip="Shift Double nuit (01h-07h) : {{ a.temps_par_shift.01h_07h|default:0|floatformat:1 }}h">
+                                <span class="shift-bar-label">01-07</span>
+                                <div class="shift-bar-track">
+                                    <div class="shift-bar-fill" style="width: {% widthratio a.temps_par_shift.01h_07h|default:0 a.traitement 100 %}%; background: #64748b;"></div>
+                                </div>
+                                <span class="shift-bar-value">{{ a.temps_par_shift.01h_07h|default:0|floatformat:1 }}h</span>
                             </div>
                         </div>
-                        <div class="progress-wrapper mt-1" data-tooltip="Shift Soir (13h-19h)">
-                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.13h_19h|default:0 a.traitement 100 %}%; background: #10b981;">
-                                {{ a.temps_par_shift.13h_19h|default:0|floatformat:1 }}h
-                            </div>
-                        </div>
-                        <div class="progress-wrapper mt-1" data-tooltip="Shift Nuit (19h-01h)">
-                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.19h_01h|default:0 a.traitement 100 %}%; background: #f59e0b;">
-                                {{ a.temps_par_shift.19h_01h|default:0|floatformat:1 }}h
-                            </div>
-                        </div>
-                        <div class="progress-wrapper mt-1" data-tooltip="Shift Double nuit (01h-07h)">
-                            <div class="progress-fill" style="width: {% widthratio a.temps_par_shift.01h_07h|default:0 a.traitement 100 %}%; background: #64748b;">
-                                {{ a.temps_par_shift.01h_07h|default:0|floatformat:1 }}h
-                            </div>
-                        </div>
-                    </div>
-                    <td class="shift-column">{% for shift in a.shifts_couverts %}<span class="badge-shift" data-tooltip="Shift couvert">{{ shift }}</span>{% endfor %}</div>
+                    </td>
+                    <td class="shift-column">{% for shift in a.shifts_couverts %}<span class="badge-shift" data-tooltip="Shift couvert">{{ shift }}</span>{% endfor %}</td>
                     <!-- Colonne Équipements avec TOUS les équipements -->
                     <td class="equip-list">
                         {% if a.equipements %}
@@ -907,13 +1024,13 @@
                                 <i class="fas fa-ship me-1"></i> Grues bord
                             </span>
                         {% endif %}
-                    </div>
+                    </td>
                     <td class="action-buttons-cell">
                         <div class="d-flex gap-2">
                             <a href="{% url 'mode_manuel' %}?navire={{ a.navire_id }}" class="btn btn-outline-primary btn-sm" data-tooltip="Intervention manuelle sur ce navire" target="_blank">Manuel</a>
                             <button type="button" class="btn btn-warning btn-sm" data-id="{{ a.navire_id }}" data-nom="{{ a.navire_nom }}" data-tooltip="Ajouter une note d'attente pour ce navire">Attente</button>
                         </div>
-                    </div>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

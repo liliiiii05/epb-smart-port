@@ -1,0 +1,282 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Historique des escales - {{ navire.nom }}{% endblock %}
+
+{% block content %}
+<style>
+    .page-header {
+        background: linear-gradient(135deg, #003366, #002244);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        color: white;
+        margin-bottom: 2rem;
+    }
+    .stat-card {
+        border-radius: 0.75rem;
+        padding: 1rem;
+        text-align: center;
+        color: white;
+        transition: transform 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-3px); }
+    .stat-card h3 { font-size: 1.8rem; margin: 0; font-weight: 800; }
+    .stat-card p { margin: 0; font-size: 0.85rem; opacity: 0.9; }
+    .bg-primary-custom { background: linear-gradient(135deg, #003366, #00509e); }
+    .bg-warning-custom { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .bg-info-custom { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    .bg-success-custom { background: linear-gradient(135deg, #10b981, #059669); }
+    
+    .escale-active-box {
+        background: #d1fae5;
+        border-left: 4px solid #10b981;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .escale-active-box h5 {
+        color: #065f46;
+        margin-bottom: 0.75rem;
+    }
+    .escale-active-box ul {
+        margin-bottom: 0;
+        color: #047857;
+    }
+    .escale-active-box li {
+        margin-bottom: 0.25rem;
+    }
+    
+    .table thead th {
+        background: #1e293b;
+        color: white;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .badge-active { background: #10b981; color: white; }
+    .badge-closed { background: #94a3b8; color: white; }
+    
+    .help-note {
+        background: #eff6ff;
+        border-left: 4px solid #3b82f6;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.85rem;
+        color: #1e40af;
+        margin-bottom: 1rem;
+    }
+    
+    .quai-info {
+        font-weight: 600;
+        color: #003366;
+    }
+    .poste-info {
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+</style>
+
+<div class="container-fluid px-4">
+
+    <!-- En-tête -->
+    <div class="page-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1><i class="fas fa-history"></i> Historique des escales</h1>
+                <p class="mb-0">
+                    <strong>{{ navire.nom }}</strong> —
+                    {{ navire.get_type_display }} —
+                    Agent : {{ navire.agent|default:"-" }}
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{% url 'detail_navire' navire.id %}" class="btn btn-light">
+                    <i class="fas fa-arrow-left"></i> Retour au navire
+                </a>
+                {% if escale_active %}
+                <form method="post" action="{% url 'cloturer_escale_manuelle' navire.id %}"
+                      style="display:inline;"
+                      onsubmit="return confirm('Cloturer l\'escale en cours ?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-flag-checkered"></i> Cloturer l'escale
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-3">
+            <div class="stat-card bg-primary-custom">
+                <h3>{{ nb_escales }}</h3>
+                <p>Nombre d'escales</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-warning-custom">
+                <h3>{{ attente_moyenne|floatformat:1 }}h</h3>
+                <p>Attente moyenne</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-info-custom">
+                <h3>{{ duree_moyenne|floatformat:1 }}h</h3>
+                <p>Durée à quai moyenne</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-success-custom">
+                <h3>{{ debit_moyen|floatformat:1 }} t/h</h3>
+                <p>Débit réel moyen</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Escale active -->
+    {% if escale_active %}
+    <div class="escale-active-box">
+        <h5>
+            <i class="fas fa-anchor"></i>
+            Escale en cours (débutée le {{ escale_active.date_debut|date:"d/m/Y à H:i" }})
+        </h5>
+        <ul>
+            <li>Volume : <strong>{{ escale_active.volume_marchandise|floatformat:0 }} tonnes</strong></li>
+            <li>
+                Quai :
+                <strong>
+                    {% if escale_active.quai_utilise %}
+                        {{ escale_active.quai_utilise.nom }}
+                    {% else %}
+                        <span class="text-muted">Non assigné</span>
+                    {% endif %}
+                </strong>
+            </li>
+            <li>
+                Poste :
+                <strong>
+                    {% if escale_active.poste_utilise %}
+                        Poste {{ escale_active.poste_utilise.numero }}
+                    {% else %}
+                        <span class="text-muted">Non assigné</span>
+                    {% endif %}
+                </strong>
+            </li>
+            <li>Notes d'attente actives : <strong>{{ escale_active.nb_notes_attente }}</strong></li>
+            <li>Shift de début : <strong>{{ escale_active.shift_debut|default:"-" }}</strong></li>
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- Info débit -->
+    <div class="help-note">
+        <i class="fas fa-info-circle"></i>
+        <strong>Comprendre le débit réel :</strong>
+        Le débit est calculé sur la <strong>durée effective</strong> (durée à quai − attentes).
+        Cela donne une mesure réaliste de la performance du navire, sans pénaliser les temps d'attente.
+    </div>
+
+    <!-- Tableau des escales -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h4 class="mb-0"><i class="fas fa-list"></i> Détail des escales</h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Date début</th>
+                            <th>Date fin</th>
+                            <th>Quai / Poste</th>
+                            <th>Volume</th>
+                            <th>Attente</th>
+                            <th>Durée à quai</th>
+                            <th>Durée effective</th>
+                            <th>Débit réel</th>
+                            <th>Météo</th>
+                            <th>Notes</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for escale in escales %}
+                        <tr>
+                            <td><strong>#{{ escale.id }}</strong></td>
+                            <td>{{ escale.date_debut|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if escale.date_fin %}
+                                    {{ escale.date_fin|date:"d/m/Y H:i" }}
+                                {% else %}
+                                    <span class="text-muted">En cours</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if escale.quai_utilise %}
+                                    <div class="quai-info">
+                                        <i class="fas fa-anchor"></i> {{ escale.quai_utilise.nom }}
+                                    </div>
+                                    {% if escale.poste_utilise %}
+                                        <div class="poste-info">
+                                            <i class="fas fa-building"></i> Poste {{ escale.poste_utilise.numero }}
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ escale.volume_marchandise|floatformat:0 }} t</td>
+                            <td>
+                                <span class="badge bg-warning text-dark">
+                                    {{ escale.attente_totale|floatformat:1 }}h
+                                </span>
+                            </td>
+                            <td>{{ escale.duree_totale|floatformat:1 }}h</td>
+                            <td>
+                                <span class="badge bg-info text-dark">
+                                    {{ escale.duree_effective|floatformat:1 }}h
+                                </span>
+                            </td>
+                            <td>
+                                {% if escale.debit_reel > 0 %}
+                                    <strong>{{ escale.debit_reel|floatformat:1 }} t/h</strong>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if escale.meteo_pluie %}<span title="Pluie">🌧️</span>{% endif %}
+                                {% if escale.meteo_vent_force >= 8 %}<span title="Vent fort">💨</span>{% endif %}
+                                {{ escale.meteo_vent_force }} Bft
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ escale.nb_notes_attente }}</span>
+                            </td>
+                            <td>
+                                {% if escale.active %}
+                                    <span class="badge badge-active">Active</span>
+                                {% else %}
+                                    <span class="badge badge-closed">Clôturée</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="12" class="text-center py-5">
+                                <i class="fas fa-history fa-3x text-muted mb-3 d-block"></i>
+                                <p class="text-muted mb-0">Aucune escale enregistrée pour ce navire.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

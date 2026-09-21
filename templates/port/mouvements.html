@@ -1,0 +1,108 @@
+{% extends 'port/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>🛰️ Surveillance des Mouvements</h1>
+    <p class="text-muted">Détection automatique des entrées/sorties de navires</p>
+
+    <!-- Filtres -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label>Période</label>
+                    <select name="heures" class="form-select" onchange="this.form.submit()">
+                        <option value="6" {% if heures == 6 %}selected{% endif %}>6 dernières heures</option>
+                        <option value="24" {% if heures == 24 %}selected{% endif %}>24 dernières heures</option>
+                        <option value="72" {% if heures == 72 %}selected{% endif %}>3 derniers jours</option>
+                        <option value="168" {% if heures == 168 %}selected{% endif %}>7 derniers jours</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5>🚢 Entrées rade</h5>
+                    <h2>{{ stats.entrees_rade }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5>⚓ Entrées quai</h5>
+                    <h2>{{ stats.entrees_quai }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h5>🚪 Sorties quai</h5>
+                    <h2>{{ stats.sorties_quai }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h5>🛳️ Sorties port</h5>
+                    <h2>{{ stats.sorties_port }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des mouvements -->
+    <div class="card">
+        <div class="card-header">
+            <h5>📋 Mouvements détectés ({{ stats.total }})</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Navire</th>
+                        <th>Type</th>
+                        <th>État avant</th>
+                        <th>État après</th>
+                        <th>Quai</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in mouvements %}
+                    <tr>
+                        <td>{{ m.date_detection|date:"d/m H:i" }}</td>
+                        <td><a href="{% url 'detail_navire' m.navire.id %}">{{ m.navire.nom }}</a></td>
+                        <td>
+                            {% if m.type_mouvement == 'entree_rade' %}
+                                <span class="badge bg-primary">🚢 Entrée rade</span>
+                            {% elif m.type_mouvement == 'entree_quai' %}
+                                <span class="badge bg-success">⚓ Entrée quai</span>
+                            {% elif m.type_mouvement == 'sortie_quai' %}
+                                <span class="badge bg-warning">🚪 Sortie quai</span>
+                            {% elif m.type_mouvement == 'sortie_port' %}
+                                <span class="badge bg-danger">🛳️ Sortie port</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ m.etat_avant }}</td>
+                        <td>{{ m.etat_apres }}</td>
+                        <td>{{ m.quai_apres.nom|default:m.quai_avant.nom|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">Aucun mouvement détecté</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

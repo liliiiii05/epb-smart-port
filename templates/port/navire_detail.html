@@ -5,13 +5,10 @@
 
 {% block content %}
 <style>
-    /* ========== VARIABLES MODERNISÉES ========== */
     :root {
         --epb-primary: #003366;
         --epb-primary-dark: #002244;
-        --epb-primary-light: #1a4d8c;
         --epb-secondary: #ff6600;
-        --epb-secondary-dark: #cc5200;
         --epb-gray-bg: #f8fafc;
         --epb-card-bg: rgba(255, 255, 255, 0.95);
         --epb-border: #e2e8f0;
@@ -45,11 +42,7 @@
         margin: 0 auto;
     }
 
-    /* ========== TOOLTIP PERSONNALISÉ ========== */
-    [data-tooltip] {
-        position: relative;
-        cursor: help;
-    }
+    [data-tooltip] { position: relative; cursor: help; }
     [data-tooltip]:before {
         content: attr(data-tooltip);
         position: absolute;
@@ -67,27 +60,9 @@
         pointer-events: none;
         margin-bottom: 8px;
         box-shadow: var(--shadow-md);
-        font-weight: normal;
-        letter-spacing: normal;
     }
-    [data-tooltip]:after {
-        content: '';
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        border: 6px solid transparent;
-        border-top-color: var(--tooltip-bg);
-        display: none;
-        margin-bottom: -4px;
-        pointer-events: none;
-    }
-    [data-tooltip]:hover:before,
-    [data-tooltip]:hover:after {
-        display: block;
-    }
+    [data-tooltip]:hover:before { display: block; }
 
-    /* En-tête */
     .navire-header {
         background: linear-gradient(135deg, var(--epb-primary) 0%, var(--epb-primary-dark) 100%);
         border-radius: 1.5rem;
@@ -114,7 +89,6 @@
         font-size: 2rem;
         margin-bottom: 0.5rem;
         font-weight: 700;
-        letter-spacing: -0.5px;
     }
     .type-badge {
         display: inline-flex;
@@ -127,8 +101,26 @@
         font-size: 0.9rem;
         margin-top: 0.5rem;
     }
+    .btn-escales {
+        background: rgba(255,255,255,0.15);
+        backdrop-filter: blur(4px);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.3);
+        padding: 0.5rem 1.2rem;
+        border-radius: 2rem;
+        font-size: 0.85rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: var(--transition);
+    }
+    .btn-escales:hover {
+        background: rgba(255,255,255,0.3);
+        color: white;
+        transform: translateY(-2px);
+    }
 
-    /* Cartes glassmorphism */
     .info-card {
         background: var(--epb-card-bg);
         backdrop-filter: blur(12px);
@@ -152,11 +144,8 @@
         border-left: 4px solid var(--epb-secondary);
         padding-left: 0.75rem;
     }
-    body.dark-mode .info-card h3 {
-        color: var(--epb-secondary);
-    }
+    body.dark-mode .info-card h3 { color: var(--epb-secondary); }
 
-    /* Grille d'informations */
     .info-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -168,9 +157,7 @@
         padding: 0.75rem;
         transition: var(--transition);
     }
-    body.dark-mode .info-item {
-        background: rgba(255,255,255,0.05);
-    }
+    body.dark-mode .info-item { background: rgba(255,255,255,0.05); }
     .info-label {
         font-size: 0.7rem;
         text-transform: uppercase;
@@ -183,11 +170,8 @@
         font-weight: 700;
         color: var(--epb-primary);
     }
-    body.dark-mode .info-value {
-        color: var(--epb-secondary);
-    }
+    body.dark-mode .info-value { color: var(--epb-secondary); }
 
-    /* Badge agent */
     .agent-badge {
         background: linear-gradient(135deg, #fef3c7, #fde68a);
         border-left: 4px solid var(--epb-secondary);
@@ -199,13 +183,7 @@
         font-weight: 500;
         color: #92400e;
     }
-    .agent-badge i { font-size: 1.1rem; }
-    body.dark-mode .agent-badge {
-        background: linear-gradient(135deg, #78350f, #92400e);
-        color: #fef3c7;
-    }
 
-    /* Badges de priorité */
     .priority-badge {
         display: inline-flex;
         align-items: center;
@@ -217,7 +195,6 @@
         margin: 0.2rem;
         background: #f1f5f9;
         color: #1e293b;
-        transition: var(--transition);
     }
     .priority-badge.sortant { background: #ffc107; color: #000; }
     .priority-badge.gazier { background: #87ceeb; color: #000; }
@@ -228,7 +205,6 @@
     .priority-badge.huilier { background: #dda0dd; color: #000; }
     .priority-badge.perissable { background: #f1c40f; color: #000; }
 
-    /* Shift badges */
     .shift-badge {
         display: inline-flex;
         align-items: center;
@@ -244,7 +220,6 @@
     .shift-nuit { background: #e0e7ff; color: #1e3a8a; }
     .shift-double { background: #ddd6fe; color: #5b21b6; }
 
-    /* ========== STATISTIQUES CARD STYLES ========== */
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -260,16 +235,6 @@
         position: relative;
         overflow: hidden;
         cursor: help;
-    }
-    .stat-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
-        pointer-events: none;
     }
     .stat-card:hover {
         transform: translateY(-3px);
@@ -297,7 +262,6 @@
         color: #ffdd99;
     }
 
-    /* Équipements */
     .equipment-list {
         display: flex;
         flex-wrap: wrap;
@@ -311,15 +275,12 @@
         font-size: 0.8rem;
         color: #1e293b;
         transition: var(--transition);
-        cursor: help;
     }
     body.dark-mode .equipment-tag {
         background: #334155;
         color: #e2e8f0;
     }
-    .equipment-tag:hover { transform: scale(1.02); }
 
-    /* Postes compatibles */
     .compatible-poste {
         display: inline-block;
         background: #d4edda;
@@ -328,23 +289,18 @@
         border-radius: 2rem;
         margin: 0.2rem;
         font-size: 0.8rem;
-        transition: var(--transition);
-        cursor: help;
     }
     body.dark-mode .compatible-poste {
         background: #064e3b;
         color: #a7f3d0;
     }
-    .compatible-poste:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
 
-    /* Notes d'attente */
     .note-item {
         background: #fffbeb;
         border-left: 4px solid var(--epb-warning);
         padding: 0.75rem;
         margin-bottom: 0.75rem;
         border-radius: 0.5rem;
-        transition: var(--transition);
     }
     body.dark-mode .note-item { background: #422006; }
     .note-header {
@@ -382,8 +338,6 @@
         transition: var(--transition);
     }
     .btn-note:hover { background: #d97706; transform: scale(1.02); }
-    
-    /* Bouton de suppression de note */
     .btn-delete-note {
         background: #ef4444;
         color: white;
@@ -392,21 +346,26 @@
         border-radius: 0.5rem;
         font-size: 0.65rem;
         cursor: pointer;
-        transition: var(--transition);
     }
-    .btn-delete-note:hover {
-        background: #dc2626;
-        transform: scale(1.02);
+    .btn-delete-note:hover { background: #dc2626; }
+
+    .note-item.archived {
+        opacity: 0.6;
+        border-left-color: #94a3b8;
+    }
+    .badge-archived {
+        background: #94a3b8;
+        color: white;
+        padding: 0.2rem 0.6rem;
+        border-radius: 0.5rem;
+        font-size: 0.65rem;
     }
 
-    /* Modal */
     .modal {
         display: none;
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
         background: rgba(0,0,0,0.5);
         z-index: 9999;
         justify-content: center;
@@ -418,7 +377,6 @@
         padding: 1.5rem;
         width: 450px;
         max-width: 90%;
-        box-shadow: var(--shadow-lg);
     }
     .modal-content h4 { margin-bottom: 1rem; color: var(--epb-primary); }
     .modal-content select, .modal-content input, .modal-content textarea {
@@ -427,15 +385,12 @@
         margin-bottom: 1rem;
         border: 1px solid var(--epb-border);
         border-radius: 0.5rem;
-        background: var(--epb-card-bg);
-        color: var(--epb-primary);
     }
     .modal-buttons { display: flex; gap: 0.5rem; justify-content: flex-end; }
     .modal-buttons button { padding: 0.5rem 1rem; border-radius: 0.5rem; border: none; cursor: pointer; }
     .btn-save { background: var(--epb-success); color: white; }
     .btn-cancel { background: var(--epb-danger); color: white; }
 
-    /* Tableau historique */
     .table-responsive { overflow-x: auto; }
     .table {
         width: 100%;
@@ -456,7 +411,6 @@
     .table tr:hover td { background: rgba(0,51,102,0.05); }
     body.dark-mode .table tr:hover td { background: rgba(255,255,255,0.05); }
 
-    /* Bouton retour */
     .btn-back {
         display: inline-flex;
         align-items: center;
@@ -472,19 +426,15 @@
     }
     .btn-back:hover {
         transform: translateX(-4px);
-        box-shadow: var(--shadow-md);
-        background: linear-gradient(135deg, #5a6268, #343a40);
         color: white;
     }
 
-    /* Animation */
     @keyframes fadeSlideUp {
         from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
     }
     .animate-card { animation: fadeSlideUp 0.5s ease-out forwards; }
 
-    /* Badge prêt */
     .ready-badge {
         display: inline-block;
         padding: 0.2rem 0.6rem;
@@ -496,14 +446,6 @@
     .ready-no { background: #ef4444; color: white; }
     .ready-quai { background: #3b82f6; color: white; }
 
-    /* Progress */
-    .progress {
-        background: var(--gray-200);
-        border-radius: 0.5rem;
-        overflow: hidden;
-    }
-
-    /* Alerte personnalisée */
     .alert-warning-custom {
         background: #fef3c7;
         border-left: 4px solid var(--epb-warning);
@@ -520,29 +462,18 @@
         color: #ffecb3;
     }
 
-    /* Tooltip pour le Gantt */
     .apexcharts-tooltip {
         background: var(--tooltip-bg) !important;
-        border: 1px solid var(--epb-border) !important;
-        border-radius: 0.5rem !important;
-        box-shadow: var(--shadow-md) !important;
-        font-size: 0.75rem !important;
         color: var(--tooltip-text) !important;
     }
     .apexcharts-tooltip-title {
         background: var(--epb-primary) !important;
         color: white !important;
-        border-radius: 0.5rem 0.5rem 0 0 !important;
-        padding: 0.5rem !important;
     }
-    body.dark-mode .apexcharts-text { fill: #cbd5e1 !important; }
-    body.dark-mode .apexcharts-legend-text { color: #cbd5e1 !important; }
-    body.dark-mode .apexcharts-grid line { stroke: #334155 !important; }
 </style>
 
 <div class="navire-detail">
     <div class="container-custom">
-        <!-- Alerte si estimation dépassée -->
         {% if estimation_fin and estimation_fin < now %}
         <div class="alert-warning-custom animate-card">
             <i class="fas fa-exclamation-triangle fa-2x"></i>
@@ -555,12 +486,23 @@
 
         <!-- En-tête -->
         <div class="navire-header animate-card">
-            <h1><i class="fas fa-ship me-2"></i> {{ navire.nom }}</h1>
-            <div class="type-badge">
-                <i class="fas fa-tag"></i> {{ navire.get_type_display }}
-                {% if navire.priorite_calculee > 0 %}
-                    • <i class="fas fa-chart-line"></i> Score priorité: {{ navire.priorite_calculee|floatformat:0 }}
-                {% endif %}
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                <div>
+                    <h1><i class="fas fa-ship me-2"></i> {{ navire.nom }}</h1>
+                    <div class="type-badge">
+                        <i class="fas fa-tag"></i> {{ navire.get_type_display }}
+                        {% if navire.priorite_calculee > 0 %}
+                            • <i class="fas fa-chart-line"></i> Score priorité: {{ navire.priorite_calculee|floatformat:0 }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <a href="{% url 'historique_escales_navire' navire.id %}" class="btn-escales">
+                    <i class="fas fa-history"></i> Historique des escales
+                    {% if navire.nb_escales > 0 %}
+                        <span class="badge bg-light text-dark ms-1">{{ navire.nb_escales }}</span>
+                    {% endif %}
+                </a>
             </div>
         </div>
 
@@ -582,9 +524,7 @@
                                     <i class="fas fa-building"></i> {{ navire.agent }}
                                 </span>
                                 {% else %}
-                                <span class="text-muted">
-                                    <i class="fas fa-user-slash"></i> Non renseigné
-                                </span>
+                                <span class="text-muted">Non renseigné</span>
                                 {% endif %}
                             </div>
                         </div>
@@ -637,7 +577,6 @@
                             <div class="info-label">Estimation de fin (IA)</div>
                             <div class="info-value">
                                 <strong class="text-success">{{ estimation_fin|date:"d/m/Y H:i" }}</strong>
-                                <small class="text-muted d-block">(incluant attentes et arrêts pluie)</small>
                             </div>
                         </div>
                         <div class="info-item" data-tooltip="Taux de déchargement moyen estimé en tonnes/heure">
@@ -645,21 +584,16 @@
                             <div class="info-value">{{ taux_estime|floatformat:1 }} {{ taux_unite }}</div>
                         </div>
                         {% endif %}
-                        <div class="info-item" data-tooltip="État actuel du navire (attente, rade, quai, terminé)">
+                        <div class="info-item" data-tooltip="État actuel du navire">
                             <div class="info-label">État actuel</div>
                             <div class="info-value">
-                                {% if navire.etat == 'attente' %}
-                                    ⏳ En attente
-                                {% elif navire.etat == 'rade' %}
-                                    ⚓ En rade
-                                {% elif navire.etat == 'quai' %}
-                                    🚢 À quai
-                                {% else %}
-                                    ✅ Terminé
-                                {% endif %}
+                                {% if navire.etat == 'attente' %}⏳ En attente
+                                {% elif navire.etat == 'rade' %}⚓ En rade
+                                {% elif navire.etat == 'quai' %}🚢 À quai
+                                {% else %}✅ Terminé{% endif %}
                             </div>
                         </div>
-                        <div class="info-item" data-tooltip="Le navire est-il prêt pour le quai (selon consignataire)">
+                        <div class="info-item" data-tooltip="Le navire est-il prêt pour le quai">
                             <div class="info-label">Prêt pour quai</div>
                             <div class="info-value">
                                 {% if navire.etat == 'quai' %}
@@ -682,18 +616,18 @@
                 <div class="info-card animate-card" style="animation-delay: 0.1s;">
                     <h3><i class="fas fa-trophy me-2"></i> Priorités EPB</h3>
                     <div>
-                        {% if navire.sortant %}<span class="priority-badge sortant" data-tooltip="Navire sortant - Priorité maximale"><i class="fas fa-arrow-up"></i> Sortant</span>{% endif %}
-                        {% if navire.passage %}<span class="priority-badge" data-tooltip="Navire de passage - Priorité élevée"><i class="fas fa-exchange-alt"></i> Passage</span>{% endif %}
-                        {% if navire.gazier %}<span class="priority-badge gazier" data-tooltip="Gazier - Priorité hivernale"><i class="fas fa-snowflake"></i> Gazier</span>{% endif %}
-                        {% if navire.essence %}<span class="priority-badge essence" data-tooltip="Caboteur essence - Quai 19"><i class="fas fa-gas-pump"></i> Caboteur essence</span>{% endif %}
-                        {% if navire.animalier %}<span class="priority-badge animalier" data-tooltip="Navire animalier - Quais 12/13"><i class="fas fa-paw"></i> Animalier</span>{% endif %}
-                        {% if navire.perissable %}<span class="priority-badge perissable" data-tooltip="Denrées périssables - Traitement prioritaire"><i class="fas fa-apple-alt"></i> Denrées périssables</span>{% endif %}
-                        {% if navire.strategique %}<span class="priority-badge strategique" data-tooltip="Produit stratégique - Priorité nationale"><i class="fas fa-star"></i> Produit stratégique</span>{% endif %}
-                        {% if navire.ligne_reguliere %}<span class="priority-badge ligne_reguliere" data-tooltip="Ligne régulière (ferry) - Créneaux dédiés"><i class="fas fa-ship"></i> Ligne régulière</span>{% endif %}
-                        {% if navire.convention %}<span class="priority-badge" data-tooltip="Convention spéciale - Selon contrat"><i class="fas fa-file-signature"></i> Convention spéciale</span>{% endif %}
-                        {% if navire.huilier %}<span class="priority-badge huilier" data-tooltip="Huilier - Quai 25/26"><i class="fas fa-olive"></i> Huilier</span>{% endif %}
+                        {% if navire.sortant %}<span class="priority-badge sortant"><i class="fas fa-arrow-up"></i> Sortant</span>{% endif %}
+                        {% if navire.passage %}<span class="priority-badge"><i class="fas fa-exchange-alt"></i> Passage</span>{% endif %}
+                        {% if navire.gazier %}<span class="priority-badge gazier"><i class="fas fa-snowflake"></i> Gazier</span>{% endif %}
+                        {% if navire.essence %}<span class="priority-badge essence"><i class="fas fa-gas-pump"></i> Caboteur essence</span>{% endif %}
+                        {% if navire.animalier %}<span class="priority-badge animalier"><i class="fas fa-paw"></i> Animalier</span>{% endif %}
+                        {% if navire.perissable %}<span class="priority-badge perissable"><i class="fas fa-apple-alt"></i> Denrées périssables</span>{% endif %}
+                        {% if navire.strategique %}<span class="priority-badge strategique"><i class="fas fa-star"></i> Produit stratégique</span>{% endif %}
+                        {% if navire.ligne_reguliere %}<span class="priority-badge ligne_reguliere"><i class="fas fa-ship"></i> Ligne régulière</span>{% endif %}
+                        {% if navire.convention %}<span class="priority-badge"><i class="fas fa-file-signature"></i> Convention spéciale</span>{% endif %}
+                        {% if navire.huilier %}<span class="priority-badge huilier"><i class="fas fa-olive"></i> Huilier</span>{% endif %}
                         {% if not navire.sortant and not navire.gazier and not navire.essence and not navire.animalier and not navire.strategique and not navire.ligne_reguliere %}
-                            <span class="priority-badge" data-tooltip="Navire standard sans priorité particulière"><i class="fas fa-box"></i> Standard</span>
+                            <span class="priority-badge"><i class="fas fa-box"></i> Standard</span>
                         {% endif %}
                     </div>
                 </div>
@@ -710,11 +644,11 @@
                             <div class="info-label">Volume</div>
                             <div class="info-value">{{ navire.marchandise_volume|floatformat:0 }} tonnes</div>
                         </div>
-                        <div class="info-item" data-tooltip="Marchandise dangereuse (nécessite précautions)">
+                        <div class="info-item" data-tooltip="Marchandise dangereuse">
                             <div class="info-label">Dangereux</div>
                             <div class="info-value">{% if navire.marchandise_dangereuse %}⚠️ Oui{% else %}✅ Non{% endif %}</div>
                         </div>
-                        <div class="info-item" data-tooltip="Marchandise nécessitant une chaîne du froid">
+                        <div class="info-item" data-tooltip="Marchandise réfrigérée">
                             <div class="info-label">Réfrigéré</div>
                             <div class="info-value">{% if navire.marchandise_frigo %}❄️ Oui{% else %}✅ Non{% endif %}</div>
                         </div>
@@ -723,7 +657,7 @@
             </div>
             
             <div class="col-md-6">
-                <!-- Statistiques du navire avec tooltips -->
+                <!-- Statistiques du navire -->
                 <div class="info-card animate-card" style="animation-delay: 0.05s;">
                     <h3><i class="fas fa-chart-line me-2"></i> Statistiques du navire</h3>
                     <div class="stats-grid">
@@ -731,7 +665,7 @@
                             <div class="stat-value">{{ stats.total_affectations }}</div>
                             <div class="stat-label">Affectations</div>
                         </div>
-                        <div class="stat-card" data-tooltip="Temps d'attente moyen avant accostage (inclut notes d'attente)">
+                        <div class="stat-card" data-tooltip="Temps d'attente moyen avant accostage">
                             <div class="stat-value">
                                 {% if stats.attente_notes > 0 %}
                                     {{ stats.attente_notes|floatformat:1 }}h
@@ -742,82 +676,97 @@
                             </div>
                             <div class="stat-label">Attente moyenne</div>
                         </div>
-                        <div class="stat-card" data-tooltip="Temps d'attente total cumulé (toutes affectations)">
+                        <div class="stat-card" data-tooltip="Temps d'attente total cumulé">
                             <div class="stat-value">{{ stats.temps_total_attente|floatformat:1 }}h</div>
                             <div class="stat-label">Attente totale</div>
                         </div>
-                        <div class="stat-card" data-tooltip="Score moyen de l'optimisation (plus bas = meilleur)">
+                        <div class="stat-card" data-tooltip="Score moyen de l'optimisation">
                             <div class="stat-value">{{ stats.score_moyen|floatformat:1 }}</div>
                             <div class="stat-label">Score moyen</div>
                         </div>
-                        <div class="stat-card" data-tooltip="Temps de traitement moyen à quai (opérations)">
+                        <div class="stat-card" data-tooltip="Temps de traitement moyen à quai">
                             <div class="stat-value">{{ stats.temps_moyen_traitement|floatformat:1 }}h</div>
                             <div class="stat-label">Traitement moyen</div>
                         </div>
-                        <div class="stat-card" data-tooltip="Temps de traitement total cumulé (toutes affectations)">
+                        <div class="stat-card" data-tooltip="Temps de traitement total cumulé">
                             <div class="stat-value">{{ stats.temps_total_traitement|floatformat:1 }}h</div>
                             <div class="stat-label">Traitement total</div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Équipements nécessaires -->
+                <!-- Équipements -->
                 <div class="info-card animate-card" style="animation-delay: 0.1s;">
                     <h3><i class="fas fa-tools me-2"></i> Équipements nécessaires</h3>
                     <div class="equipment-list">
                         {% for equip in equipements %}
-                        <span class="equipment-tag" data-tooltip="Équipement requis pour le déchargement"><i class="fas fa-wrench"></i> {{ equip }}</span>
+                        <span class="equipment-tag"><i class="fas fa-wrench"></i> {{ equip }}</span>
                         {% empty %}
                         <span class="text-muted">Aucun équipement spécifique requis</span>
                         {% endfor %}
                     </div>
                     {% if navire.a_grue_bord %}
-                    <div class="mt-3 p-2" style="background: #d4edda; border-radius: 0.75rem; color: #155724;" data-tooltip="Navire équipé de ses propres grues de bord">
+                    <div class="mt-3 p-2" style="background: #d4edda; border-radius: 0.75rem; color: #155724;">
                         <i class="fas fa-crane"></i> Navire équipé de grues de bord (capacité: {{ navire.grue_capacite|floatformat:0 }} t)
                     </div>
                     {% endif %}
                 </div>
                 
-                <!-- POSTES COMPATIBLES -->
+                <!-- Postes compatibles -->
                 <div class="info-card animate-card" style="animation-delay: 0.15s;">
                     <h3><i class="fas fa-anchor me-2"></i> Postes compatibles</h3>
                     <div>
                         {% for poste in postes_compatibles %}
-                        <span class="compatible-poste" data-tooltip="Poste compatible - Longueur: {{ poste.longueur|floatformat:0 }}m, Profondeur: {{ poste.profondeur|floatformat:1 }}m, Spécialité: {{ poste.specialite|default:'Général' }}">
+                        <span class="compatible-poste">
                             <i class="fas fa-building"></i> 
                             <strong>{{ poste.quai.nom }}</strong> - Poste {{ poste.numero }}
-                            <small>({{ poste.longueur|floatformat:0 }}m, {{ poste.profondeur|floatformat:1 }}m, {{ poste.specialite|default:"Général" }})</small>
+                            <small>({{ poste.longueur|floatformat:0 }}m, {{ poste.specialite|default:"Général" }})</small>
                         </span>
                         {% empty %}
-                        <span class="text-danger" data-tooltip="Aucun poste ne satisfait les contraintes du navire"><i class="fas fa-exclamation-triangle"></i> Aucun poste compatible avec ce navire!</span>
+                        <span class="text-danger"><i class="fas fa-exclamation-triangle"></i> Aucun poste compatible</span>
                         {% endfor %}
                     </div>
                 </div>
 
-                <!-- Notes d'attente -->
+                <!-- Notes d'attente (escale active) -->
                 <div class="info-card animate-card" style="animation-delay: 0.25s;">
-                    <h3><i class="fas fa-clock me-2"></i> Notes d'attente</h3>
-                    <button class="btn-note mb-3" id="openNoteModal" data-tooltip="Ajouter une note d'attente pour ce navire">
-                        <i class="fas fa-plus"></i> Ajouter une note d'attente
-                    </button>
+                    <h3>
+                        <i class="fas fa-clock me-2"></i> Notes d'attente
+                        {% if navire.escale_active %}
+                            <small class="text-muted" style="font-size: 0.75rem; font-weight: normal;">
+                                (escale #{{ navire.escale_active.id }})
+                            </small>
+                        {% endif %}
+                    </h3>
+                    <button class="btn-note mb-3" id="openNoteModal">
+                        <i class="fas fa-plus"></i> Ajouter une note d'attente                    </button>
                     <div id="notesContainer">
                         {% for note in notes_attente_list %}
-                        <div class="note-item" id="note-{{ note.id }}">
+                        <div class="note-item {% if note.archive %}archived{% endif %}" id="note-{{ note.id }}">
                             <div class="note-header">
                                 <div class="note-header-left">
-                                    <span data-tooltip="Date de création de la note"><i class="fas fa-calendar-alt"></i> {{ note.date_creation|date:"d/m/Y H:i" }}</span>
-                                    <span class="shift-badge shift-{{ note.shift }}" data-tooltip="Shift concerné par l'attente">{{ note.get_shift_display }}</span>
+                                    <span><i class="fas fa-calendar-alt"></i> {{ note.date_creation|date:"d/m/Y H:i" }}</span>
+                                    {% if note.shift %}
+                                        <span class="shift-badge shift-{{ note.shift }}">{{ note.get_shift_display }}</span>
+                                    {% endif %}
+                                    {% if note.escale %}
+                                        <span class="badge bg-secondary">Escale #{{ note.escale.id }}</span>
+                                    {% endif %}
                                 </div>
                                 <div class="note-header-right">
-                                    <span class="badge {% if note.prise_en_compte %}bg-success{% else %}bg-warning{% endif %}" 
-                                          data-tooltip="{% if note.prise_en_compte %}Note déjà prise en compte dans la planification{% else %}Note en attente - Sera prise en compte à la prochaine optimisation{% endif %}">
-                                        {% if note.prise_en_compte %}✓ Prise en compte{% else %}⏳ En attente{% endif %}
-                                    </span>
-                                    <button class="btn-delete-note" data-note-id="{{ note.id }}" data-navire-id="{{ navire.id }}" 
-                                            onclick="deleteNote(event, {{ note.id }}, {{ navire.id }})" 
-                                            data-tooltip="Supprimer cette note d'attente">
+                                    {% if note.archive %}
+                                        <span class="badge-archived">📦 Archivée</span>
+                                    {% elif note.prise_en_compte %}
+                                        <span class="badge bg-success">✓ Prise en compte</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">⏳ En attente</span>
+                                    {% endif %}
+                                    
+                                    {% if not note.archive %}
+                                    <button class="btn-delete-note" onclick="deleteNote(event, {{ note.id }}, {{ navire.id }})">
                                         <i class="fas fa-trash-alt"></i> Supprimer
                                     </button>
+                                    {% endif %}
                                 </div>
                             </div>
                             <div class="note-content">
@@ -828,7 +777,7 @@
                             </div>
                         </div>
                         {% empty %}
-                        <p class="text-muted" data-tooltip="Aucune note d'attente pour ce navire"><i class="fas fa-info-circle"></i> Aucune note d'attente pour ce navire.</p>
+                        <p class="text-muted"><i class="fas fa-info-circle"></i> Aucune note d'attente pour ce navire.</p>
                         {% endfor %}
                     </div>
                 </div>
@@ -839,84 +788,115 @@
         <div class="info-card animate-card" style="animation-delay: 0.35s;">
             <h3><i class="fas fa-chart-gantt me-2"></i> Planning des navires par shift (diagramme Gantt)</h3>
             <p class="text-muted small mb-3">
-                <i class="fas fa-info-circle"></i> Survolez une barre pour voir les détails (shift, durée, tonnage). Cliquez pour plus d'informations.
+                <i class="fas fa-info-circle"></i> Survolez une barre pour voir les détails.
             </p>
             <div id="gantt-chart" style="height: 400px; margin-bottom: 1rem;"></div>
             <div class="d-flex flex-wrap gap-3 justify-content-center mt-3">
-                <div><i class="fas fa-square" style="color: #3b82f6;"></i> <span data-tooltip="Shift de travail 07h00 - 13h00">Shift 07h-13h</span></div>
-                <div><i class="fas fa-square" style="color: #10b981;"></i> <span data-tooltip="Shift de travail 13h00 - 19h00">Shift 13h-19h</span></div>
-                <div><i class="fas fa-square" style="color: #f59e0b;"></i> <span data-tooltip="Shift de travail 19h00 - 01h00 (jour suivant)">Shift 19h-01h</span></div>
-                <div><i class="fas fa-square" style="color: #64748b;"></i> <span data-tooltip="Shift de travail 01h00 - 07h00">Shift 01h-07h</span></div>
+                <div><i class="fas fa-square" style="color: #3b82f6;"></i> <span>Shift 07h-13h</span></div>
+                <div><i class="fas fa-square" style="color: #10b981;"></i> <span>Shift 13h-19h</span></div>
+                <div><i class="fas fa-square" style="color: #f59e0b;"></i> <span>Shift 19h-01h</span></div>
+                <div><i class="fas fa-square" style="color: #64748b;"></i> <span>Shift 01h-07h</span></div>
             </div>
         </div>
 
         <!-- ========== TABLEAU DU TONNAGE PAR SHIFT ========== -->
         <div class="info-card animate-card" style="animation-delay: 0.4s;">
-            <h3><i class="fas fa-chart-pie me-2"></i> Tonnage traité par shift</h3>
+            <h3>
+                <i class="fas fa-chart-pie me-2"></i> 
+                {{ libelle_titre }}
+            </h3>
+            
+            {% if est_en_cours %}
+            <div class="alert alert-warning small mb-3">
+                <i class="fas fa-hourglass-half"></i>
+                <strong>Navire en cours de traitement.</strong>
+                Les valeurs affichées sont des <strong>prévisions</strong> basées sur la durée effective prévue.
+                Le débit réel sera calculé à la clôture de l'escale.
+            </div>
+            {% else %}
+            <div class="alert alert-success small mb-3">
+                <i class="fas fa-check-circle"></i>
+                <strong>Navire terminé.</strong>
+                Les valeurs affichées sont les <strong>valeurs réelles</strong> observées.
+            </div>
+            {% endif %}
+            
             {% if tonnage_par_shift %}
+            <div class="alert alert-info small mb-3">
+                <i class="fas fa-info-circle"></i>
+                <strong>{{ libelle_debit }}</strong> calculé sur la <strong>durée effective</strong> (hors attentes).
+                {% if navire.attente_totale_actuelle > 0 %}
+                    Attente signalée : <strong>{{ navire.attente_totale_actuelle|floatformat:1 }}h</strong>
+                {% endif %}
+            </div>
+            
             <div class="table-responsive">
-                <table class="table table-sm">
+                <table class="table table-sm table-hover">
                     <thead>
                         <tr>
-                            <th data-tooltip="Période de travail">Shift</th>
-                            <th data-tooltip="Tonnage déchargé pendant ce shift">Tonnage (tonnes)</th>
-                            <th data-tooltip="Pourcentage du tonnage total traité pendant ce shift">Proportion</th>
-                            <th data-tooltip="Débit moyen en tonnes/heure pendant ce shift">Débit moyen (t/h)</th>
-                            <th data-tooltip="Statut par rapport à la normale">Statut</th>
-                            <th data-tooltip="Causes des écarts de performance">Causes</th>
+                            <th>Shift</th>
+                            <th class="text-end">Tonnage</th>
+                            <th class="text-end">{{ libelle_duree }}</th>
+                            <th class="text-end">{{ libelle_debit }}</th>
+                            <th class="text-center">Statut</th>
+                            <th>Observations</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for shift in tonnage_par_shift %}
                         <tr>
                             <td class="fw-bold">{{ shift.nom }}</td>
-                            <td class="{% if shift.tonnage > shift.seuil %}text-danger fw-bold{% elif shift.tonnage < shift.seuil|add:'-50' %}text-warning{% else %}text-success{% endif %}"
-                                data-tooltip="Tonnage: {{ shift.tonnage|floatformat:0 }} tonnes">
-                                <i class="fas {% if shift.tonnage > shift.seuil %}fa-arrow-up{% elif shift.tonnage < shift.seuil|add:'-50' %}fa-arrow-down{% else %}fa-check-circle{% endif %} me-1"></i>
-                                {{ shift.tonnage|floatformat:0 }}
-                             </td>
-                            <td data-tooltip="{{ shift.pourcentage|floatformat:1 }}% du volume total">
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar {% if shift.tonnage > shift.seuil %}bg-danger{% elif shift.tonnage < shift.seuil|add:'-50' %}bg-warning{% else %}bg-success{% endif %}" 
-                                         style="width: {{ shift.pourcentage|default:0 }}%"></div>
-                                </div>
-                                <small class="text-muted">{{ shift.pourcentage|floatformat:1 }}% du total</small>
-                             </td>
-                            <td data-tooltip="Débit moyen: {% if taux_estime %}{{ taux_estime|floatformat:0 }}{% else %}{{ shift.debit_moyen|floatformat:0 }}{% endif %} t/h">
-                                {% if taux_estime %}
-                                    {{ taux_estime|floatformat:0 }}
-                                {% elif navire.type == 'gazier' %}
-                                    200
-                                {% elif navire.type == 'cerealier' and navire.marchandise_type == 'MAIS' %}
-                                    500
-                                {% elif navire.type == 'cerealier' %}
-                                    550
-                                {% elif navire.type == 'conteneur' %}
-                                    300
-                                {% else %}
-                                    {{ shift.debit_moyen|floatformat:0 }}
-                                {% endif %} t/h
-                              </td>
-                            <td data-tooltip="{% if shift.tonnage > shift.seuil %}Tonnage élevé par rapport à la normale{% elif shift.tonnage < shift.seuil|add:'-50' %}Tonnage faible par rapport à la normale{% else %}Tonnage normal{% endif %}">
-                                {% if shift.tonnage > shift.seuil %}
-                                    <span class="badge bg-danger"><i class="fas fa-exclamation-triangle"></i> Élevé</span>
-                                {% elif shift.tonnage < shift.seuil|add:'-50' %}
-                                    <span class="badge bg-warning"><i class="fas fa-arrow-down"></i> Faible</span>
-                                {% else %}
-                                    <span class="badge bg-success"><i class="fas fa-check"></i> Normal</span>
+                            <td class="text-end">
+                                <strong>{{ shift.tonnage|floatformat:0 }}</strong> t
+                                <div class="small text-muted">{{ shift.pourcentage|floatformat:1 }}% du total</div>
+                            </td>
+                            <td class="text-end">
+                                {{ shift.duree_effective|floatformat:1 }}h
+                                {% if shift.duree_totale > shift.duree_effective %}
+                                    <div class="small text-muted">
+                                        ({{ shift.duree_totale|floatformat:1 }}h brut)
+                                    </div>
                                 {% endif %}
-                              </td>
+                            </td>
+                            <td class="text-end">
+                                {% if shift.duree_effective > 0 %}
+                                    <strong style="font-size: 1.05rem;">{{ shift.debit_moyen|floatformat:0 }}</strong> t/h
+                                    <div class="small text-muted">seuil {{ shift.seuil }} t/h</div>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                    <div class="small text-muted">attente</div>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if shift.statut == 'Eleve' or shift.statut == 'Élevé' %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-arrow-up"></i> Élevé
+                                    </span>
+                                {% elif shift.statut == 'Faible' %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-arrow-down"></i> Faible
+                                    </span>
+                                {% elif shift.statut == 'Attente' %}
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-hourglass-half"></i> Attente
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check"></i> Normal
+                                    </span>
+                                {% endif %}
+                            </td>
                             <td class="small">
                                 {% if shift.causes %}
                                     <ul class="mb-0 ps-3">
                                         {% for cause in shift.causes %}
-                                        <li data-tooltip="{{ cause }}">{{ cause }}</li>
+                                        <li>{{ cause }}</li>
                                         {% endfor %}
                                     </ul>
                                 {% else %}
                                     <span class="text-muted">—</span>
                                 {% endif %}
-                              </td>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -928,76 +908,8 @@
             {% endif %}
         </div>
 
-        <!-- Historique des affectations -->
-        <div class="info-card animate-card" style="animation-delay: 0.45s;">
-            <h3><i class="fas fa-history me-2"></i> Historique des affectations</h3>
-            {% if affectations %}
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th data-tooltip="Date de l'affectation">Date</th>
-                            <th data-tooltip="Quai assigné">Quai</th>
-                            <th data-tooltip="Début de l'accostage">Début</th>
-                            <th data-tooltip="Fin de l'accostage">Fin</th>
-                            <th data-tooltip="Temps d'attente avant accostage">Attente</th>
-                            <th data-tooltip="Temps de traitement à quai">Traitement</th>
-                            <th data-tooltip="Score de l'affectation (plus bas = meilleur)">Score</th>
-                            <th data-tooltip="Shift de travail">Shift</th>
-                         </tr>
-                    </thead>
-                    <tbody>
-                        {% for a in affectations %}
-                        <tr>
-                            <td>
-                                {% if a.debut_affichage %}
-                                    {{ a.debut_affichage|date:"d/m/Y" }}
-                                {% elif a.date_affichage %}
-                                    {{ a.date_affichage|date:"d/m/Y" }}
-                                {% else %}
-                                    {{ a.date_creation|date:"d/m/Y" }}
-                                {% endif %}
-                              </td>
-                            <td>{{ a.quai.nom }}</td>
-                            <td>
-                                {% if a.debut_affichage %}
-                                    {{ a.debut_affichage|date:"d/m H:i" }}
-                                {% elif a.date_debut_reel %}
-                                    {{ a.date_debut_reel|date:"d/m H:i" }}
-                                {% else %}
-                                    {{ a.heure_debut|floatformat:1 }}h
-                                {% endif %}
-                              </td>
-                            <td>
-                                {% if a.fin_affichage %}
-                                    {{ a.fin_affichage|date:"d/m H:i" }}
-                                {% elif a.date_fin_reel %}
-                                    {{ a.date_fin_reel|date:"d/m H:i" }}
-                                {% else %}
-                                    {{ a.heure_fin|floatformat:1 }}h
-                                {% endif %}
-                              </td>
-                            <td>{{ a.attente|floatformat:1 }}h</td>
-                            <td>{{ a.traitement|floatformat:1 }}h</td>
-                            <td>{{ a.score_contribution|floatformat:1 }}</td>
-                            <td>
-                                {% if a.shift %}
-                                    <span class="shift-badge shift-{{ a.shift }}" data-tooltip="{{ a.get_shift_display }}">{{ a.get_shift_display }}</span>
-                                {% else %}
-                                    -
-                                {% endif %}
-                              </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-                <p class="text-muted"><i class="fas fa-info-circle me-1"></i> Aucune affectation enregistrée pour ce navire.</p>
-            {% endif %}
-        </div>
-
-        <a href="{% url 'liste_navires' %}" class="btn-back" data-tooltip="Retour à la liste des navires">
+        <!-- Bouton retour -->
+        <a href="{% url 'liste_navires' %}" class="btn-back">
             <i class="fas fa-arrow-left"></i> Retour à la liste des navires
         </a>
     </div>
@@ -1025,7 +937,7 @@
             </div>
             <div class="mb-3">
                 <label>Commentaire (optionnel)</label>
-                <textarea name="commentaire" class="form-control" rows="2" placeholder="Ex: documents manquants, panne de benne, grève..."></textarea>
+                <textarea name="commentaire" class="form-control" rows="2" placeholder="Ex: retard camions, panne..."></textarea>
             </div>
             <div class="modal-buttons">
                 <button type="button" class="btn-cancel" id="closeModal">Annuler</button>
@@ -1039,7 +951,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Modale des notes d'attente
         const modal = document.getElementById('noteModal');
         const openBtn = document.getElementById('openNoteModal');
         const closeBtn = document.getElementById('closeModal');
@@ -1079,53 +990,7 @@
                         type: 'rangeBar',
                         height: 400,
                         toolbar: { show: true },
-                        animations: { enabled: true },
-                        events: {
-                            dataPointSelection: function(event, chartContext, config) {
-                                const point = seriesData[config.seriesIndex]?.data[config.dataPointIndex];
-                                if (point) {
-                                    const start = new Date(point.y[0]);
-                                    const end = new Date(point.y[1]);
-                                    const duration = point.duration || ((end - start) / (1000 * 3600)).toFixed(1);
-                                    const tonnage = point.tonnage || 0;
-                                    const shiftName = point.shiftName || 'Shift';
-                                    const debitMoyen = Math.round(tonnage / duration);
-                                    
-                                    let debitStatus = '';
-                                    let debitColor = '';
-                                    if (debitMoyen > 300) {
-                                        debitStatus = '🔴 Très élevé';
-                                        debitColor = '#ef4444';
-                                    } else if (debitMoyen > 200) {
-                                        debitStatus = '🟡 Élevé';
-                                        debitColor = '#f59e0b';
-                                    } else if (debitMoyen > 100) {
-                                        debitStatus = '🟢 Normal';
-                                        debitColor = '#10b981';
-                                    } else {
-                                        debitStatus = '⚪ Faible';
-                                        debitColor = '#64748b';
-                                    }
-                                    
-                                    Swal.fire({
-                                        title: shiftName,
-                                        html: `
-                                            <div class="text-start">
-                                                <p><strong>⏱️ Durée :</strong> ${duration} heures</p>
-                                                <p><strong>⚖️ Tonnage :</strong> ${Math.round(tonnage)} tonnes</p>
-                                                <p><strong>💨 Débit moyen :</strong> <span style="color: ${debitColor}">${debitMoyen}</span> t/h (${debitStatus})</p>
-                                                <p><strong>📅 Début :</strong> ${start.toLocaleString()}</p>
-                                                <p><strong>🏁 Fin :</strong> ${end.toLocaleString()}</p>
-                                            </div>
-                                        `,
-                                        icon: 'info',
-                                        confirmButtonText: 'Fermer',
-                                        background: 'var(--epb-card-bg)',
-                                        color: 'var(--epb-primary)'
-                                    });
-                                }
-                            }
-                        }
+                        animations: { enabled: true }
                     },
                     plotOptions: {
                         bar: {
@@ -1137,67 +1002,14 @@
                     dataLabels: { enabled: false },
                     xaxis: {
                         type: 'datetime',
-                        title: { text: 'Date et heure', style: { fontSize: '12px', fontWeight: 'bold' } },
-                        labels: { datetimeUTC: false, format: 'dd/MM HH:mm', style: { fontSize: '10px' } }
+                        title: { text: 'Date et heure' },
+                        labels: { datetimeUTC: false, format: 'dd/MM HH:mm' }
                     },
                     yaxis: {
-                        title: { text: 'Navires', style: { fontSize: '12px', fontWeight: 'bold' } },
-                        labels: { style: { fontSize: '11px' } }
-                    },
-                    tooltip: {
-                        enabled: true,
-                        x: { format: 'dd/MM/yyyy HH:mm' },
-                        y: {
-                            formatter: function(val, { dataPointIndex, seriesIndex }) {
-                                const point = seriesData[seriesIndex]?.data[dataPointIndex];
-                                if (!point || !point.y) return '';
-                                const start = new Date(point.y[0]);
-                                const end = new Date(point.y[1]);
-                                if (isNaN(start) || isNaN(end)) return 'Date invalide';
-                                const shiftName = point.shiftName || 'Shift';
-                                const duration = point.duration || ((end - start) / (1000 * 3600)).toFixed(1);
-                                const tonnage = point.tonnage || 0;
-                                const debitMoyen = (tonnage / duration).toFixed(0);
-                                
-                                let debitColor = '';
-                                if (debitMoyen > 300) debitColor = '#ef4444';
-                                else if (debitMoyen > 200) debitColor = '#f59e0b';
-                                else if (debitMoyen > 100) debitColor = '#10b981';
-                                else debitColor = '#64748b';
-                                
-                                return `
-                                    <div style="padding: 8px; min-width: 200px;">
-                                        <strong style="color: ${point.fillColor || '#3b82f6'}">${shiftName}</strong><br>
-                                        <hr style="margin: 5px 0;">
-                                        📅 Début: ${start.toLocaleString()}<br>
-                                        🏁 Fin: ${end.toLocaleString()}<br>
-                                        ⏱️ Durée: <strong>${duration}</strong> heures<br>
-                                        ⚖️ Tonnage: <strong>${Math.round(tonnage)}</strong> tonnes<br>
-                                        💨 Débit: <strong style="color: ${debitColor}">${debitMoyen}</strong> t/h
-                                    </div>
-                                `;
-                            }
-                        }
-                    },
-                    title: { 
-                        text: 'Planning des navires par shift (survol pour détails, clic pour popup)', 
-                        align: 'center', 
-                        style: { fontSize: '14px', fontWeight: 'bold' } 
+                        title: { text: 'Navires' }
                     },
                     colors: ['#3b82f6', '#10b981', '#f59e0b', '#64748b'],
-                    legend: { 
-                        position: 'bottom', 
-                        horizontalAlign: 'center', 
-                        fontSize: '12px'
-                    },
-                    grid: { borderColor: '#e2e8f0', strokeDashArray: 4, padding: { top: 10, right: 10, bottom: 10, left: 10 } },
-                    responsive: [{
-                        breakpoint: 768,
-                        options: {
-                            chart: { height: 300 },
-                            tooltip: { style: { fontSize: '10px' } }
-                        }
-                    }]
+                    legend: { position: 'bottom' }
                 };
                 
                 const chart = new ApexCharts(document.getElementById('gantt-chart'), options);
@@ -1217,7 +1029,6 @@
         }
     });
 
-    // Fonction pour récupérer le cookie CSRF
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -1233,21 +1044,18 @@
         return cookieValue;
     }
 
-    // Fonction pour supprimer une note d'attente
     function deleteNote(event, noteId, navireId) {
         event.preventDefault();
         
         Swal.fire({
-            title: '⚠️ Supprimer la note d\'attente ?',
-            text: 'Cette action est irréversible. La note sera définitivement supprimée.',
+            title: '⚠️ Supprimer la note ?',
+            text: 'Cette action est irréversible.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
             cancelButtonColor: '#6c757d',
             confirmButtonText: 'Oui, supprimer',
-            cancelButtonText: 'Annuler',
-            background: 'var(--epb-card-bg)',
-            color: 'var(--epb-primary)'
+            cancelButtonText: 'Annuler'
         }).then((result) => {
             if (result.isConfirmed) {
                 fetch(`/port/ajax/supprimer-note-attente/${noteId}/`, {
@@ -1261,40 +1069,20 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        const noteElement = document.getElementById(`note-${noteId}`);
-                        if (noteElement) {
-                            noteElement.remove();
-                        }
-                        
+                        document.getElementById(`note-${noteId}`).remove();
                         Swal.fire({
                             title: '✅ Supprimée !',
-                            text: 'La note d\'attente a été supprimée avec succès.',
+                            text: 'La note a été supprimée.',
                             icon: 'success',
-                            confirmButtonColor: '#10b981',
-                            timer: 2000,
-                            showConfirmButton: true
+                            timer: 2000
                         });
-                        
-                        setTimeout(() => {
-                            location.reload();
-                        }, 2000);
+                        setTimeout(() => location.reload(), 2000);
                     } else {
-                        Swal.fire({
-                            title: '❌ Erreur',
-                            text: data.error || 'Erreur lors de la suppression',
-                            icon: 'error',
-                            confirmButtonColor: '#ef4444'
-                        });
+                        Swal.fire('❌ Erreur', data.error, 'error');
                     }
                 })
                 .catch(error => {
-                    console.error('Erreur:', error);
-                    Swal.fire({
-                        title: '❌ Erreur',
-                        text: 'Erreur de connexion au serveur',
-                        icon: 'error',
-                        confirmButtonColor: '#ef4444'
-                    });
+                    Swal.fire('❌ Erreur', 'Erreur de connexion', 'error');
                 });
             }
         });

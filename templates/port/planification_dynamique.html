@@ -1,0 +1,930 @@
+{% extends "port/base.html" %}
+{% load static %}
+
+{% block title %}Planification dynamique | Port de Béjaïa{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --primary: #0066a0; --primary-dark: #004b7c;
+        --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --info: #3b82f6;
+        --light: #ffffff; --dark: #1a2c3c;
+        --gray-100: #f8fafc; --gray-200: #e9ecef; --gray-300: #dee2e6;
+        --gray-600: #6c757d; --gray-700: #495057;
+        --border-radius: 1rem;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        --transition: all 0.2s ease;
+    }
+    body.dark-mode {
+        --primary: #3b82f6; --primary-dark: #2563eb; --success: #34d399;
+        --warning: #fbbf24; --danger: #f87171; --info: #60a5fa;
+        --light: #1e293b; --dark: #f1f5f9; --gray-100: #0f172a;
+        --gray-200: #1e293b; --gray-300: #334155; --gray-600: #94a3b8; --gray-700: #cbd5e1;
+    }
+    .page-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        border-radius: 1.5rem; padding: 1.5rem 2rem; margin-bottom: 2rem;
+        color: white; box-shadow: var(--shadow-md);
+        position: relative; overflow: hidden;
+    }
+    .refresh-badge {
+        background: rgba(255,255,255,0.2); padding: 0.5rem 1rem;
+        border-radius: 2rem; font-size: 0.85rem;
+        display: inline-flex; align-items: center; gap: 0.5rem;
+    }
+    .sync-status {
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        padding: 0.4rem 1rem; border-radius: 2rem; font-size: 0.8rem;
+        background: rgba(16,185,129,0.15); color: #065f46;
+        border: 1px solid rgba(16,185,129,0.3);
+    }
+    .stat-card {
+        background: var(--light); border-radius: var(--border-radius);
+        padding: 1rem; text-align: center; box-shadow: var(--shadow-sm);
+        border: 1px solid var(--gray-200); transition: var(--transition);
+    }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+    .stat-card .stat-value { font-size: 2rem; font-weight: 800; color: var(--primary); }
+    .stat-card .stat-label {
+        font-size: 0.75rem; color: var(--gray-600);
+        text-transform: uppercase; letter-spacing: 1px;
+    }
+    .section-title {
+        font-size: 1.2rem; font-weight: 700; color: var(--dark);
+        margin: 1.5rem 0 1rem; border-left: 4px solid var(--primary);
+        padding-left: 0.8rem; display: flex; align-items: center;
+        gap: 0.5rem; flex-wrap: wrap;
+    }
+    .info-box {
+        background: rgba(59,130,246,0.1); border-left: 4px solid var(--info);
+        border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;
+        color: var(--primary-dark); font-size: 0.85rem;
+    }
+    .success-box {
+        background: rgba(16,185,129,0.1); border-left: 4px solid var(--success);
+        border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;
+        color: #065f46; font-size: 0.85rem;
+    }
+    .warning-box {
+        background: rgba(245,158,11,0.1); border-left: 4px solid var(--warning);
+        border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;
+        color: #92400e; font-size: 0.85rem;
+    }
+    .btn-sync, .btn-refresh, .btn-optimiser, .btn-toggle, .btn-vider {
+        border: none; border-radius: 2rem; font-weight: 600;
+        cursor: pointer; transition: var(--transition);
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        text-decoration: none; padding: 0.5rem 1.2rem;
+    }
+    .btn-sync { background: linear-gradient(135deg, var(--success), #059669); color: white; }
+    .btn-refresh { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+    .btn-vider { background: linear-gradient(135deg, var(--danger), #b91c1c); color: white; }
+    .btn-optimiser {
+        background: linear-gradient(135deg, var(--success), #059669); color: white;
+        padding: 1rem 3rem; font-weight: 700; font-size: 1.1rem;
+        box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+    }
+    .btn-toggle {
+        background: #e5e7eb; color: #374151; padding: 0.3rem 0.8rem;
+        font-size: 0.85rem; border: 2px solid #d1d5db;
+    }
+    .btn-toggle.selected {
+        background: linear-gradient(135deg, var(--success), #059669);
+        color: white; border-color: var(--success);
+    }
+    .btn-sync:hover, .btn-refresh:hover, .btn-optimiser:hover, .btn-vider:hover {
+        transform: translateY(-2px); color: white;
+    }
+    .btn-toggle:hover { background: #d1d5db; }
+    .btn-toggle.selected:hover { background: #047857; }
+    .no-data { text-align: center; padding: 3rem; color: var(--gray-600); }
+    .no-data i { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+    .badge-statut {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        padding: 0.2rem 0.6rem; border-radius: 2rem;
+        font-size: 0.7rem; font-weight: 600;
+    }
+    .badge-imminent { background: #fee2e2; color: #991b1b; }
+    .badge-proche { background: #fef3c7; color: #92400e; }
+    .badge-normal { background: #d1fae5; color: #065f46; }
+    .badge-retard { background: #fee2e2; color: #991b1b; border: 2px solid #ef4444; }
+    .badge-priorite {
+        display: inline-flex; align-items: center; gap: 0.2rem;
+        padding: 0.15rem 0.5rem; border-radius: 1rem;
+        font-size: 0.65rem; font-weight: 600; margin: 0.1rem;
+    }
+    .badge-priorite.warning { background: #fef3c7; color: #92400e; }
+    .badge-priorite.info { background: #dbeafe; color: #1e40af; }
+    .badge-priorite.success { background: #d1fae5; color: #065f46; }
+    .badge-priorite.danger { background: #fee2e2; color: #991b1b; }
+    .badge-priorite.primary { background: #dbeafe; color: #1e3a8a; }
+    .card-custom {
+        background: var(--light); border-radius: var(--border-radius);
+        box-shadow: var(--shadow-sm); border: 1px solid var(--gray-200);
+        overflow: hidden;
+    }
+    .card-custom .card-header-custom {
+        background: var(--gray-100); padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--gray-200);
+        display: flex; justify-content: space-between; align-items: center;
+        flex-wrap: wrap; gap: 0.5rem;
+    }
+    .table-custom { margin: 0; width: 100%; }
+    .table-custom th {
+        background: var(--gray-100); color: var(--gray-600);
+        font-weight: 700; font-size: 0.75rem;
+        text-transform: uppercase; padding: 0.75rem; white-space: nowrap;
+    }
+    .table-custom td {
+        padding: 0.75rem; color: var(--gray-700);
+        font-size: 0.85rem; border-bottom: 1px solid var(--gray-200);
+        vertical-align: middle;
+    }
+    .liberation-row.imminent { background: rgba(239,68,68,0.05); border-left: 3px solid var(--danger); }
+    .liberation-row.proche { background: rgba(245,158,11,0.05); border-left: 3px solid var(--warning); }
+    .libre-row {
+        background: rgba(16,185,129,0.05) !important;
+        border-left: 3px solid var(--success) !important;
+    }
+    .quai-name { font-weight: 700; color: var(--primary); font-size: 0.9rem; }
+    .detail-line {
+        display: flex; align-items: center; gap: 0.3rem;
+        font-size: 0.75rem; color: var(--gray-600); margin-top: 0.2rem;
+    }
+    .retard-item {
+        border-left: 4px solid var(--danger) !important;
+        background: rgba(239,68,68,0.05) !important;
+    }
+    .navire-pret-card {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.4rem 0.6rem; border-radius: 0.5rem; margin-bottom: 0.3rem;
+    }
+    .navire-pret-card.prete {
+        background: rgba(16,185,129,0.1); border-left: 3px solid var(--success);
+    }
+    .sticky-action-bar {
+        position: sticky; bottom: 20px;
+        background: linear-gradient(135deg, var(--success), #059669);
+        border-radius: 1rem; padding: 1.5rem;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.15); margin-top: 2rem; z-index: 100;
+    }
+    .badge-validation {
+        font-size: 0.6rem; padding: 0.15rem 0.4rem;
+        border-radius: 1rem; margin-left: 0.3rem;
+        display: inline-flex; align-items: center; gap: 0.2rem;
+    }
+    .badge-consignataire {
+        background: #d1fae5; color: #065f46; border: 1px solid #10b981;
+    }
+    .badge-officier {
+        background: #dbeafe; color: #1e3a8a; border: 1px solid #3b82f6;
+    }
+    .postes-alternatifs {
+        margin-top: 0.3rem; padding-top: 0.3rem;
+        border-top: 1px dashed rgba(0,0,0,0.1);
+    }
+    .badge-alternatif {
+        display: inline-block; padding: 0.15rem 0.5rem;
+        border-radius: 0.5rem; font-size: 0.6rem;
+        font-weight: 600; margin: 0.1rem;
+    }
+    .badge-alternatif.libre { background: #d1fae5; color: #065f46; border: 1px solid #10b981; }
+    .badge-alternatif.occupe { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
+    .sortie-card {
+        background: var(--light); border-radius: var(--border-radius);
+        padding: 1rem; box-shadow: var(--shadow-sm);
+        border: 1px solid var(--gray-200); transition: var(--transition);
+        margin-bottom: 1rem;
+    }
+    .sortie-card.imminent { border-left: 4px solid var(--danger); background: rgba(239,68,68,0.03); }
+    .sortie-card.proche { border-left: 4px solid var(--warning); background: rgba(245,158,11,0.03); }
+    .sortie-card.normal { border-left: 4px solid var(--success); }
+    .navire-nom { font-weight: 700; color: var(--dark); font-size: 1rem; }
+    .navire-info { font-size: 0.8rem; color: var(--gray-600); margin-top: 0.25rem; }
+    .navire-details {
+        margin-top: 0.5rem; padding: 0.5rem;
+        background: var(--gray-100); border-radius: 0.5rem;
+        font-size: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem;
+    }
+    .navire-detail-item {
+        display: inline-flex; align-items: center; gap: 0.2rem; color: var(--gray-700);
+    }
+    .navire-detail-item strong { color: var(--primary); }
+    .param-card {
+        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+        border-radius: 1rem; padding: 1.5rem; border: 1px solid var(--gray-200);
+    }
+    .form-range { width: 100%; }
+</style>
+
+<div class="container">
+    <!-- HEADER -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1><i class="fas fa-sync-alt me-2"></i> Planification dynamique</h1>
+                <p class="mb-0">Suivi des sorties et entrées — Mise à jour automatique</p>
+                <div class="mt-2 d-flex flex-wrap gap-2">
+                    <span class="refresh-badge">
+                        <i class="fas fa-clock"></i>
+                        Prochaine MAJ dans : 
+                        <strong id="countdown">{{ temps_avant_maj|default:0|floatformat:1 }}h</strong>
+                        ({{ prochaine_maj|date:"H:i"|default:"—" }})
+                    </span>
+                    {% if derniere_sync %}
+                    <span class="sync-status">
+                        <i class="fas fa-check-circle"></i>
+                        Dernière sync : {{ derniere_sync|slice:":16"|default:"—" }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="btn-sync" onclick="synchroniserEPB()">
+                    <i class="fas fa-cloud-download-alt"></i> Synchroniser EPB
+                </button>
+                <a href="{% url 'vider_selection' %}" class="btn-vider">
+                    <i class="fas fa-trash"></i> Vider la sélection
+                </a>
+                <button type="button" class="btn-refresh" onclick="location.reload()">
+                    <i class="fas fa-sync-alt"></i> Actualiser
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- STATISTIQUES -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ nb_navires_quai|default:0 }}</div>
+                <div class="stat-label">Navires à quai</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value" style="color: var(--success);">{{ ids_selectionnes|length|default:0 }}</div>
+                <div class="stat-label">Sélectionnés</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value" style="color: var(--info);">{{ nb_navires_rade|default:0 }}</div>
+                <div class="stat-label">En rade</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value" style="color: var(--danger);">{{ nb_en_retard|default:0 }}</div>
+                <div class="stat-label">En retard</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- INFO DOUBLE VALIDATION -->
+    <div class="info-box" style="background: rgba(59,130,246,0.08); border-left-color: var(--info);">
+        <i class="fas fa-shield-alt me-2"></i>
+        <strong>Double validation requise :</strong>
+        <br>1️⃣ Le <strong>consignataire</strong> marque le navire 
+           <span class="badge-validation badge-consignataire"><i class="fas fa-check"></i> Consignataire</span>
+        <br>2️⃣ L'<strong>officier du port</strong> clique sur <strong>"Sélectionner"</strong> 
+           <span class="badge-validation badge-officier"><i class="fas fa-check-double"></i> Officier</span>
+    </div>
+
+    <div class="success-box">
+        <i class="fas fa-hand-pointer me-2"></i>
+        <strong>ÉTAPE 1 — Cliquez sur "Sélectionner" pour ajouter un navire à la planification</strong>
+        <br>Le tableau ci-dessous se met à jour immédiatement.
+    </div>
+
+    <!-- 1. NAVIRES EN RADE -->
+    {% if navires_rade %}
+    <div class="section-title">
+        <i class="fas fa-anchor text-info"></i> 
+        1️⃣ Navires en rade ({{ navires_rade|length }})
+    </div>
+    
+    <div class="card-custom mb-4">
+        <div class="card-header-custom">
+            <span><i class="fas fa-info-circle text-info"></i> Cliquez sur "Sélectionner" pour ajouter/retirer</span>
+            <span class="badge bg-info text-white">{{ ids_selectionnes|length }} sélectionné(s)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th style="width: 12%">Action</th>
+                        <th style="width: 22%">Navire</th>
+                        <th style="width: 10%">Type</th>
+                        <th style="width: 12%">Agent</th>
+                        <th style="width: 7%">Long.</th>
+                        <th style="width: 7%">Tonnage</th>
+                        <th style="width: 10%">Temps rade</th>
+                        <th style="width: 10%">Postes</th>
+                        <th style="width: 10%">Priorités</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in navires_rade %}
+                    <tr>
+                        <td class="text-center">
+                            <a href="{% url 'toggle_selection_navire' item.navire.id %}" 
+                               class="btn-toggle {% if item.est_selectionne %}selected{% endif %}">
+                                {% if item.est_selectionne %}
+                                    <i class="fas fa-check-circle"></i> Sélectionné
+                                {% else %}
+                                    <i class="fas fa-plus-circle"></i> Sélectionner
+                                {% endif %}
+                            </a>
+                        </td>
+                        <td class="fw-bold">
+                            <i class="fas fa-ship me-1"></i> {{ item.navire.nom }}
+                            <span class="badge-validation badge-consignataire">
+                                <i class="fas fa-check"></i> Consignataire
+                            </span>
+                            {% if item.est_selectionne %}
+                            <span class="badge-validation badge-officier">
+                                <i class="fas fa-check-double"></i> Officier
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-primary">{{ item.navire.get_type_display }}</span></td>
+                        <td><i class="fas fa-building me-1"></i> {{ item.agent }}</td>
+                        <td>{{ item.longueur|floatformat:0 }}m</td>
+                        <td>{{ item.tonnage|floatformat:0 }}t</td>
+                        <td>
+                            {% if item.temps_rade > 48 %}
+                                <span class="badge-statut badge-imminent">
+                                    <i class="fas fa-exclamation-triangle"></i> {{ item.temps_rade|floatformat:1 }}h
+                                </span>
+                            {% elif item.temps_rade > 24 %}
+                                <span class="badge-statut badge-proche">
+                                    <i class="fas fa-clock"></i> {{ item.temps_rade|floatformat:1 }}h
+                                </span>
+                            {% else %}
+                                <span class="badge-statut badge-normal">
+                                    <i class="fas fa-check"></i> {{ item.temps_rade|floatformat:1 }}h
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.nb_postes_compatibles > 0 %}
+                                <span class="badge bg-success" style="font-size: 0.7rem;">
+                                    <i class="fas fa-check-circle"></i> {{ item.nb_postes_compatibles }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger" style="font-size: 0.7rem;">
+                                    <i class="fas fa-times"></i> Aucun
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% for p in item.priorites %}
+                                <span class="badge-priorite {{ p.couleur }}">
+                                    <i class="fas {{ p.icone }}"></i> {{ p.nom }}
+                                </span>
+                            {% empty %}
+                                <span class="text-muted">—</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 2. NAVIRES ENTRANTS — FORMAT TABLEAU -->
+    {% if entrees_prevues %}
+    <div class="section-title">
+        <i class="fas fa-sign-in-alt text-success"></i> 
+        2️⃣ Navires qui ENTRENT ({{ entrees_prevues|length }})
+    </div>
+    
+    <div class="card-custom mb-4">
+        <div class="card-header-custom">
+            <span><i class="fas fa-info-circle text-success"></i> Cliquez sur "Sélectionner" pour ajouter/retirer</span>
+            <span class="badge bg-success text-white">{{ ids_selectionnes|length }} sélectionné(s)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th style="width: 12%">Action</th>
+                        <th style="width: 20%">Navire</th>
+                        <th style="width: 10%">Type</th>
+                        <th style="width: 10%">Agent</th>
+                        <th style="width: 8%">ETA</th>
+                        <th style="width: 7%">Long.</th>
+                        <th style="width: 7%">Tonnage</th>
+                        <th style="width: 12%">Postes compatibles</th>
+                        <th style="width: 14%">Priorités / Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entree in entrees_prevues %}
+                    <tr class="{% if entree.est_en_retard %}retard-item{% endif %}">
+                        <td class="text-center">
+                            <a href="{% url 'toggle_selection_navire' entree.navire.id %}" 
+                               class="btn-toggle {% if entree.est_selectionne %}selected{% endif %}">
+                                {% if entree.est_selectionne %}
+                                    <i class="fas fa-check-circle"></i> Sélectionné
+                                {% else %}
+                                    <i class="fas fa-plus-circle"></i> Sélectionner
+                                {% endif %}
+                            </a>
+                        </td>
+                        <td class="fw-bold">
+                            <i class="fas fa-ship me-1"></i> {{ entree.navire.nom }}
+                            <span class="badge-validation badge-consignataire">
+                                <i class="fas fa-check"></i> Consignataire
+                            </span>
+                            {% if entree.est_selectionne %}
+                            <span class="badge-validation badge-officier">
+                                <i class="fas fa-check-double"></i> Officier
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-primary">{{ entree.navire.get_type_display }}</span></td>
+                        <td><i class="fas fa-building me-1"></i> {{ entree.agent }}</td>
+                        <td>
+                            <span class="fw-bold text-primary">{{ entree.arrivee_dt|date:"d/m H:i" }}</span>
+                        </td>
+                        <td>{{ entree.longueur|floatformat:0 }}m</td>
+                        <td>{{ entree.tonnage|floatformat:0 }}t</td>
+                        <td>
+                            {% if entree.nb_postes_compatibles > 0 %}
+                                <span class="badge bg-success" style="font-size: 0.7rem;">
+                                    <i class="fas fa-check-circle"></i> {{ entree.nb_postes_compatibles }}
+                                </span>
+                                {% for pc in entree.postes_compatibles|slice:":2" %}
+                                    <span class="badge bg-light text-dark" style="font-size: 0.6rem;">
+                                        {{ pc.quai.nom|truncatechars:12 }} (P.{{ pc.poste.numero }})
+                                    </span>
+                                {% endfor %}
+                                {% if entree.nb_postes_compatibles > 2 %}
+                                    <span class="badge bg-secondary" style="font-size: 0.6rem;">
+                                        +{{ entree.nb_postes_compatibles|add:"-2" }}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-danger" style="font-size: 0.7rem;">
+                                    <i class="fas fa-times"></i> Aucun
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entree.est_en_retard %}
+                                <span class="badge-statut badge-retard">
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    Retard {{ entree.temps_avant|floatformat:0|cut:"-" }}h
+                                </span>
+                            {% elif entree.est_imminent %}
+                                <span class="badge-statut badge-imminent">
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    Imminent ({{ entree.temps_avant|floatformat:1 }}h)
+                                </span>
+                            {% elif entree.est_proche %}
+                                <span class="badge-statut badge-proche">
+                                    <i class="fas fa-hourglass-half"></i> 
+                                    Proche ({{ entree.temps_avant|floatformat:1 }}h)
+                                </span>
+                            {% else %}
+                                <span class="badge-statut badge-normal">
+                                    <i class="fas fa-check"></i> 
+                                    Dans {{ entree.temps_avant|floatformat:1 }}h
+                                </span>
+                            {% endif %}
+                            {% for p in entree.priorites %}
+                                <span class="badge-priorite {{ p.couleur }}" style="display: block; margin-top: 0.2rem;">
+                                    <i class="fas {{ p.icone }}"></i> {{ p.nom }}
+                                </span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- PARAMÈTRES -->
+    <form method="post" action="{% url 'lancer_optimisation_selection' %}" id="formOptimisation">
+        {% csrf_token %}
+        <div class="param-card mb-4 mt-4">
+            <h5 class="mb-3"><i class="fas fa-sliders-h me-2"></i> ⚙️ Paramètres d'optimisation</h5>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Scénario</label>
+                    <select name="scenario" class="form-select">
+                        <option value="rapide" {% if scenario_session == 'rapide' %}selected{% endif %}>⚡ Rapide</option>
+                        <option value="equilibre" {% if scenario_session == 'equilibre' %}selected{% endif %}>⚖️ Équilibré</option>
+                        <option value="securise" {% if scenario_session == 'securise' %}selected{% endif %}>🛡️ Prudent</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Amplitude d'incertitude</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="range" name="amplitude" min="0" max="50" 
+                               value="{{ param_amplitude|default:'20' }}" 
+                               class="form-range" id="amplitudeRange">
+                        <span id="amplitudeValue" class="badge bg-primary">{{ param_amplitude|default:'20' }}%</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Buffer de sécurité</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="range" name="buffer" min="0" max="50" 
+                               value="{{ param_buffer|default:'15' }}" 
+                               class="form-range" id="bufferRange">
+                        <span id="bufferValue" class="badge bg-primary">{{ param_buffer|default:'15' }}%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="form-check mt-3">
+                <input type="checkbox" name="incertitude" class="form-check-input" 
+                       id="incertitudeCheck" {% if param_incertitude %}checked{% endif %}>
+                <label class="form-check-label fw-bold" for="incertitudeCheck">
+                    🎲 Activer l'incertitude (durées variables)
+                </label>
+            </div>
+        </div>
+    </form>
+
+    <!-- 3. TABLEAU UNIFIÉ -->
+    <div class="section-title mt-4">
+        <i class="fas fa-th-list text-info"></i> 
+        3️⃣ Prévisions de libération de quai — Postes concernés
+        <span class="badge bg-success ms-2" style="font-size: 0.7rem;">
+            <i class="fas fa-check-circle"></i> {{ nb_navires_prets|default:0 }} sélectionné(s)
+        </span>
+        <span class="badge bg-danger ms-2" style="font-size: 0.7rem;">
+            <i class="fas fa-lock"></i> {{ nb_postes_occupes|default:0 }} occupé(s)
+        </span>
+        <span class="badge bg-info ms-2" style="font-size: 0.7rem;">
+            <i class="fas fa-th-list"></i> {{ tableau_unifie|length }} poste(s)
+        </span>
+    </div>
+
+    <div class="info-box">
+        <i class="fas fa-lightbulb me-2"></i>
+        <strong>Pré-affectation :</strong>
+        Seuls les navires <strong>sélectionnés</strong> (bouton vert) sont pris en compte.
+    </div>
+
+    {% if tableau_unifie %}
+    <div class="card-custom mb-4">
+        <div class="card-header-custom">
+            <span>
+                <i class="fas fa-th-list text-info"></i> 
+                <strong>Postes concernés ({{ tableau_unifie|length }})</strong>
+            </span>
+            <span class="badge bg-primary">Mise à jour : {{ now|date:"H:i" }}</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th style="width: 13%"><i class="fas fa-anchor me-1"></i> Poste</th>
+                        <th style="width: 17%"><i class="fas fa-sign-out-alt text-danger me-1"></i> Navire qui SORT</th>
+                        <th style="width: 9%">Type</th>
+                        <th style="width: 11%"><i class="fas fa-clock me-1"></i> Libération</th>
+                        <th style="width: 8%">Temps</th>
+                        <th style="width: 33%"><i class="fas fa-sign-in-alt text-success me-1"></i> Navire(s) SÉLECTIONNÉ(s)</th>
+                        <th style="width: 9%">Priorités</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in tableau_unifie %}
+                    <tr class="{% if item.est_occupe %}{% if item.temps_restant <= 3 %}liberation-row imminent{% elif item.temps_restant <= 6 %}liberation-row proche{% else %}liberation-row{% endif %}{% else %}libre-row{% endif %}">
+                        <td>
+                            <div class="quai-name">
+                                {% if item.est_occupe %}
+                                    <i class="fas fa-lock text-danger me-1"></i>
+                                {% else %}
+                                    <i class="fas fa-unlock text-success me-1"></i>
+                                {% endif %}
+                                {{ item.quai.nom }}
+                                <small class="text-muted">(P. {{ item.poste.numero }})</small>
+                            </div>
+                            {% if item.est_occupe %}
+                                <span class="badge bg-danger" style="font-size: 0.6rem;">OCCUPÉ</span>
+                            {% else %}
+                                <span class="badge bg-success" style="font-size: 0.6rem;">LIBRE</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.navire_actuel %}
+                                <div class="fw-bold">
+                                    <i class="fas fa-ship me-1 text-danger"></i> 
+                                    {{ item.navire_actuel.nom }}
+                                </div>
+                                {% if item.navire_actuel.agent %}
+                                <div class="detail-line">
+                                    <i class="fas fa-building"></i> {{ item.navire_actuel.agent }}
+                                </div>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-success">
+                                    <i class="fas fa-check-circle me-1"></i> Poste libre
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.navire_actuel %}
+                                <span class="badge bg-primary">{{ item.navire_actuel.get_type_display }}</span>
+                            {% else %}
+                                <span class="badge bg-success">Libre</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.navire_actuel and item.liberation_dt %}
+                                <span class="fw-bold text-primary">
+                                    <i class="fas fa-clock me-1"></i> {{ item.liberation_dt|date:"d/m H:i" }}
+                                </span>
+                            {% else %}
+                                <span class="text-success fw-bold">
+                                    <i class="fas fa-clock me-1"></i> Immédiat
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.est_occupe %}
+                                {% if item.temps_restant <= 3 %}
+                                    <span class="badge-statut badge-imminent">{{ item.temps_restant|floatformat:1 }}h</span>
+                                {% elif item.temps_restant <= 6 %}
+                                    <span class="badge-statut badge-proche">{{ item.temps_restant|floatformat:1 }}h</span>
+                                {% else %}
+                                    <span class="badge-statut badge-normal">{{ item.temps_restant|floatformat:1 }}h</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge-statut badge-normal">Maintenant</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.navires_prets_compatibles %}
+                                <div class="d-flex flex-column gap-1">
+                                    {% for pret in item.navires_prets_compatibles|slice:":3" %}
+                                    <div class="navire-pret-card prete">
+                                        <i class="fas fa-ship text-success"></i>
+                                        <div class="flex-grow-1">
+                                            <strong class="text-success">{{ pret.navire.nom }}</strong>
+                                            <small class="text-muted d-block" style="font-size: 0.7rem;">
+                                                {% if pret.type_source == 'rade' %}
+                                                    <i class="fas fa-anchor"></i> En rade ({{ pret.temps_attente|floatformat:0 }}h)
+                                                {% else %}
+                                                    <i class="fas fa-clock"></i> Dans {{ pret.temps_attente|floatformat:1 }}h
+                                                {% endif %}
+                                            </small>
+                                            {% if pret.postes_alternatifs %}
+                                            <div class="postes-alternatifs">
+                                                <small class="text-muted" style="font-size: 0.65rem;">
+                                                    <i class="fas fa-random"></i> Alternatives :
+                                                    {% for alt in pret.postes_alternatifs %}
+                                                        <span class="badge-alternatif {% if alt.est_occupe %}occupe{% else %}libre{% endif %}">
+                                                            P.{{ alt.numero }}
+                                                        </span>
+                                                    {% endfor %}
+                                                </small>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        <span class="badge bg-primary" style="font-size: 0.6rem;">
+                                            {{ pret.navire.get_type_display }}
+                                        </span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <span class="text-muted">
+                                    <i class="fas fa-minus-circle me-1"></i> Aucun navire sélectionné
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.navires_prets_compatibles %}
+                                {% with first_pret=item.navires_prets_compatibles.0 %}
+                                    {% for p in first_pret.priorites %}
+                                        <span class="badge-priorite {{ p.couleur }}">
+                                            <i class="fas {{ p.icone }}"></i> {{ p.nom }}
+                                        </span>
+                                    {% empty %}
+                                        <span class="text-muted">—</span>
+                                    {% endfor %}
+                                {% endwith %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="warning-box">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Aucun poste concerné.</strong> Sélectionnez des navires ci-dessus.
+    </div>
+    {% endif %}
+
+    <!-- 4. NAVIRES QUI SORTENT -->
+    <div class="section-title mt-4">
+        <i class="fas fa-sign-out-alt text-danger"></i> 
+        4️⃣ Navires qui SORTENT ({{ sorties_prevues|length }})
+    </div>
+    
+    {% if sorties_prevues %}
+    <div class="row">
+        {% for sortie in sorties_prevues %}
+        <div class="col-md-6 mb-3">
+            <div class="sortie-card {% if sortie.est_imminent %}imminent{% elif sortie.est_proche %}proche{% else %}normal{% endif %}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="navire-nom">
+                            <i class="fas fa-ship me-1"></i> {{ sortie.navire.nom }}
+                        </div>
+                        <div class="navire-info">
+                            <i class="fas fa-anchor"></i> {{ sortie.quai.nom|default:"-" }}
+                            {% if sortie.poste %}— Poste {{ sortie.poste.numero }}{% endif %}
+                        </div>
+                        <div class="navire-info">
+                            <i class="fas fa-clock"></i> 
+                            Fin prévue : <strong>{{ sortie.fin_dt|date:"d/m H:i" }}</strong>
+                        </div>
+                        <div class="navire-details">
+                            <span class="navire-detail-item">
+                                <i class="fas fa-tag"></i> <strong>{{ sortie.navire.get_type_display }}</strong>
+                            </span>
+                            <span class="navire-detail-item">
+                                <i class="fas fa-ruler-horizontal"></i> <strong>{{ sortie.longueur|floatformat:0 }}m</strong>
+                            </span>
+                            <span class="navire-detail-item">
+                                <i class="fas fa-weight-hanging"></i> <strong>{{ sortie.tonnage|floatformat:0 }}t</strong>
+                            </span>
+                            <span class="navire-detail-item">
+                                <i class="fas fa-building"></i> <strong>{{ sortie.agent }}</strong>
+                            </span>
+                        </div>
+                        {% if sortie.priorites %}
+                        <div class="mt-2">
+                            {% for p in sortie.priorites %}
+                                <span class="badge-priorite {{ p.couleur }}">
+                                    <i class="fas {{ p.icone }}"></i> {{ p.nom }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="text-end ms-2">
+                        {% if sortie.est_imminent %}
+                            <span class="badge-statut badge-imminent">
+                                <i class="fas fa-exclamation-triangle"></i> Imminent
+                            </span>
+                        {% elif sortie.est_proche %}
+                            <span class="badge-statut badge-proche">
+                                <i class="fas fa-hourglass-half"></i> Proche
+                            </span>
+                        {% else %}
+                            <span class="badge-statut badge-normal">
+                                <i class="fas fa-check"></i> Normal
+                            </span>
+                        {% endif %}
+                        <div class="navire-info mt-1">
+                            <strong>Dans {{ sortie.temps_restant|floatformat:1 }}h</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-data">
+        <i class="fas fa-inbox"></i>
+        <p>Aucun navire à quai actuellement.</p>
+    </div>
+    {% endif %}
+
+    <!-- BOUTON FINAL -->
+    <div class="sticky-action-bar">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div class="text-white">
+                <h5 class="mb-1">
+                    <i class="fas fa-rocket me-2"></i> 
+                    Prêt à lancer l'optimisation ?
+                </h5>
+                <p class="mb-0 small">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>{{ ids_selectionnes|length|default:0 }}</strong> navire(s) sélectionné(s)
+                </p>
+            </div>
+            <button type="submit" form="formOptimisation" class="btn-optimiser" id="submitBtn">
+                <i class="fas fa-rocket"></i> Lancer l'optimisation
+            </button>
+        </div>
+    </div>
+
+    <div class="info-box mt-4">
+        <i class="fas fa-lightbulb me-2"></i>
+        <strong>Conseil :</strong>
+        Cliquez sur "Sélectionner" pour ajouter un navire. Le tableau se met à jour instantanément.
+    </div>
+</div>
+
+<script>
+    // COMPTE À REBOURS
+    let tempsAvantMaj = {{ temps_avant_maj|default:0|floatformat:2 }};
+    const countdownEl = document.getElementById('countdown');
+    
+    function updateCountdown() {
+        if (tempsAvantMaj <= 0) { location.reload(); return; }
+        tempsAvantMaj -= (1/3600);
+        if (tempsAvantMaj < 0) tempsAvantMaj = 0;
+        const h = Math.floor(tempsAvantMaj);
+        const m = Math.floor((tempsAvantMaj - h) * 60);
+        const s = Math.floor(((tempsAvantMaj - h) * 60 - m) * 60);
+        if (countdownEl) countdownEl.textContent = `${h}h ${m}m ${s}s`;
+    }
+    if (countdownEl) { setInterval(updateCountdown, 1000); updateCountdown(); }
+
+    // SYNCHRONISATION EPB
+    function synchroniserEPB() {
+        const btn = event.target.closest('button');
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Sync...';
+        
+        fetch('/port/api/synchroniser-epb/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ ' + data.message);
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                alert('❌ ' + data.error);
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        })
+        .catch(error => {
+            alert('❌ Erreur: ' + error.message);
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        });
+    }
+
+    function getCookie(name) {
+        let v = null;
+        if (document.cookie) {
+            document.cookie.split(';').forEach(c => {
+                c = c.trim();
+                if (c.startsWith(name + '=')) v = decodeURIComponent(c.substring(name.length + 1));
+            });
+        }
+        return v;
+    }
+
+    // SLIDERS
+    const amplRange = document.getElementById('amplitudeRange');
+    const amplVal = document.getElementById('amplitudeValue');
+    if (amplRange && amplVal) {
+        amplRange.addEventListener('input', function() {
+            amplVal.textContent = this.value + '%';
+        });
+    }
+    
+    const bufRange = document.getElementById('bufferRange');
+    const bufVal = document.getElementById('bufferValue');
+    if (bufRange && bufVal) {
+        bufRange.addEventListener('input', function() {
+            bufVal.textContent = this.value + '%';
+        });
+    }
+
+    // ANTI-DOUBLE-SOUMISSION
+    const formOpt = document.getElementById('formOptimisation');
+    const submitBtn = document.getElementById('submitBtn');
+    if (formOpt && submitBtn) {
+        formOpt.addEventListener('submit', function(e) {
+            if ({{ ids_selectionnes|length|default:0 }} === 0) {
+                e.preventDefault();
+                alert('⚠️ Veuillez sélectionner au moins un navire.');
+                return;
+            }
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Optimisation...';
+        });
+    }
+</script>
+{% endblock %}

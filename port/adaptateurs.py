@@ -43,7 +43,7 @@ class AdaptateurDonnees:
             performance=quai_parent.performance,
             equipements_fixes=[],
             coeff_manoeuvre=getattr(quai_parent, 'coeff_manoeuvre', 1.0),
-            poste_numero=int(poste.numero),
+            poste_numero=int(poste.numero) if str(poste.numero).isdigit() else 0,
         )
 
     @staticmethod
@@ -69,7 +69,9 @@ class AdaptateurDonnees:
 
     @staticmethod
     def vers_navire(navire: NavireModel, coeff_variation: float = 0.15) -> NavireData:
-        # Mapping des types
+        """Convertit un Navire Django en dataclass Navire pour l'optimiseur"""
+        
+        # ========== MAPPING DES TYPES ==========
         type_map = {
             'conteneur': TypeNavire.CONTENEUR,
             'cerealier': TypeNavire.CEREALIER,
@@ -81,10 +83,12 @@ class AdaptateurDonnees:
             'huilier': TypeNavire.HUILIER,
             'petrolier': TypeNavire.PETROLIER,
             'cargo': TypeNavire.CARGO,
+            'roulier': TypeNavire.ROULIER,
+            'chimiquier': TypeNavire.CHIMIQUIER,
         }
         type_navire = type_map.get(navire.type, TypeNavire.CARGO)
 
-        # Priorités
+        # ========== PRIORITÉS (CRUCIAL pour les règles EPB) ==========
         priorites = PrioritesNavire(
             sortant=navire.sortant,
             passage=navire.passage,
@@ -98,20 +102,20 @@ class AdaptateurDonnees:
             huilier=navire.huilier,
         )
 
-        # Calcul de l'importance de la marchandise
+        # ========== IMPORTANCE DE LA MARCHANDISE ==========
         importance = 0
         if navire.marchandise_dangereuse:
             importance += 50
         if navire.marchandise_frigo:
             importance += 30
-        if navire.marchandise_volume > 10000:
+        if (navire.marchandise_volume or 0) > 10000:
             importance += 20
         if navire.strategique:
             importance += 50
         if navire.perissable:
             importance += 25
 
-        # Marchandise
+        # ========== MARCHANDISE ==========
         marchandise = Marchandise(
             type=navire.marchandise_type or "standard",
             volume=float(navire.marchandise_volume or 1000),
@@ -121,25 +125,28 @@ class AdaptateurDonnees:
             importance=importance,
         )
 
-        # Équipement propre
+        # ========== ÉQUIPEMENT PROPRE ==========
         equip_propre = EquipementPropre(
             a_grue_bord=navire.a_grue_bord,
             capacite=float(navire.grue_capacite or 0),
         )
 
-        # Calcul de l'heure d'arrivée relative (heures depuis maintenant)
+        # ========== ✅ HEURE D'ARRIVÉE ABSOLUE ==========
+        # CORRECTION CRITIQUE : l'optimiseur utilise navire.arrivee pour :
+        #   - Vérifier les shifts (ferry 7h-19h, céréalier pas 1h-7h)
+        #   - Calculer l'attente (debut - arrivee)
+        # Il faut donc une heure ABSOLUE (0-24), pas relative.
         if navire.arrivee_datetime:
-            now = timezone.now()
-            delta = navire.arrivee_datetime - now
-            arrivee_heures = max(0, delta.total_seconds() / 3600)
+            arrivee_heures = navire.arrivee_datetime.hour + navire.arrivee_datetime.minute / 60.0
         else:
-            arrivee_heures = navire.arrivee
+            arrivee_heures = float(navire.arrivee or 0)
 
-        # Heure de fin prévue (pour les navires à quai)
+        # ========== HEURE DE FIN PRÉVUE (pour navires à quai) ==========
         fin_prevue = None
         if navire.etat == 'quai' and navire.heure_fin is not None:
             fin_prevue = navire.heure_fin
 
+        # ========== CRÉATION DU NAVIRE DATACLASS ==========
         return NavireData(
             id=navire.id,
             nom=navire.nom,

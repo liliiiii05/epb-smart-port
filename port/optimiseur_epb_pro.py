@@ -5,6 +5,16 @@ OPTIMISEUR EPB - Version avec gestion des incertitudes et buffers
 Version finale : prise en compte des occupations initiales, équipements multiples, créneaux futurs,
 shifts, standards par entité, postes (numéro), préférences pour céréaliers, saturation des quais,
 et score toujours positif.
+
+=== CORRECTIONS APPLIQUÉES (voir commentaires "# >>> CORRECTION") ===
+1. Le score de contribution intègre désormais l'attente liée aux équipements
+   (auparavant calculée mais jamais utilisée dans la décision de choix de quai).
+2. Certains types de navires (huilier, frigorifique, essence, chimiquier, roulier,
+   ferry, betail) qui étaient figés sur toujours les 2 MÊMES équipements disposent
+   désormais d'une liste de candidats plus large, et le code choisit automatiquement
+   celui qui est le moins chargé au moment considéré (basé uniquement sur l'agenda
+   de réservation interne du planificateur -- AUCUNE dépendance à une donnée de
+   panne externe, puisque cette information n'est pas toujours disponible).
 """
 
 import random
@@ -748,7 +758,7 @@ class ModeleCalcul:
 # =============================================================================
 
 class PlanificateurEPB:
-    VERSION = "7.6.0"
+    VERSION = "7.7.0"  # >>> CORRECTION : version incrémentée suite aux correctifs score/équipements
     # Compteurs statiques pour répartir les grues entre types de navires
     _cerealier_grue_index = 0
     _conteneur_grue_index = 0
@@ -886,6 +896,44 @@ class PlanificateurEPB:
             return "Standard"
         return ", ".join(priorites)
 
+    # >>> CORRECTION : nouvelle méthode utilitaire — choisit, parmi une liste de
+    # candidats compatibles, celui/ceux dont l'agenda de réservation interne
+    # (self.equipement_unites) est le moins chargé au moment de l'appel.
+    # Ne dépend d'AUCUNE donnée de panne externe : uniquement des réservations
+    # que le planificateur a lui-même déjà effectuées dans cette session.
+    def _choisir_equipements_disponibles(self, candidats: List[str], nb: int = 1) -> List[str]:
+        """
+        Retourne les `nb` équipements les moins chargés parmi une liste de candidats.
+        Si un candidat n'existe pas dans self.equipement_unites (pas dans le parc
+        actuel), il est simplement ignoré. Si aucun candidat n'est trouvé, on
+        retourne les `nb` premiers noms de la liste fournie (comportement de
+        secours identique à l'ancien code figé, pour ne jamais planter).
+        """
+        scores = []
+        for eq_type in candidats:
+            unites = self.equipement_unites.get(eq_type)
+            if not unites:
+                continue
+            charge_min = min(unites)  # heure de libération la plus proche pour ce type
+            scores.append((charge_min, eq_type))
+
+        if not scores:
+            # Aucun candidat connu du parc actuel -> comportement de secours
+            return candidats[:nb]
+
+        scores.sort(key=lambda x: x[0])
+        choisis = [eq_type for _, eq_type in scores[:nb]]
+
+        # Si moins de candidats valides que demandé, compléter avec la liste d'origine
+        if len(choisis) < nb:
+            for c in candidats:
+                if c not in choisis:
+                    choisis.append(c)
+                if len(choisis) >= nb:
+                    break
+
+        return choisis[:nb]
+
     def get_equipements_necessaires(self, navire, quai=None):
         type_nav = navire.type.value
         marchandise = getattr(navire.marchandise, 'type', '') or ''
@@ -946,8 +994,19 @@ class PlanificateurEPB:
             return ["Bras chargement GNL", "Tuyauterie cryogénique"]
 
         # ========== HUILIERS ==========
+        # >>> CORRECTION : au lieu de renvoyer toujours les 2 mêmes grues (ce qui
+        # créait une contention systématique entre huiliers proches dans le temps),
+        # on propose une liste élargie de candidats compatibles et on choisit
+        # dynamiquement les 2 les moins chargées au moment de l'appel.
         if type_nav == 'huilier':
-            return ["Gottwald HMK 260 10", "LIEBHERR LHM 250 15"]
+            candidats_huilier = [
+                "Gottwald HMK 260 10",
+                "LIEBHERR LHM 250 15",
+                "Grue camion GROVE 13",
+                "LIEBHERR LHM 420 210",
+                "KONECRANS SP 6 217",
+            ]
+            return self._choisir_equipements_disponibles(candidats_huilier, nb=2)
 
         # ========== FERRIES ==========
         if type_nav == 'ferry':
@@ -958,12 +1017,26 @@ class PlanificateurEPB:
             return ["Tracteur Volvo 50t", "Chariots Élévateurs 05T", "Grue camion GROVE 215"]
 
         # ========== FRIGORIFIQUES ==========
+        # >>> CORRECTION : idem huilier, on élargit les candidats plutôt que de
+        # figer sur 2 grues systématiquement identiques.
         if type_nav == 'frigorifique':
-            return ["Gottwald HMK 170E 09", "LIEBHERR LHM 250 14"]
+            candidats_frigo = [
+                "Gottwald HMK 170E 09",
+                "LIEBHERR LHM 250 14",
+                "LIEBHERR LHM 280 211",
+                "Grue camion LIEBHERR 216",
+            ]
+            return self._choisir_equipements_disponibles(candidats_frigo, nb=2)
 
         # ========== ESSENCE ==========
+        # >>> CORRECTION : idem, candidats élargis avec choix dynamique.
         if type_nav == 'essence':
-            return ["Grue camion LIEBHERR 11", "Grue camion LIEBHERR 12"]
+            candidats_essence = [
+                "Grue camion LIEBHERR 11",
+                "Grue camion LIEBHERR 12",
+                "Grue camion GROVE 13",
+            ]
+            return self._choisir_equipements_disponibles(candidats_essence, nb=2)
 
         # ========== CHIMIQUIERS ==========
         if type_nav == 'chimiquier':
@@ -1103,136 +1176,119 @@ class PlanificateurEPB:
         # ====== VÉRIFICATION DE BASE : LE QUAI DOIT AVOIR UN NUMÉRO DE POSTE ======
         if not hasattr(quai, 'poste_numero') or quai.poste_numero is None:
             return False, f"Quai {quai.nom} sans numéro de poste – affectation impossible"
-    
+
         # ====== Règles météo ======
         if self.meteo_restrictions and quai.nom in self.meteo_restrictions:
             return False, f"Quai {quai.nom} interdit pour cause météo"
-    
+
         if self.meteo_pluie:
             if navire.type == TypeNavire.CEREALIER or navire.marchandise.dangereux:
                 if (hasattr(self, 'pluie_debut_prevue') and self.pluie_debut_prevue is not None and
                     hasattr(self, 'pluie_fin_prevue') and self.pluie_fin_prevue is not None and
                     debut is not None and traitement is not None and
                     hasattr(self, 'date_reference') and self.date_reference is not None):
-                    
+
                     base = self.date_reference.replace(hour=0, minute=0, second=0, microsecond=0)
                     debut_dt = base + timedelta(hours=debut)
                     fin_dt = debut_dt + timedelta(hours=traitement)
-    
+
                     if not (fin_dt <= self.pluie_debut_prevue or debut_dt >= self.pluie_fin_prevue):
                         return False, (f"🌧️ Pluie prévue de {self.pluie_debut_prevue.strftime('%H:%M')} à "
                                        f"{self.pluie_fin_prevue.strftime('%H:%M')} – opération impossible")
                 else:
                     return False, "🌧️ Opérations sur céréales/produits dangereux interdites par temps de pluie"
-    
+
         # ====== Contraintes physiques ======
         if navire.longueur > quai.longueur:
             return False, f"Longueur {navire.longueur}m > {quai.longueur}m"
         if navire.tirant > quai.profondeur:
             return False, f"Tirant d'eau {navire.tirant}m > {quai.profondeur}m"
-    
-        # ====== RÈGLES SPÉCIALES PAR TYPE DE NAVIRE ======
-        # Convertir le numéro de poste en entier pour la comparaison
+
+        # ====== RÈGLES SPÉCIALES PAR TYPE DE NAVIRE (STRICTES) ======
         poste = self.normaliser_numero_poste(quai.poste_numero)
-    
-        # --- PÉTROLIERS (Postes 1, 2, 3) ---
+
+        # --- PÉTROLIERS : P.1, 2, 3 UNIQUEMENT ---
         if navire.type == TypeNavire.PETROLIER:
             POSTES_PETROLIERS = [1, 2, 3]
             if poste not in POSTES_PETROLIERS:
-                if quai.specialite not in ["petrolier", "grand"]:
-                    return False, f"Pétrolier autorisé uniquement aux postes {POSTES_PETROLIERS} ou quai petrolier/grand (poste actuel: {poste})"
+                return False, f"Pétrolier autorisé uniquement aux postes {POSTES_PETROLIERS} (poste actuel: {poste})"
             return True, "OK"
-    
-        # --- FERRIES (Postes 8, 12, 13) ---
+
+        # --- FERRIES : P.8, 12, 13 UNIQUEMENT ---
         if navire.type == TypeNavire.FERRY:
             POSTES_FERRY = [8, 12, 13]
             if poste not in POSTES_FERRY:
                 return False, f"Ferry autorisé uniquement aux postes {POSTES_FERRY} (poste actuel: {poste})"
-            if quai.specialite not in ["ferry", "general"]:
-                return False, f"Ferry nécessite un quai ferry ou général (spécialité: {quai.specialite})"
             return True, "OK"
-    
-        # --- GAZIERS ---
+
+        # --- GAZIERS : P.24, 26 UNIQUEMENT ---
         if navire.type == TypeNavire.GAZIER:
             POSTES_GAZIERS = [24, 26]
             if poste not in POSTES_GAZIERS:
                 return False, f"Gazier autorisé uniquement aux postes {POSTES_GAZIERS} (poste actuel: {poste})"
-            if quai.specialite not in ["gazier", "grand"]:
-                return False, f"Gazier nécessite un quai gazier ou grand (spécialité: {quai.specialite})"
             return True, "OK"
-    
-        # --- CÉRÉALIERS ---
+
+        # --- CÉRÉALIERS : P.15, 16, 17, 21, 23 UNIQUEMENT ---
         if navire.type == TypeNavire.CEREALIER:
             POSTES_CEREALIERS = [15, 16, 17, 21, 23]
             if poste not in POSTES_CEREALIERS:
-                if quai.specialite not in ["cerealier", "grand"]:
-                    return False, f"Céréalier autorisé uniquement aux postes {POSTES_CEREALIERS} ou quai céréalier/grand (poste actuel: {poste})"
+                return False, f"Céréalier autorisé uniquement aux postes {POSTES_CEREALIERS} (poste actuel: {poste})"
             return True, "OK"
-    
-        # --- CONTENEURS ---
+
+        # --- CONTENEURS : P.22, 24 UNIQUEMENT + règles contractuelles ---
         if navire.type == TypeNavire.CONTENEUR:
             POSTES_CONTENEURS = [22, 24]
             agent = getattr(navire, 'agent', '').upper()
+
             if 'MSC' in agent and poste != 22:
                 return False, f"MSC doit être au poste 22 (poste actuel: {poste})"
             if ('CMA' in agent or 'CGM' in agent) and poste != 24:
                 return False, f"CMA CGM doit être au poste 24 (poste actuel: {poste})"
             if 'MAERSK' in agent and poste not in [22, 24]:
                 return False, f"MAERSK doit être aux postes 22 ou 24 (poste actuel: {poste})"
+
             if poste not in POSTES_CONTENEURS:
                 return False, f"Conteneur doit être aux postes {POSTES_CONTENEURS} (poste actuel: {poste})"
-            if quai.specialite not in ["conteneurs", "grand"]:
-                return False, f"Conteneur nécessite un quai conteneurs ou grand (spécialité: {quai.specialite})"
             return True, "OK"
-    
-        # --- CARGO ---
+
+        # --- CARGO : P.11, 14, 18, 19 UNIQUEMENT ---
         if navire.type == TypeNavire.CARGO:
             POSTES_CARGO = [11, 14, 18, 19]
             if poste not in POSTES_CARGO:
-                if quai.specialite not in ["general", "grand"]:
-                    return False, f"Cargo autorisé uniquement aux postes {POSTES_CARGO} ou quai general/grand (poste actuel: {poste})"
+                return False, f"Cargo autorisé uniquement aux postes {POSTES_CARGO} (poste actuel: {poste})"
             return True, "OK"
-    
-        # --- HUILIERS ---
+
+        # --- HUILIERS : P.23, 26 UNIQUEMENT ---
         if navire.type == TypeNavire.HUILIER:
             POSTES_HUILIER = [23, 26]
             if poste not in POSTES_HUILIER:
-                if quai.specialite not in ["huiliers", "gazier", "grand"]:
-                    return False, f"Huilier autorisé uniquement aux postes {POSTES_HUILIER} ou quai huiliers/gazier/grand (poste actuel: {poste})"
+                return False, f"Huilier autorisé uniquement aux postes {POSTES_HUILIER} (poste actuel: {poste})"
             return True, "OK"
-    
-        # --- ESSENCE ---
+
+        # --- ESSENCE : P.19 UNIQUEMENT ---
         if navire.type == TypeNavire.ESSENCE:
             POSTES_ESSENCE = [19]
             if poste not in POSTES_ESSENCE:
                 return False, f"Caboteur essence uniquement au poste {POSTES_ESSENCE[0]} (poste actuel: {poste})"
             return True, "OK"
-    
-        # --- ANIMALIERS (via priorité) ---
+
+        # --- ANIMALIERS : P.12, 13 UNIQUEMENT ---
         if navire.priorites.animalier:
             POSTES_ANIMALIERS = [12, 13]
             if poste not in POSTES_ANIMALIERS:
                 return False, f"Navire animalier uniquement aux postes {POSTES_ANIMALIERS} (poste actuel: {poste})"
             return True, "OK"
-    
-        # --- GROUPES VIRTUELS (si quai.est_groupe) ---
+
+        # --- GROUPES VIRTUELS ---
         if quai.est_groupe:
             if quai.specialite == "ferry" and navire.type != TypeNavire.FERRY:
                 return False, "Ce groupe est réservé aux ferries"
             if quai.specialite == "cerealier" and navire.type != TypeNavire.CEREALIER:
                 return False, "Ce groupe est réservé aux céréaliers"
             return True, "Compatible"
-    
-        # ====== RÈGLES GÉNÉRALES (fallback spécialité) ======
+
+        # ====== RÈGLES GÉNÉRALES (fallback pour types non listés) ======
         regles = {
-            TypeNavire.GAZIER: ["gazier", "grand"],
-            TypeNavire.PETROLIER: ["petrolier", "grand"],
-            TypeNavire.CEREALIER: ["cerealier", "grand"],
-            TypeNavire.CONTENEUR: ["conteneurs", "grand"],
-            TypeNavire.FERRY: ["ferry", "general"],
-            TypeNavire.ESSENCE: ["general", "grand"],
-            TypeNavire.HUILIER: ["huiliers", "gazier", "grand"],
-            TypeNavire.CARGO: ["general", "grand"],
             TypeNavire.ROULIER: ["general", "grand"],
             TypeNavire.CHIMIQUIER: ["petrolier", "grand"],
             TypeNavire.FRIGORIFIQUE: ["general", "grand"],
@@ -1240,8 +1296,8 @@ class PlanificateurEPB:
         }
         autorisees = regles.get(navire.type, ["general", "grand"])
         if quai.specialite not in autorisees:
-            return False, f"Un {navire.type.value} ne peut pas utiliser un quai de type {quai.specialite} (autorisé: {', '.join(autorisees)})"
-    
+            return False, f"Un {navire.type.value} ne peut pas utiliser un quai de type {quai.specialite}"
+
         return True, "Compatible"
 
     def shift_autorise(self, navire: Navire, debut: float) -> bool:
@@ -1275,20 +1331,27 @@ class PlanificateurEPB:
         else:
             return "01h-07h"
 
+    # >>> CORRECTION : ajout du paramètre attente_equip, désormais intégré au
+    # score final. Auparavant ce chiffre était calculé (equipements_disponibles)
+    # mais jamais transmis ici, donc jamais utilisé pour choisir le meilleur quai.
     def calculer_score_contribution(self, navire, debut, traitement,
                                     buffer_debut, buffer_fin, 
-                                    quai=None, quai_recommande=None) -> float:
+                                    quai=None, quai_recommande=None,
+                                    attente_equip: float = 0.0) -> float:
         attente = self.modele.calculer_attente(navire, debut)
         
         if self.scenario == "rapide":
             poids_attente = 2.0
             poids_securite = 0.5
+            poids_equip = 1.5
         elif self.scenario == "securise":
             poids_attente = 0.5
             poids_securite = 2.0
+            poids_equip = 1.0
         else:  # equilibre
             poids_attente = 1.0
             poids_securite = 1.0
+            poids_equip = 1.0
         
         # Pénalité buffer (B_i)
         penalite_buffer = 0.0
@@ -1304,9 +1367,14 @@ class PlanificateurEPB:
         bonus_ia = 0.0
         if quai_recommande and quai and quai.id == quai_recommande:
             bonus_ia = -50
+
+        # >>> CORRECTION : pénalité liée à l'attente équipement (E_i).
+        # Sans cela, deux quais pouvaient être jugés équivalents alors que l'un
+        # d'eux imposait au navire de longues heures d'attente sur une grue occupée.
+        penalite_equip = attente_equip * poids_equip
         
-        # Score total selon la formule théorique
-        score = traitement + (attente * poids_attente) + penalite_buffer + bonus_ia
+        # Score total selon la formule théorique (mise à jour)
+        score = traitement + (attente * poids_attente) + penalite_buffer + bonus_ia + penalite_equip
         
         return max(1.0, score)  # Score toujours positif
 
@@ -1554,10 +1622,12 @@ class PlanificateurEPB:
                 if self.equipes:
                     pass
     
+                # >>> CORRECTION : attente_equip est désormais transmis au score
                 contribution = self.calculer_score_contribution(
-                navire, debut, traitement, buffer_debut, buffer_fin,
-                quai=quai, quai_recommande=recommended_quai_id
-            )
+                    navire, debut, traitement, buffer_debut, buffer_fin,
+                    quai=quai, quai_recommande=recommended_quai_id,
+                    attente_equip=attente_equip
+                )
     
                 if contribution < meilleur_score:
                     meilleur_score = contribution
@@ -1600,7 +1670,11 @@ class PlanificateurEPB:
                         meilleur_quai = quai
                         meilleur_buffer_debut = buffer_debut
                         meilleur_buffer_fin = buffer_fin
-                        meilleur_score = self.calculer_score_contribution(navire, debut, traitement, buffer_debut, buffer_fin)
+                        # >>> CORRECTION : attente_equip transmis aussi dans le fallback
+                        meilleur_score = self.calculer_score_contribution(
+                            navire, debut, traitement, buffer_debut, buffer_fin,
+                            attente_equip=attente_equip
+                        )
                         meilleur_message = "Affecté (fallback)"
                         meilleur_attente_equip = attente_equip
                         break
@@ -2260,7 +2334,7 @@ def afficher_banniere():
     ======================================================================
     """)
     print("=" * 80)
-    print(f"\nVersion 7.4.0 - Avec toutes les regles EPB et gestion des equipements")
+    print(f"\nVersion 7.7.0 - Avec toutes les regles EPB, gestion des equipements et score corrige")
     print("-" * 70)
 
 
@@ -2369,7 +2443,7 @@ def main():
             print("=" * 60)
             print("Systeme d'optimisation des creneaux d'accostage")
             print("Entreprise Portuaire de Bejaia (EPB)")
-            print("\nVersion: 7.4.0")
+            print("\nVersion: 7.7.0")
             print("Auteur: Votre Nom - Master Genie Logiciel")
             print("Date: Avril 2026")
             print("\nBase sur le memoire:")

@@ -4,6 +4,9 @@ from datetime import datetime, timedelta
 from django.contrib.auth.models import User
 
 
+# =============================================================================
+# QUAI
+# =============================================================================
 class Quai(models.Model):
     id = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=50)
@@ -14,44 +17,49 @@ class Quai(models.Model):
     occupation_jusqua = models.FloatField(default=0.0, help_text="Heure de libération")
     performance = models.FloatField(default=1.0, help_text="Coefficient multiplicateur de cadence")
     bloque = models.BooleanField(default=False, help_text="Quai bloqué manuellement (indisponible)")
-    coord_x = models.FloatField(null=True, blank=True, help_text="Coordonnée X sur le plan (mètres ou pixels)")
+    coord_x = models.FloatField(null=True, blank=True, help_text="Coordonnée X sur le plan")
     coord_y = models.FloatField(null=True, blank=True, help_text="Coordonnée Y sur le plan")
-    coeff_manoeuvre = models.FloatField(default=1.0, help_text="Coefficient multiplicateur du temps de manœuvre (1.0 = référence)")
+    coeff_manoeuvre = models.FloatField(default=1.0, help_text="Coefficient multiplicateur du temps de manœuvre")
     capacite_max = models.FloatField(default=0, help_text="Capacité maximale d'accueil en tonnes (0 = illimitée)")
-    type_navire_autorise = models.CharField(max_length=200, blank=True, help_text="Types de navires autorisés (détail)")
+    type_navire_autorise = models.CharField(max_length=200, blank=True, help_text="Types de navires autorisés")
 
     def __str__(self):
         return f"{self.nom} ({self.longueur}m, {self.profondeur}m)"
 
 
+# =============================================================================
+# ÉQUIPEMENT
+# =============================================================================
 class Equipement(models.Model):
     CATEGORIE_CHOICES = [
         ('engin', 'Engins (chariots, tracteurs, pelles, chargeurs)'),
         ('grue', 'Grues et portiques'),
     ]
 
-    categorie = models.CharField(max_length=50, blank=True, help_text="Catégorie fonctionnelle (ex: grue_mobile_50t)")
+    categorie = models.CharField(max_length=50, blank=True, help_text="Catégorie fonctionnelle")
     designation = models.CharField(max_length=100)
     capacite = models.CharField(max_length=100, blank=True, verbose_name="Capacité / Type")
     engins_existants = models.PositiveIntegerField(default=0, verbose_name="Engins existants")
     engins_en_marche = models.PositiveIntegerField(default=0, verbose_name="Engins en marche")
     engins_en_panne = models.PositiveIntegerField(default=0, verbose_name="Engins en panne")
     temps_reparation = models.FloatField(default=2.0, verbose_name="Temps réparation (h)")
-    # dans models.py
-    
     famille = models.CharField(max_length=50, blank=True, help_text="Famille d'équipement")
 
     class Meta:
-        unique_together = ('categorie', 'designation', 'capacite')  # évite les doublons exacts
+        unique_together = ('categorie', 'designation', 'capacite')
 
     def __str__(self):
-        return f"{self.designation} ({self.capacite}) - {self.get_categorie_display()}"
-    
+        return f"{self.designation} ({self.capacite})"
+
+
+# =============================================================================
+# SHIFT
+# =============================================================================
 class Shift(models.Model):
-    nom = models.CharField(max_length=20, unique=True)  # ex: "07h-13h"
+    nom = models.CharField(max_length=20, unique=True)
     heure_debut = models.TimeField()
     heure_fin = models.TimeField()
-    ordre = models.PositiveSmallIntegerField(default=0)  # pour trier
+    ordre = models.PositiveSmallIntegerField(default=0)
 
     def __str__(self):
         return self.nom
@@ -59,9 +67,10 @@ class Shift(models.Model):
     class Meta:
         ordering = ['ordre']
 
+
 class EffectifShift(models.Model):
     shift = models.ForeignKey(Shift, on_delete=models.CASCADE, related_name='effectifs')
-    metier = models.CharField(max_length=30)  # "Grutiers", "Chauffeurs semi-remorque", "Caristes"
+    metier = models.CharField(max_length=30)
     effectifs_affectes = models.PositiveIntegerField(default=0)
     effectifs_presents = models.PositiveIntegerField(default=0)
 
@@ -70,19 +79,86 @@ class EffectifShift(models.Model):
 
     def __str__(self):
         return f"{self.shift.nom} - {self.metier}: {self.effectifs_presents}/{self.effectifs_affectes}"
+
+
+# =============================================================================
+# UTILISATION ÉQUIPEMENT
+# =============================================================================
 class UtilisationEquipement(models.Model):
     navire = models.ForeignKey('Navire', on_delete=models.CASCADE)
-    equipement_type = models.CharField(max_length=50)   # ex: "grue_gottwald_260e"
-    unite_index = models.PositiveSmallIntegerField()   # 0,1,...
+    equipement_type = models.CharField(max_length=50)
+    unite_index = models.PositiveSmallIntegerField()
     quai = models.ForeignKey('Quai', on_delete=models.CASCADE)
     debut = models.DateTimeField()
     fin = models.DateTimeField()
-    conflit = models.BooleanField(default=False)       # conflit détecté ?
-    attente_navire = models.FloatField(default=0)      # attente du navire (indicateur de performance)
+    conflit = models.BooleanField(default=False)
+    attente_navire = models.FloatField(default=0)
     date_creation = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.navire.nom} - {self.equipement_type} unité {self.unite_index}"
+
+
+# =============================================================================
+# ESCALE (défini AVANT Navire et NoteAttente pour les FK)
+# =============================================================================
+class Escale(models.Model):
+    """Représente une escale d'un navire au port (peut être multiple pour un même navire)."""
+    navire = models.ForeignKey('Navire', on_delete=models.CASCADE, related_name='escales')
+    date_debut = models.DateTimeField(auto_now_add=True)
+    date_fin = models.DateTimeField(null=True, blank=True)
+    active = models.BooleanField(default=True, help_text="True si l'escale est en cours")
+
+    # Statistiques de l'escale (pour l'IA)
+    attente_totale = models.FloatField(default=0.0, help_text="Attente cumulée (h)")
+    traitement_total = models.FloatField(default=0.0, help_text="Traitement total (h)")
+    quai_utilise = models.ForeignKey(
+        'Quai', on_delete=models.SET_NULL, null=True, blank=True, related_name='escales_utilisees'
+    )
+    poste_utilise = models.ForeignKey(
+        'Poste', on_delete=models.SET_NULL, null=True, blank=True, related_name='escales_utilisees'
+    )
+
+    # Contexte météo (pour l'IA)
+    meteo_pluie = models.BooleanField(default=False)
+    meteo_vent_force = models.IntegerField(default=0)
+
+    # Données pour l'IA
+    volume_marchandise = models.FloatField(default=0.0)
+    duree_reelle = models.FloatField(default=0.0, help_text="Durée réelle totale (h)")
+    debit_reel = models.FloatField(default=0.0, help_text="Débit réel (t/h)")
+    agent = models.CharField(max_length=100, blank=True)
+    type_navire = models.CharField(max_length=20, blank=True)
+    shift_debut = models.CharField(max_length=20, blank=True)
+
+    class Meta:
+        ordering = ['-date_debut']
+        verbose_name = "Escale"
+        verbose_name_plural = "Escales"
+        indexes = [
+            models.Index(fields=['navire', 'active']),
+            models.Index(fields=['date_debut']),
+        ]
+
+    def __str__(self):
+        statut = "🟢 Active" if self.active else "⚫ Clôturée"
+        return f"{statut} - {self.navire.nom} ({self.date_debut.strftime('%d/%m/%Y')})"
+
+    @property
+    def duree_sejour(self):
+        """Durée totale de l'escale en heures."""
+        fin = self.date_fin or timezone.now()
+        return (fin - self.date_debut).total_seconds() / 3600.0
+
+    @property
+    def nb_notes_attente(self):
+        """Nombre de notes d'attente de cette escale."""
+        return self.notes_attente.count()
+
+
+# =============================================================================
+# NAVIRE
+# =============================================================================
 class Navire(models.Model):
     TYPE_CHOICES = [
         ('conteneur', 'Conteneur'),
@@ -137,7 +213,7 @@ class Navire(models.Model):
     huilier = models.BooleanField(default=False, help_text="Huilier")
 
     # Marchandise
-    marchandise_type = models.CharField(max_length=50, blank=True)
+    marchandise_type = models.CharField(max_length=200, blank=True)
     marchandise_volume = models.FloatField(default=0)
     marchandise_dangereuse = models.BooleanField(default=False)
     marchandise_frigo = models.BooleanField(default=False)
@@ -148,25 +224,32 @@ class Navire(models.Model):
 
     # Prêt pour affectation
     pret_pour_quai = models.BooleanField(default=True, help_text="Navire prêt pour affectation")
-    pret_par_client = models.BooleanField(default=False, help_text="Le client a confirmé que le navire est prêt à accoster")
+    pret_par_client = models.BooleanField(default=False, help_text="Le client a confirmé que le navire est prêt")
 
     # État
     etat = models.CharField(max_length=20, choices=ETAT_CHOICES, default='attente')
     quai_attribue = models.ForeignKey(Quai, on_delete=models.SET_NULL, null=True, blank=True)
     priorite_calculee = models.FloatField(default=0)
-    agent = models.CharField(max_length=100, blank=True, verbose_name="Agent / Consignataire")
-    entite = models.CharField(max_length=20, choices=ENTITE_CHOICES, blank=True, verbose_name="Entité exploitante")
-    # Incertitude
+    agent = models.CharField(max_length=200, blank=True, verbose_name="Agent / Consignataire")
+    entite = models.CharField(max_length=200, blank=True, verbose_name="Entité exploitante")
     coeff_variation = models.FloatField(default=0.15, help_text="Coefficient de variation pour la durée")
-    poste_attribue = models.ForeignKey('Poste', on_delete=models.SET_NULL, null=True, blank=True, related_name='navires')
+    poste_attribue = models.ForeignKey(
+        'Poste', on_delete=models.SET_NULL, null=True, blank=True, related_name='navires'
+    )
     fin_datetime = models.DateTimeField(null=True, blank=True)
-    
-    # dans port/models.py, classe Navire
+
     nb_equipes_requises = models.PositiveSmallIntegerField(default=1, verbose_name="Nombre d'équipes nécessaires")
-    shift_requis = models.CharField(max_length=10, default='matin', choices=[('matin','Matin'),('soir','Soir'),('nuit','Nuit')], verbose_name="Shift requis")
-    pret_consignataire = models.BooleanField(default=False, verbose_name="Prêt pour le port (validé par le consignataire)")
+    shift_requis = models.CharField(
+        max_length=10,
+        default='matin',
+        choices=[('matin', 'Matin'), ('soir', 'Soir'), ('nuit', 'Nuit')],
+        verbose_name="Shift requis"
+    )
+    pret_consignataire = models.BooleanField(default=False, verbose_name="Prêt pour le port")
     etat_precedent = models.CharField(max_length=20, blank=True, null=True)
-    temps_arret_pluie = models.FloatField(default=0.0) 
+    temps_arret_pluie = models.FloatField(default=0.0)
+
+    # ========== PROPRIÉTÉS DE FORMATAGE ==========
     @property
     def heure_accostage_formatee(self):
         """Retourne l'heure d'accostage formatée HH:MM pour les navires à quai"""
@@ -174,7 +257,7 @@ class Navire(models.Model):
             heures = int(self.heure_debut)
             minutes = int((self.heure_debut - heures) * 60)
             return f"{heures:02d}:{minutes:02d}"
-        return None    
+        return None
 
     @property
     def heure_arrivee_formatee(self):
@@ -184,6 +267,74 @@ class Navire(models.Model):
             minutes = int((self.arrivee - heures) * 60)
             return f"{heures:02d}:{minutes:02d}"
         return None
+
+    # ========== PROPRIÉTÉS LIÉES AUX ESCALES ==========
+    @property
+    def escale_active(self):
+        """Retourne l'escale en cours du navire (ou None)."""
+        return self.escales.filter(active=True).first()
+
+    @property
+    def notes_attente_actives(self):
+        """Retourne uniquement les notes de l'escale en cours."""
+        from port.models import NoteAttente  # Import local pour éviter les cycles
+        escale = self.escale_active
+        if escale:
+            return NoteAttente.objects.filter(escale=escale, archive=False)
+        return NoteAttente.objects.none()
+
+    @property
+    def attente_totale_actuelle(self):
+        """Somme des notes d'attente de l'escale en cours."""
+        return sum(n.duree_attente for n in self.notes_attente_actives)
+
+    @property
+    def historique_escales(self):
+        """Toutes les escales passées (non actives)."""
+        return self.escales.filter(active=False).order_by('-date_debut')
+
+    @property
+    def attente_moyenne_historique(self):
+        """Attente moyenne sur toutes les escales passées."""
+        escales = self.historique_escales
+        if not escales.exists():
+            return 0.0
+        total = sum(e.attente_totale for e in escales)
+        return total / escales.count()
+
+    @property
+    def nb_escales(self):
+        """Nombre total d'escales."""
+        return self.escales.count()
+
+    # ========== AUTRES PROPRIÉTÉS ==========
+    @property
+    def progression(self):
+        if self.etat != 'quai' or not self.debut_datetime or self.heure_fin is None:
+            return 0
+        now = timezone.now()
+        fin = self.debut_datetime + timedelta(hours=self.heure_fin - self.heure_debut)
+        if now <= self.debut_datetime:
+            return 0
+        if now >= fin:
+            return 100
+        total = (fin - self.debut_datetime).total_seconds()
+        ecoule = (now - self.debut_datetime).total_seconds()
+        return int((ecoule / total) * 100)
+
+    @property
+    def temps_attente_rade(self):
+        if self.etat != 'rade' or not self.arrivee_datetime:
+            return 0
+        now = timezone.now()
+        return (now - self.arrivee_datetime).total_seconds() / 3600
+
+    @property
+    def heure_fin_datetime(self):
+        if not self.debut_datetime or self.heure_fin is None:
+            return None
+        return self.debut_datetime + timedelta(hours=self.heure_fin - self.heure_debut)
+
     class Meta:
         permissions = [
             ("can_manage_cpn", "Peut gérer la CPN"),
@@ -228,34 +379,10 @@ class Navire(models.Model):
             return dt
         return None
 
-    @property
-    def progression(self):
-        if self.etat != 'quai' or not self.debut_datetime or self.heure_fin is None:
-            return 0
-        now = timezone.now()
-        fin = self.debut_datetime + timedelta(hours=self.heure_fin - self.heure_debut)
-        if now <= self.debut_datetime:
-            return 0
-        if now >= fin:
-            return 100
-        total = (fin - self.debut_datetime).total_seconds()
-        ecoule = (now - self.debut_datetime).total_seconds()
-        return int((ecoule / total) * 100)
 
-    @property
-    def temps_attente_rade(self):
-        if self.etat != 'rade' or not self.arrivee_datetime:
-            return 0
-        now = timezone.now()
-        return (now - self.arrivee_datetime).total_seconds() / 3600
-
-    @property
-    def heure_fin_datetime(self):
-        if not self.debut_datetime or self.heure_fin is None:
-            return None
-        return self.debut_datetime + timedelta(hours=self.heure_fin - self.heure_debut)
-
-
+# =============================================================================
+# AFFECTATION
+# =============================================================================
 class Affectation(models.Model):
     navire = models.ForeignKey('Navire', on_delete=models.CASCADE)
     quai = models.ForeignKey('Quai', on_delete=models.CASCADE)
@@ -265,49 +392,45 @@ class Affectation(models.Model):
     traitement = models.FloatField(help_text="Temps de traitement en heures", verbose_name="Traitement")
     score_contribution = models.FloatField(verbose_name="Score")
     priorites_texte = models.CharField(max_length=200, blank=True, verbose_name="Priorités")
-    equipements = models.CharField(max_length=200, blank=True, help_text="IDs des équipements utilisés", verbose_name="Équipements")
+    equipements = models.CharField(max_length=200, blank=True, help_text="IDs des équipements utilisés")
     utilise_grues_bord = models.BooleanField(default=False, verbose_name="Grues de bord")
     date_creation = models.DateTimeField(default=timezone.now, verbose_name="Date création")
-    equipements_utilises = models.TextField(blank=True, help_text="Liste des équipements utilisés", verbose_name="Équipements utilisés")
-    equipements_utilises_ids = models.CharField(max_length=500, blank=True, help_text="IDs des équipements utilisés", verbose_name="IDs équipements")
-    date_debut_reel = models.DateTimeField(null=True, blank=True, help_text="Date et heure réelle de début", verbose_name="Date début réelle")
-    date_fin_reel = models.DateTimeField(null=True, blank=True, help_text="Date et heure réelle de fin", verbose_name="Date fin réelle")
+    equipements_utilises = models.TextField(blank=True, help_text="Liste des équipements utilisés")
+    equipements_utilises_ids = models.CharField(max_length=500, blank=True, help_text="IDs des équipements utilisés")
+    date_debut_reel = models.DateTimeField(null=True, blank=True, verbose_name="Date début réelle")
+    date_fin_reel = models.DateTimeField(null=True, blank=True, verbose_name="Date fin réelle")
 
-    # Buffers
     buffer_debut = models.FloatField(default=0, verbose_name="Buffer début (h)")
     buffer_fin = models.FloatField(default=0, verbose_name="Buffer fin (h)")
     heure_debut_reel = models.FloatField(null=True, blank=True, verbose_name="Début réel (avec buffer)")
     heure_fin_reel = models.FloatField(null=True, blank=True, verbose_name="Fin réelle (avec buffer)")
 
-    # État initial du navire avant optimisation
-    etat_initial = models.CharField(max_length=20, choices=Navire.ETAT_CHOICES, null=True, blank=True, verbose_name="État initial")
+    etat_initial = models.CharField(
+        max_length=20, choices=Navire.ETAT_CHOICES, null=True, blank=True, verbose_name="État initial"
+    )
     poste = models.ForeignKey('Poste', on_delete=models.SET_NULL, null=True, blank=True)
+
     def __str__(self):
         return f"{self.navire.nom} → {self.quai.nom}"
 
     def get_debut_datetime(self, date_reference=None):
-        """Convertit l'heure décimale en datetime réel"""
         if self.date_debut_reel:
             return self.date_debut_reel
-        
         if date_reference is None:
-            from datetime import datetime
             date_reference = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        from datetime import timedelta
         return date_reference + timedelta(hours=self.heure_debut)
 
     def get_fin_datetime(self, date_reference=None):
-        """Convertit l'heure décimale en datetime réel"""
         if self.date_fin_reel:
             return self.date_fin_reel
-        
         if date_reference is None:
-            from datetime import datetime
             date_reference = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        from datetime import timedelta
         return date_reference + timedelta(hours=self.heure_fin)
+
+
+# =============================================================================
+# SESSION OPTIMISATION
+# =============================================================================
 class SessionOptimisation(models.Model):
     nom = models.CharField(max_length=100)
     date_creation = models.DateTimeField(default=timezone.now)
@@ -318,17 +441,15 @@ class SessionOptimisation(models.Model):
     attente_moyenne = models.FloatField()
     taux_occupation = models.FloatField()
     saison = models.CharField(max_length=10, choices=[('hiver', 'Hiver'), ('ete', 'Été')])
-    fichier_csv = models.CharField(max_length=200, blank=True, help_text="Chemin du fichier CSV exporté")
+    fichier_csv = models.CharField(max_length=200, blank=True)
 
-    # Nouveaux champs pour les paramètres avancés
     incertitude_utilisee = models.BooleanField(default=False, verbose_name="Incertitude activée")
     amplitude_pct = models.FloatField(default=20, verbose_name="Amplitude (%)")
     buffer_pct = models.FloatField(default=15, verbose_name="Buffer (%)")
-    
-    # NOUVEAU CHAMP POUR LE SCÉNARIO
+
     scenario = models.CharField(
-        max_length=20, 
-        default='equilibre', 
+        max_length=20,
+        default='equilibre',
         choices=[
             ('rapide', 'Rapide'),
             ('equilibre', 'Équilibré'),
@@ -341,6 +462,9 @@ class SessionOptimisation(models.Model):
         return f"{self.nom} - {self.date_creation.strftime('%d/%m/%Y %H:%M')}"
 
 
+# =============================================================================
+# SNAPSHOT NAVIRE
+# =============================================================================
 class SnapshotNavire(models.Model):
     date = models.DateField()
     navire = models.ForeignKey(Navire, on_delete=models.CASCADE)
@@ -354,25 +478,32 @@ class SnapshotNavire(models.Model):
         unique_together = ('date', 'navire')
 
 
+# =============================================================================
+# MÉTÉO
+# =============================================================================
 class Meteo(models.Model):
     date = models.DateField(unique=True)
     vent_force = models.IntegerField(default=0, help_text="Force du vent (Beaufort)")
-    vent_direction = models.CharField(max_length=10, blank=True, help_text="Direction du vent (N, NE, E, etc.)")
+    vent_direction = models.CharField(max_length=10, blank=True)
     hauteur_houle = models.FloatField(default=0, help_text="Hauteur de la houle en mètres")
     pluie = models.BooleanField(default=False, help_text="Pluie en cours")
-    precipitation = models.FloatField(default=0, help_text="Quantité de précipitations (mm/h)")
-    temperature = models.FloatField(default=20, help_text="Température en degrés Celsius")
-    description = models.CharField(max_length=100, blank=True, help_text="Description météo")
-    restrictions = models.TextField(blank=True, help_text="Quais interdits (séparés par des virgules)")
+    precipitation = models.FloatField(default=0, help_text="Précipitations (mm/h)")
+    temperature = models.FloatField(default=20, help_text="Température (°C)")
+    description = models.CharField(max_length=100, blank=True)
+    restrictions = models.TextField(blank=True, help_text="Quais interdits (séparés par virgules)")
     updated_at = models.DateTimeField(auto_now=True)
-    pluie_active = models.BooleanField(default=False)           # pluie en cours
-    pluie_debut_reelle = models.DateTimeField(null=True, blank=True) 
-    pluie_debut_prevue = models.DateTimeField(null=True, blank=True, help_text="Début prévu de la pluie")
-    pluie_fin_prevue = models.DateTimeField(null=True, blank=True, help_text="Fin prévue de la pluie")
+    pluie_active = models.BooleanField(default=False)
+    pluie_debut_reelle = models.DateTimeField(null=True, blank=True)
+    pluie_debut_prevue = models.DateTimeField(null=True, blank=True)
+    pluie_fin_prevue = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
         return f"Météo du {self.date} – vent {self.vent_force} Bft, pluie: {'oui' if self.pluie else 'non'}"
 
 
+# =============================================================================
+# HISTORIQUE OPÉRATION
+# =============================================================================
 class HistoriqueOperation(models.Model):
     navire_type = models.CharField(max_length=20)
     quai_id = models.IntegerField()
@@ -380,15 +511,21 @@ class HistoriqueOperation(models.Model):
     duree_estimee = models.FloatField(help_text="Durée estimée avant traitement (heures)")
     duree_reelle = models.FloatField(help_text="Durée réelle observée (heures)")
     date_operation = models.DateTimeField(auto_now_add=True)
-    nb_equipes = models.PositiveSmallIntegerField(default=1, help_text="Nombre d'équipes ayant travaillé")
-    shift = models.CharField(max_length=12, blank=True, null=True, choices=[('matin','Matin'),('soir','Soir'),('nuit','Nuit'),('double_nuit','Double nuit')])
-    tonnage_shift = models.FloatField(default=0.0, help_text="Tonnage déchargé pendant ce shift")
-    attente_shift = models.FloatField(default=0.0, help_text="Temps d'attente (camions, etc.) pendant ce shift")
-    debit_shift = models.FloatField(default=0.0, help_text="Débit réel pendant ce shift (tonnes/heure effective)")
-    nb_equipements_utilises = models.PositiveSmallIntegerField(default=1, help_text="Nombre d'équipements actifs pendant ce shift")
-    equipements_utilises = models.TextField(blank=True, help_text="Liste des équipements (noms)")
+    nb_equipes = models.PositiveSmallIntegerField(default=1)
+    shift = models.CharField(
+        max_length=12,
+        blank=True,
+        null=True,
+        choices=[('matin', 'Matin'), ('soir', 'Soir'), ('nuit', 'Nuit'), ('double_nuit', 'Double nuit')]
+    )
+    tonnage_shift = models.FloatField(default=0.0)
+    attente_shift = models.FloatField(default=0.0)
+    debit_shift = models.FloatField(default=0.0)
+    nb_equipements_utilises = models.PositiveSmallIntegerField(default=1)
+    equipements_utilises = models.TextField(blank=True)
     debit_reel = models.FloatField(default=0.0, help_text="Tonnage par heure réel")
     poste = models.ForeignKey('Poste', on_delete=models.SET_NULL, null=True, blank=True)
+
     class Meta:
         indexes = [
             models.Index(fields=['navire_type', 'quai_id']),
@@ -398,6 +535,9 @@ class HistoriqueOperation(models.Model):
         return f"{self.navire_type} sur quai {self.quai_id} : estimé {self.duree_estimee}h, réel {self.duree_reelle}h"
 
 
+# =============================================================================
+# ALERTE
+# =============================================================================
 class Alerte(models.Model):
     NIVEAUX = [
         ('info', 'ℹ️ Information'),
@@ -411,7 +551,7 @@ class Alerte(models.Model):
         ('retard', 'Retard important'),
         ('meteo', 'Condition météo dangereuse'),
     ]
-    
+
     type = models.CharField(max_length=30, choices=TYPES)
     niveau = models.CharField(max_length=10, choices=NIVEAUX, default='warning')
     message = models.TextField()
@@ -425,6 +565,9 @@ class Alerte(models.Model):
         return f"[{self.get_niveau_display()}] {self.message[:50]}"
 
 
+# =============================================================================
+# MOUVEMENT
+# =============================================================================
 class Mouvement(models.Model):
     navire = models.ForeignKey('Navire', on_delete=models.CASCADE)
     ancien_quai = models.ForeignKey('Quai', on_delete=models.CASCADE, related_name='+')
@@ -432,7 +575,7 @@ class Mouvement(models.Model):
     heure_prevue = models.FloatField(help_text="Heure à laquelle effectuer le mouvement")
     raison = models.CharField(max_length=200, blank=True)
     utilisateur = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    statut = models.CharField(max_length=20, default='prevue', choices=[('prevue','Prévue'),('executee','Exécutée')])
+    statut = models.CharField(max_length=20, default='prevue', choices=[('prevue', 'Prévue'), ('executee', 'Exécutée')])
     date_creation = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -442,6 +585,9 @@ class Mouvement(models.Model):
         return f"{self.navire.nom} → {self.nouveau_quai.nom} ({self.statut})"
 
 
+# =============================================================================
+# HISTORIQUE ACTION
+# =============================================================================
 class HistoriqueAction(models.Model):
     TYPES_ACTION = [
         ('affectation', 'Affectation de navire'),
@@ -451,8 +597,9 @@ class HistoriqueAction(models.Model):
         ('terminaison', 'Terminaison de navire'),
         ('modification', 'Modification (CRUD)'),
         ('arrivee_rade', 'Validation arrivée rade'),
+        ('affectation_manuelle', 'Affectation manuelle'),
     ]
-    
+
     utilisateur = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
     type_action = models.CharField(max_length=30, choices=TYPES_ACTION)
     description = models.TextField()
@@ -461,16 +608,19 @@ class HistoriqueAction(models.Model):
     quai = models.ForeignKey('Quai', on_delete=models.SET_NULL, null=True, blank=True)
     equipement = models.ForeignKey('Equipement', on_delete=models.SET_NULL, null=True, blank=True)
     details = models.JSONField(default=dict, blank=True)
-    
+
     class Meta:
         ordering = ['-date_action']
         verbose_name = "Historique d'action"
         verbose_name_plural = "Historiques des actions"
-    
+
     def __str__(self):
-        return f"{self.date_action.strftime('%d/%m/%Y %H:%M')} - {self.get_type_action_display()} - {self.utilisateur}"
+        return f"{self.date_action.strftime('%d/%m/%Y %H:%M')} - {self.get_type_action_display()}"
 
 
+# =============================================================================
+# PROFILE
+# =============================================================================
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     matricule = models.CharField(max_length=20, unique=True, blank=True, null=True, help_text="Matricule EPB")
@@ -486,7 +636,6 @@ class Profile(models.Model):
         return f"Profil de {self.user.username}"
 
 
-# Signaux pour créer automatiquement le profil
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -497,6 +646,9 @@ def create_user_profile(sender, instance, created, **kwargs):
         Profile.objects.create(user=instance)
 
 
+# =============================================================================
+# CRÉNEAU RÉSERVÉ
+# =============================================================================
 class CreneauReserve(models.Model):
     OPERATEURS = [
         ('MSC', 'MSC'),
@@ -505,10 +657,16 @@ class CreneauReserve(models.Model):
     ]
     operateur = models.CharField(max_length=20, choices=OPERATEURS)
     quai = models.ForeignKey('Quai', on_delete=models.CASCADE)
-    poste = models.ForeignKey('Poste', on_delete=models.CASCADE)
+    poste = models.ForeignKey(
+        'Poste',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Poste spécifique (optionnel)"
+    )
     date_debut = models.DateTimeField()
     date_fin = models.DateTimeField()
-    duree_jours = models.IntegerField(default=4, help_text="Durée prévue en jours")
+    duree_jours = models.IntegerField(default=4)
     actif = models.BooleanField(default=True)
 
     class Meta:
@@ -519,31 +677,34 @@ class CreneauReserve(models.Model):
         return f"{self.operateur} sur {self.quai.nom} du {self.date_debut} au {self.date_fin}"
 
 
+# =============================================================================
+# POSTE
+# =============================================================================
 class Poste(models.Model):
     quai = models.ForeignKey('Quai', on_delete=models.CASCADE, related_name='postes')
-    numero = models.CharField(max_length=10, help_text="Numéro du poste (ex: 01, 02, etc.)")
+    numero = models.CharField(max_length=10, help_text="Numéro du poste")
     longueur = models.FloatField(help_text="Longueur en mètres")
     profondeur = models.FloatField(help_text="Profondeur en mètres")
-    specialite = models.CharField(max_length=50, blank=True, help_text="Spécialité du poste")
-    type_navire_autorise = models.CharField(max_length=200, blank=True, help_text="Types de navires autorisés")
+    specialite = models.CharField(max_length=50, blank=True)
+    type_navire_autorise = models.CharField(max_length=200, blank=True)
     disponible = models.BooleanField(default=True)
-    occupation_jusqua = models.FloatField(default=0.0, help_text="Heure de libération")
+    occupation_jusqua = models.FloatField(default=0.0)
     coord_x = models.FloatField(null=True, blank=True)
     coord_y = models.FloatField(null=True, blank=True)
-    gestion_manuelle = models.BooleanField(default=False, help_text="Si True, ce poste n'est pas géré par l'optimiseur automatique")
+    gestion_manuelle = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.quai.nom} - Poste {self.numero}"
-    
+
+
+# =============================================================================
+# ÉQUIPE
+# =============================================================================
 class Equipe(models.Model):
     nom = models.CharField(max_length=100)
-    # Shifts couverts : ex "07-13,13-19" ou "19-01,01-07"
     shifts_couverts = models.CharField(max_length=100, help_text="Ex: 07h-13h,13h-19h")
-    # Règle de repos : nombre d'heures minimum entre deux affectations
     repos_min_heures = models.FloatField(default=8.0)
-    # Durée maximale de travail par jour (en heures)
     max_heures_par_jour = models.FloatField(default=12.0)
-    # Heure de début de journée pour le calcul (optionnel)
     debut_journee = models.FloatField(default=7.0)
     disponible = models.BooleanField(default=True)
 
@@ -551,13 +712,13 @@ class Equipe(models.Model):
         return self.nom
 
     def get_shifts_list(self):
-        """Retourne la liste des shifts couverts (ex: ['07h-13h', '13h-19h'])"""
         return [s.strip() for s in self.shifts_couverts.split(',')]
+
 
 class AffectationEquipe(models.Model):
     equipe = models.ForeignKey(Equipe, on_delete=models.CASCADE)
     navire = models.ForeignKey(Navire, on_delete=models.CASCADE)
-    shift = models.CharField(max_length=20)  # '07h-13h', etc.
+    shift = models.CharField(max_length=20)
     date_debut = models.DateTimeField()
     date_fin = models.DateTimeField()
     duree_heures = models.FloatField()
@@ -565,16 +726,50 @@ class AffectationEquipe(models.Model):
 
     class Meta:
         unique_together = ('equipe', 'navire', 'shift', 'date_debut')
+
+
+# =============================================================================
+# NOTE ATTENTE (lié à une escale)
+# =============================================================================
 class NoteAttente(models.Model):
+    SHIFT_CHOICES = [
+        ('matin', 'Matin'),
+        ('soir', 'Soir'),
+        ('nuit', 'Nuit'),
+        ('double_nuit', 'Double nuit'),
+    ]
+
     navire = models.ForeignKey('Navire', on_delete=models.CASCADE)
-    shift = models.CharField(max_length=20, choices=[('matin','Matin'),('soir','Soir'),('nuit','Nuit'),('double_nuit','Double nuit')], blank=True, null=True)
+    escale = models.ForeignKey(
+        Escale,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='notes_attente',
+        help_text="Escale associée (None = ancienne note héritée)"
+    )
+    shift = models.CharField(max_length=20, choices=SHIFT_CHOICES, blank=True, null=True)
     duree_attente = models.FloatField()
     commentaire = models.TextField(blank=True)
     date_creation = models.DateTimeField(auto_now_add=True)
     prise_en_compte = models.BooleanField(default=False)
+    archive = models.BooleanField(default=False, help_text="True si l'escale est terminée (utilisée pour l'IA)")
+
+    class Meta:
+        ordering = ['-date_creation']
+        indexes = [
+            models.Index(fields=['navire', 'escale']),
+            models.Index(fields=['archive']),
+        ]
 
     def __str__(self):
-        return f"{self.navire.nom} - {self.duree_attente}h"
+        escale_id = self.escale.id if self.escale else "N/A"
+        return f"{self.navire.nom} - {self.duree_attente}h (escale {escale_id})"
+
+
+# =============================================================================
+# AFFECTATION QUAI (pour l'IA)
+# =============================================================================
 class AffectationQuai(models.Model):
     navire = models.ForeignKey('Navire', on_delete=models.CASCADE)
     quai = models.ForeignKey('Quai', on_delete=models.CASCADE)
@@ -583,12 +778,18 @@ class AffectationQuai(models.Model):
     volume = models.FloatField()
     longueur = models.FloatField()
     tirant = models.FloatField()
-    agent = models.CharField(max_length=100, blank=True)
-    entite = models.CharField(max_length=20, blank=True)
-    shift_debut = models.CharField(max_length=10, blank=True)  # matin, soir, nuit
+    agent = models.CharField(max_length=200, blank=True)
+    entite = models.CharField(max_length=200, blank=True)
+    shift_debut = models.CharField(max_length=10, blank=True)
     date_affectation = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f"{self.navire.nom} → {self.quai.nom}"
 
+
+# =============================================================================
+# NOTIFICATION CONSIGNATAIRE
+# =============================================================================
 class NotificationConsignataire(models.Model):
     TYPES = (
         ('info', 'Information'),
@@ -612,3 +813,33 @@ class NotificationConsignataire(models.Model):
 
     def __str__(self):
         return f"[{self.get_type_display()}] {self.message[:50]}"
+class MouvementNavire(models.Model):
+    """
+    Trace les mouvements des navires détectés automatiquement.
+    Permet de savoir quand un navire entre/sort du port.
+    """
+    TYPE_MOUVEMENT = [
+        ('entree_rade', 'Entrée en rade'),
+        ('entree_quai', 'Entrée à quai'),
+        ('sortie_quai', 'Sortie du quai'),
+        ('sortie_port', 'Sortie du port'),
+        ('changement_etat', 'Changement d\'état'),
+    ]
+    
+    navire = models.ForeignKey(Navire, on_delete=models.CASCADE, related_name='mouvements')
+    type_mouvement = models.CharField(max_length=20, choices=TYPE_MOUVEMENT)
+    etat_avant = models.CharField(max_length=20, blank=True)
+    etat_apres = models.CharField(max_length=20, blank=True)
+    quai_avant = models.ForeignKey(Quai, on_delete=models.SET_NULL, null=True, blank=True, related_name='mouvements_sortie')
+    quai_apres = models.ForeignKey(Quai, on_delete=models.SET_NULL, null=True, blank=True, related_name='mouvements_entree')
+    date_detection = models.DateTimeField(auto_now_add=True)
+    source = models.CharField(max_length=50, default='scraping_auto')
+    details = models.JSONField(default=dict, blank=True)
+    
+    class Meta:
+        ordering = ['-date_detection']
+        verbose_name = "Mouvement de navire"
+        verbose_name_plural = "Mouvements de navires"
+    
+    def __str__(self):
+        return f"{self.navire.nom} - {self.get_type_mouvement_display()} - {self.date_detection.strftime('%d/%m %H:%M')}"

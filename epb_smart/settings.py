@@ -1,21 +1,20 @@
 from pathlib import Path
 import os
-from dotenv import load_dotenv  # ← NOUVEAU
+import dj_database_url  # ← NOUVEAU : pour PostgreSQL
+from dotenv import load_dotenv
 
 # Charger les variables d'environnement depuis le fichier .env
-load_dotenv()  # ← NOUVEAU
+load_dotenv()
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ==================== SÉCURITÉ ====================
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY')  # ← MODIFIÉ
+SECRET_KEY = os.getenv('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'False') == 'True'  # ← MODIFIÉ
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']  # ← MODIFIÉ (ajout de testserver)
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver', '.onrender.com', '.railway.app']  # ← AJOUT Render/Railway
 
 # ==================== APPLICATION DEFINITION ====================
 INSTALLED_APPS = [
@@ -25,11 +24,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'port',
+    'port.apps.PortConfig',  # ✅ PortConfig explicitement
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # ← NOUVEAU : pour les fichiers statiques en production
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -60,19 +60,39 @@ TEMPLATES = [
 WSGI_APPLICATION = 'epb_smart.wsgi.application'
 
 # ==================== BASE DE DONNÉES ====================
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME'),  # ← MODIFIÉ
-        'USER': os.getenv('DB_USER'),  # ← MODIFIÉ
-        'PASSWORD': os.getenv('DB_PASSWORD'),  # ← MODIFIÉ
-        'HOST': os.getenv('DB_HOST'),  # ← MODIFIÉ
-        'PORT': os.getenv('DB_PORT'),  # ← MODIFIÉ
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+# ✅ Configuration intelligente :
+# - En production (Render) : utilise PostgreSQL (Neon)
+# - En local : utilise MySQL
+# - Fallback : SQLite
+
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+if DATABASE_URL:
+    # ✅ PostgreSQL (Neon) - utilisé en local ET en production
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
     }
-}
+    print("🐘 [DB] Utilisation de PostgreSQL (Neon)")
+else:
+    # ✅ Fallback : MySQL local
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.getenv('DB_NAME', 'epb_smart'),
+            'USER': os.getenv('DB_USER', 'root'),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '3306'),
+            'OPTIONS': {
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+        }
+    }
+    #print("🐬 [DB] Utilisation de MySQL (local)")
 
 # ==================== AUTHENTIFICATION ====================
 LOGIN_URL = '/login/'
@@ -92,6 +112,16 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
+
+# ✅ WhiteNoise pour servir les fichiers statiques en production
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # ==================== VALIDATION DES MOTS DE PASSE ====================
 AUTH_PASSWORD_VALIDATORS = [
@@ -123,8 +153,50 @@ EMAIL_BACKEND = 'epb_smart.settings.UnsafeSMTPBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')  # ← MODIFIÉ
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')  # ← MODIFIÉ
-DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')  # ← MODIFIÉ
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')
 
-BASE_URL = 'http://127.0.0.1:8000'
+# ✅ URL de base : dynamique selon l'environnement
+if DEBUG:
+    BASE_URL = 'http://127.0.0.1:8000'
+else:
+    BASE_URL = os.getenv('BASE_URL', 'https://votre-app.onrender.com')
+
+# ==================== LOGGING ====================
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': 'surveillance_epb.log',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'port.services.surveillance_auto': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'port.services.surveillance': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+# ==================== DEFAULT AUTO FIELD ====================
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -928,6 +928,14 @@
                     </a>
                     {% endif %}
                     
+                    <!-- ========== NOUVEAU : PLANIFICATION DYNAMIQUE ========== -->
+                    {% if user.is_superuser or user.groups.all.0.name in 'Directeur Officier_port Officier_radio Gestionnaire_escales' %}
+                    <a href="{% url 'planification_dynamique' %}" class="nav-link">
+                        <i class="fas fa-sync-alt"></i> Planification dynamique
+                    </a>
+                    {% endif %}
+                    <!-- ====================================================== -->
+                    
                     {% if user.is_superuser or user.groups.all.0.name != 'Consignataire' %}
                     <div class="dropdown">
                         <button class="nav-link dropdown-btn" onclick="toggleGestionDropdown(event)">
