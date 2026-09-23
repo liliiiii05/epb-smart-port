@@ -186,6 +186,11 @@
         color: var(--danger);
         border: 1px solid rgba(239,68,68,0.3);
     }
+    .badge-maintenance {
+        background: rgba(245,158,11,0.15);
+        color: var(--warning);
+        border: 1px solid rgba(245,158,11,0.3);
+    }
     .speciality-tag {
         background: rgba(212,175,55,0.15);
         padding: 0.2rem 0.6rem;
@@ -256,6 +261,7 @@
     .btn-icon.edit:hover { background: rgba(245,158,11,0.2); transform: scale(1.05); }
     .btn-icon.delete { color: var(--danger); }
     .btn-icon.delete:hover { background: rgba(239,68,68,0.2); transform: scale(1.05); }
+    .btn-icon.disabled { color: #94a3b8; cursor: not-allowed; }
     .btn-sm {
         padding: 0.2rem 0.6rem;
         font-size: 0.65rem;
@@ -321,7 +327,7 @@
             <span class="stat-badge"><i class="fas fa-dock"></i> Total postes: <strong id="total-postes">0</strong></span>
             <span class="stat-badge"><i class="fas fa-check-circle"></i> Postes libres: <strong id="postes-libres">0</strong></span>
             <span class="stat-badge"><i class="fas fa-ship"></i> Postes occupés: <strong id="postes-occupes">0</strong></span>
-            <span class="stat-badge"><i class="fas fa-chart-line"></i> Taux occupation: <strong id="taux-occupation">0%</strong></span>
+            <span class="stat-badge"><i class="fas fa-tools"></i> En travaux: <strong id="postes-travaux">0</strong></span>
         </div>
     </div>
 
@@ -356,8 +362,20 @@
                                 <i class="fas fa-chevron-down"></i> {{ quai_data.postes|length }} poste(s)
                             </button>
                         </td>
-                        <td>{{ quai_data.quai.longueur|floatformat:0 }} m</td>
-                        <td>{{ quai_data.quai.profondeur|floatformat:1 }} m</td>
+                        <td>
+                            {% if quai_data.quai.longueur >= 9999 %}
+                                <span class="speciality-tag" style="background: rgba(16,185,129,0.15); color: var(--success);">Illimité</span>
+                            {% else %}
+                                {{ quai_data.quai.longueur|floatformat:0 }} m
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if quai_data.quai.profondeur >= 9999 %}
+                                <span class="speciality-tag" style="background: rgba(16,185,129,0.15); color: var(--success);">Sans restriction</span>
+                            {% else %}
+                                {{ quai_data.quai.profondeur|floatformat:1 }} m
+                            {% endif %}
+                        </td>
                         <td><span class="speciality-tag">{{ quai_data.quai.specialite|default:"Général" }}</span></td>
                         <td>
                             <div class="action-buttons" style="display: flex; gap: 0.3rem;">
@@ -405,11 +423,18 @@
                                             <td>{{ poste.specialite|default:"Général" }}</td>
                                             <td>{{ poste.type_navire_autorise|default:"Tous" }}</td>
                                             <td>
-                                                {% if not poste.disponible %}
+                                                {% if poste.navire_occupant_nom %}
+                                                    <!-- Poste occupé par un navire -->
                                                     <span class="badge-status badge-occupied">
                                                         <i class="fas fa-lock"></i> Occupé
                                                     </span>
+                                                {% elif not poste.disponible %}
+                                                    <!-- Poste désactivé (en travaux) -->
+                                                    <span class="badge-status badge-maintenance">
+                                                        <i class="fas fa-tools"></i> En travaux
+                                                    </span>
                                                 {% else %}
+                                                    <!-- Poste libre -->
                                                     <span class="badge-status badge-available">
                                                         <i class="fas fa-check-circle"></i> Libre
                                                     </span>
@@ -424,6 +449,7 @@
                                             </td>
                                             <td>
                                                 <div style="display: flex; gap: 0.3rem; flex-wrap: wrap;">
+                                                    <!-- Bouton Modifier -->
                                                     <button class="btn-icon edit btn-edit-poste" 
                                                             data-poste-id="{{ poste.id }}"
                                                             data-quai-id="{{ quai_data.quai_id }}"
@@ -433,7 +459,39 @@
                                                             title="Modifier poste">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
-                                                    {% if not poste.disponible %}
+                                                    
+                                                    <!-- Bouton Activer/Désactiver -->
+                                                    {% if user.groups.first.name == 'Directeur' or user.groups.first.name == 'Officier_radio' %}
+                                                        {% if poste.navire_occupant_nom %}
+                                                            <!-- Poste occupé : on ne peut pas désactiver -->
+                                                            <button class="btn-icon disabled" 
+                                                                    title="Impossible : poste occupé par {{ poste.navire_occupant_nom }}"
+                                                                    disabled>
+                                                                <i class="fas fa-ban"></i>
+                                                            </button>
+                                                        {% elif poste.disponible %}
+                                                            <!-- Poste actif → bouton pour désactiver -->
+                                                            <a href="{% url 'basculer_statut_poste' poste.id %}" 
+                                                               class="btn-icon" 
+                                                               style="color: var(--warning);"
+                                                               title="Désactiver (mettre en travaux)"
+                                                               onclick="return confirm('⚠️ Désactiver le poste {{ poste.numero }} ?\n\nIl ne sera plus disponible pour les affectations.')">
+                                                                <i class="fas fa-pause-circle"></i>
+                                                            </a>
+                                                        {% else %}
+                                                            <!-- Poste inactif → bouton pour réactiver -->
+                                                            <a href="{% url 'basculer_statut_poste' poste.id %}" 
+                                                               class="btn-icon" 
+                                                               style="color: var(--success);"
+                                                               title="Réactiver le poste"
+                                                               onclick="return confirm('✅ Réactiver le poste {{ poste.numero }} ?')">
+                                                                <i class="fas fa-play-circle"></i>
+                                                            </a>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                    
+                                                    <!-- Bouton Libérer (si occupé) -->
+                                                    {% if poste.navire_occupant_nom %}
                                                         <a href="{% url 'liberer_poste' poste.id %}" class="btn-sm btn-warning" 
                                                            onclick="return confirm('⚠️ Êtes-vous sûr de vouloir libérer ce poste ? Le navire sera retourné en rade.')">
                                                             <i class="fas fa-unlock-alt"></i> Libérer
@@ -539,12 +597,15 @@
         let totalPostes = 0;
         let postesOccupes = 0;
         let postesLibres = 0;
+        let postesTravaux = 0;
         
         {% for quai_data in quais %}
             totalPostes += {{ quai_data.postes|length }};
             {% for poste in quai_data.postes %}
-                {% if not poste.disponible %}
+                {% if poste.navire_occupant_nom %}
                     postesOccupes++;
+                {% elif not poste.disponible %}
+                    postesTravaux++;
                 {% else %}
                     postesLibres++;
                 {% endif %}
@@ -555,9 +616,7 @@
         document.getElementById('total-postes').innerText = totalPostes;
         document.getElementById('postes-libres').innerText = postesLibres;
         document.getElementById('postes-occupes').innerText = postesOccupes;
-        
-        const tauxOccupation = totalPostes > 0 ? Math.round((postesOccupes / totalPostes) * 100) : 0;
-        document.getElementById('taux-occupation').innerHTML = `${tauxOccupation}%`;
+        document.getElementById('postes-travaux').innerText = postesTravaux;
 
         // ========== TOGGLE DES POSTES ==========
         document.querySelectorAll('.toggle-poste-btn').forEach(btn => {

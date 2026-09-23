@@ -1453,6 +1453,68 @@ def modifier_poste(request):
     
     return redirect('liste_quais')
 @login_required
+@group_required('Directeur', 'Officier_radio')
+def basculer_statut_poste(request, poste_id):
+    """
+    Bascule le statut d'un poste entre ACTIF et INACTIF (en travaux).
+    
+    - Si le poste est actif → devient inactif (disponible=False)
+    - Si le poste est inactif → devient actif (disponible=True)
+    
+    ⚠️ Si le poste est occupé par un navire, on refuse la désactivation.
+    """
+    poste = get_object_or_404(Poste, id=poste_id)
+    
+    # Vérifier si un navire occupe ce poste
+    navire_occupant = Navire.objects.filter(poste_attribue=poste, etat='quai').first()
+    
+    if poste.disponible:
+        # On veut DÉSACTIVER le poste
+        if navire_occupant:
+            messages.error(
+                request,
+                f"❌ Impossible de désactiver le poste {poste.numero} : "
+                f"il est occupé par le navire {navire_occupant.nom}. "
+                f"Libérez-le d'abord."
+            )
+            return redirect('liste_quais')
+        
+        poste.disponible = False
+        poste.save()
+        messages.warning(
+            request,
+            f"🔒 Poste {poste.numero} désactivé (en travaux)."
+        )
+        
+        # Historique
+        ajouter_historique(
+            utilisateur=request.user,
+            type_action='modification',
+            description=f"Désactivation du poste {poste.numero} (quai {poste.quai.nom})",
+            quai=poste.quai,
+            details={'poste_id': poste.id, 'poste_numero': poste.numero, 'nouveau_statut': 'inactif'}
+        )
+    else:
+        # On veut ACTIVER le poste
+        poste.disponible = True
+        poste.occupation_jusqua = 0.0
+        poste.save()
+        messages.success(
+            request,
+            f"✅ Poste {poste.numero} activé."
+        )
+        
+        # Historique
+        ajouter_historique(
+            utilisateur=request.user,
+            type_action='modification',
+            description=f"Activation du poste {poste.numero} (quai {poste.quai.nom})",
+            quai=poste.quai,
+            details={'poste_id': poste.id, 'poste_numero': poste.numero, 'nouveau_statut': 'actif'}
+        )
+    
+    return redirect('liste_quais')
+@login_required
 @group_required('Gestionnaire_escales', 'Directeur')
 def modifier_navire(request, navire_id):
     navire = get_object_or_404(Navire, id=navire_id)

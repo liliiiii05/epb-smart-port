@@ -141,6 +141,11 @@ urlpatterns = [
 
     # ==================== RECALCUL ====================
     # ==================== PLANIFICATION DYNAMIQUE ====================
+    # ==================== POSTES ====================
+    path('postes/ajouter/', views.ajouter_poste, name='ajouter_poste'),
+    path('modifier-poste/', views.modifier_poste, name='modifier_poste'),
+    path('basculer-statut-poste/<int:poste_id>/', views.basculer_statut_poste, name='basculer_statut_poste'),  # ← NOUVEAU
+    path('liberer-poste/<int:poste_id>/', views.liberer_poste, name='liberer_poste'),
     path('mouvements/', views.mouvements_navires, name='mouvements_navires'),
     path('api/scraper/', views.api_scraper_epb, name='api_scraper_epb'),
     path('statut-surveillance/', views.statut_surveillance, name='statut_surveillance'),
