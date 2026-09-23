@@ -8,7 +8,23 @@ from bs4 import BeautifulSoup
 
 from port.models import Navire, Quai, SnapshotNavire, Poste, MouvementNavire
 
-URL = "https://www.portdebejaia.dz/situation-des-navires/"
+# ✅ URL corrigée
+URL = "https://www.portdebejaia.dz/situation-des-navigations/"
+
+# ✅ AJOUT : Headers réalistes pour éviter le blocage 403 (Render IP datacenter)
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Cache-Control': 'max-age=0',
+}
 
 TYPE_MAPPING = {
     "PORTE CONTENEURS": "conteneur",
@@ -367,13 +383,37 @@ class Command(BaseCommand):
         close_old_connections()
         
         self.stdout.write("🌐 Téléchargement de la page...")
+        
+        # ============================================================
+        # ✅ CORRECTION : Utilisation des headers réalistes
+        # ============================================================
         try:
-            response = requests.get(URL, timeout=30)
+            response = requests.get(URL, headers=HEADERS, timeout=30)
             response.raise_for_status()
             html = response.text
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Erreur HTTP : {e}"))
+            self.stdout.write(self.style.SUCCESS(f"✅ Page téléchargée ({len(html)} octets)"))
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 403:
+                self.stdout.write(self.style.ERROR(
+                    "❌ Erreur 403 : Accès refusé par le site EPB. "
+                    "L'IP du serveur est peut-être bloquée (Render datacenter)."
+                ))
+                self.stdout.write(self.style.WARNING(
+                    "   💡 Solution : utilisez un proxy ou exécutez le scraping depuis un autre service."
+                ))
+            else:
+                self.stdout.write(self.style.ERROR(f"❌ Erreur HTTP : {e}"))
             return
+        except requests.exceptions.Timeout:
+            self.stdout.write(self.style.ERROR("❌ Timeout : le site EPB ne répond pas (30s)"))
+            return
+        except requests.exceptions.ConnectionError as e:
+            self.stdout.write(self.style.ERROR(f"❌ Erreur de connexion : {e}"))
+            return
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"❌ Erreur inattendue : {e}"))
+            return
+        # ============================================================
 
         soup = BeautifulSoup(html, 'html.parser')
         all_tables = soup.find_all('table')
