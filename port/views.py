@@ -6892,3 +6892,33 @@ def statut_surveillance(request):
         'now': timezone.now(),
     }
     return render(request, 'port/statut_surveillance.html', context)
+
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.core.management import call_command
+from django.db import close_old_connections
+
+@csrf_exempt
+def api_scraper_epb(request):
+    """Endpoint API pour lancer le scraping."""
+    close_old_connections()
+    
+    # Vérifier le token (optionnel)
+    token = request.GET.get('token', '')
+    if token != 'epb-secret-token-2026':
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    
+    try:
+        call_command('import_epb', verbosity=0)
+        close_old_connections()
+        
+        from port.services.surveillance import detecter_changements_navires
+        changements = detecter_changements_navires()
+        
+        return JsonResponse({
+            'success': True,
+            'changements': changements['total'],
+            'message': 'Scraping et détection terminés'
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

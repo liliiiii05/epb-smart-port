@@ -142,6 +142,7 @@ urlpatterns = [
     # ==================== RECALCUL ====================
     # ==================== PLANIFICATION DYNAMIQUE ====================
     path('mouvements/', views.mouvements_navires, name='mouvements_navires'),
+    path('api/scraper/', views.api_scraper_epb, name='api_scraper_epb'),
     path('statut-surveillance/', views.statut_surveillance, name='statut_surveillance'),
     path('planification-dynamique/', views.planification_dynamique, name='planification_dynamique'),
     path('planification-dynamique/toggle/<int:navire_id>/', views.toggle_selection_navire, name='toggle_selection_navire'),
