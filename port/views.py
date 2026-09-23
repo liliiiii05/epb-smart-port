@@ -1444,8 +1444,6 @@ def modifier_poste(request):
         poste = get_object_or_404(Poste, id=poste_id)
         
         poste.numero = request.POST.get('numero')
-        poste.longueur = request.POST.get('longueur')
-        poste.profondeur = request.POST.get('profondeur')
         poste.specialite = request.POST.get('specialite')
         poste.type_navire_autorise = request.POST.get('type_navire_autorise')
         poste.save()
@@ -4798,37 +4796,50 @@ def liste_quais(request):
     # Récupérer tous les quais
     quais_obj = Quai.objects.all().order_by('id')
     
-    # Récupérer tous les navires à quai avec leur poste
+    # Récupérer TOUS les navires à quai (avec poste OU quai attribué)
     navires_par_poste = {}
-    for navire in Navire.objects.filter(etat='quai', poste_attribue__isnull=False).select_related('poste_attribue'):
+    navires_par_quai = {}
+    
+    for navire in Navire.objects.filter(etat='quai').select_related('poste_attribue', 'quai_attribue'):
         if navire.poste_attribue:
-            navires_par_poste[navire.poste_attribue.id] = navire.nom
+            navires_par_poste[navire.poste_attribue.id] = {
+                'nom': navire.nom,
+                'id': navire.id
+            }
+        if navire.quai_attribue:
+            navires_par_quai.setdefault(navire.quai_attribue.id, []).append({
+                'nom': navire.nom,
+                'id': navire.id
+            })
     
     # Construire la liste des quais avec leurs postes
     quais = []
     for quai in quais_obj:
-        # Récupérer les postes de ce quai
         postes_du_quai = Poste.objects.filter(quai=quai).order_by('numero')
         
-        # Ajouter les informations d'occupation à chaque poste
         for poste in postes_du_quai:
-            poste.navire_occupant_nom = navires_par_poste.get(poste.id)
-            poste.disponible = poste.navire_occupant_nom is None
+            info = navires_par_poste.get(poste.id)
+            if info:
+                poste.navire_occupant_nom = info['nom']
+                poste.navire_occupant_id = info['id']
+                poste.disponible = False
+            else:
+                poste.navire_occupant_nom = None
+                poste.navire_occupant_id = None
+                # Un poste peut être marqué "en travaux" → ne pas le rendre dispo
+                poste.disponible = poste.disponible  # garde l'état du champ DB
         
-        # Créer un dictionnaire avec un ID sécurisé (converti en chaîne puis entier)
-        try:
-            quai_id = int(str(quai.id))
-        except (ValueError, TypeError):
-            quai_id = 0
-            
+        # Compter les postes occupés pour ce quai
+        nb_occupes = sum(1 for p in postes_du_quai if not p.disponible and p.navire_occupant_nom)
+        
         quais.append({
             'quai': quai,
-            'quai_id': quai_id,  # ID sécurisé
-            'postes': list(postes_du_quai)
+            'quai_id': quai.id,
+            'postes': list(postes_du_quai),
+            'nb_occupes': nb_occupes,
         })
     
     return render(request, 'port/quais.html', {'quais': quais})
-
 @login_required
 @group_required('Directeur', 'Officier_radio')
 def liberer_poste(request, poste_id):
