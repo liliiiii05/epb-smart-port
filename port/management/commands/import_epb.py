@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from bs4 import BeautifulSoup
 
-from port.models import Navire, Quai, SnapshotNavire, Poste
+from port.models import Navire, Quai, SnapshotNavire, Poste, MouvementNavire
 
 URL = "https://www.portdebejaia.dz/situation-des-navires/"
 
@@ -55,7 +55,6 @@ TIRANT_DEFAUT = {
     'roulier': 6,
 }
 
-# Mapping des numéros de postes (web -> base de données)
 POSTE_NUM_MAPPING = {
     '1': '01', '2': '02', '3': '03',
     '4': '04', '5': '05', '6': '06', '7': '07',
@@ -66,6 +65,7 @@ POSTE_NUM_MAPPING = {
     '23': '23', '24': '24', '25': '25', '26': '26',
     '90': '90',
 }
+
 
 def extraire_tonnage(tonnage_str):
     if not tonnage_str:
@@ -80,6 +80,7 @@ def extraire_tonnage(tonnage_str):
     except ValueError:
         return 0.0
 
+
 def convertir_heure_decimal(heure_str):
     if not heure_str:
         return None
@@ -87,6 +88,7 @@ def convertir_heure_decimal(heure_str):
         return float(heure_str.replace(',', '.'))
     except ValueError:
         return None
+
 
 def convertir_datetime(date_str):
     if not date_str:
@@ -113,6 +115,7 @@ def convertir_datetime(date_str):
         jour, mois, annee = map(int, date_str.split('/'))
         return datetime(annee, mois, jour, 8, 0, 0)
 
+
 def get_priorites(type_nav, marchandise):
     p = {
         'sortant': False, 'passage': False, 'gazier': False,
@@ -136,27 +139,24 @@ def get_priorites(type_nav, marchandise):
         p['perissable'] = True
     return p
 
+
 def get_poste_by_numero(poste_num):
-    """Récupère un poste en gérant les formats (1 -> 01, etc.)"""
     if not poste_num:
         return None
     
     poste_num_str = str(poste_num).strip()
     
-    # Essayer avec le numéro original
     try:
         return Poste.objects.get(numero=poste_num_str)
     except Poste.DoesNotExist:
         pass
     
-    # Essayer avec le mapping
     if poste_num_str in POSTE_NUM_MAPPING:
         try:
             return Poste.objects.get(numero=POSTE_NUM_MAPPING[poste_num_str])
         except Poste.DoesNotExist:
             pass
     
-    # Essayer avec un zéro devant
     if len(poste_num_str) == 1 and poste_num_str.isdigit():
         try:
             return Poste.objects.get(numero=f"0{poste_num_str}")
@@ -164,6 +164,7 @@ def get_poste_by_numero(poste_num):
             pass
     
     return None
+
 
 def extraire_navires_attente(table):
     navires = []
@@ -210,6 +211,7 @@ def extraire_navires_attente(table):
         navires.append(nav)
     return navires
 
+
 def extraire_navires_rade(table):
     navires = []
     rows = table.find_all('tr')
@@ -255,6 +257,7 @@ def extraire_navires_rade(table):
         navires.append(nav)
     return navires
 
+
 def extraire_navires_quai(table):
     navires = []
     rows = table.find_all('tr')
@@ -287,7 +290,6 @@ def extraire_navires_quai(table):
         col_map = {'poste': 0, 'nom': 1, 'type': 2, 'accostage': 3, 'ted': 4, 
                    'marchandise': 5, 'tonnage': 6, 'agent': 7, 'receptionnaire': 8}
     
-    # Mapping explicite des numéros de postes (web -> base)
     POSTE_MAPPING = {
         '1': '01', '2': '02', '3': '03',
         '4': '04', '5': '05', '6': '06', '7': '07',
@@ -310,32 +312,27 @@ def extraire_navires_quai(table):
         if m:
             poste_num = m.group()
         
-        # Récupérer le poste avec mapping explicite
         poste = None
         if poste_num:
-            # Chercher d'abord avec le numéro mappé (1 -> 01)
             mapped_num = POSTE_MAPPING.get(poste_num, poste_num)
             try:
                 poste = Poste.objects.get(numero=mapped_num)
                 print(f"  ✅ Poste trouvé: {poste_num} -> '{mapped_num}'")
             except Poste.DoesNotExist:
-                # Essayer avec le numéro original
                 try:
                     poste = Poste.objects.get(numero=poste_num)
                     print(f"  ✅ Poste trouvé: {poste_num} (original)")
                 except Poste.DoesNotExist:
-                    # Essayer avec un zéro devant
                     if len(poste_num) == 1 and poste_num.isdigit():
                         try:
                             poste = Poste.objects.get(numero=f"0{poste_num}")
                             print(f"  ✅ Poste trouvé: {poste_num} -> '0{poste_num}'")
                         except Poste.DoesNotExist:
-                            print(f"  ⚠️ Poste {poste_num} non trouvé (cherché '{mapped_num}', '{poste_num}', '0{poste_num}')")
+                            print(f"  ⚠️ Poste {poste_num} non trouvé")
                     else:
-                        print(f"  ⚠️ Poste {poste_num} non trouvé (cherché '{mapped_num}')")
+                        print(f"  ⚠️ Poste {poste_num} non trouvé")
                     continue
         
-        # Si le poste n'existe pas, ignorer ce navire
         if poste is None:
             continue
         
@@ -361,10 +358,14 @@ def extraire_navires_quai(table):
         navires.append(nav)
     return navires
 
+
 class Command(BaseCommand):
     help = "Importe les données du site EPB et crée un snapshot journalier"
 
     def handle(self, *args, **options):
+        from django.db import close_old_connections
+        close_old_connections()
+        
         self.stdout.write("🌐 Téléchargement de la page...")
         try:
             response = requests.get(URL, timeout=30)
@@ -430,9 +431,15 @@ class Command(BaseCommand):
         for nav in navires_rade:
             noms_aujourdhui.add(nav['nom'])
 
-        # Marquer comme terminés les navires actifs non présents
+        # ============================================================
+        # ✅ MARQUER COMME TERMINÉS LES NAVIRES NON PRÉSENTS
+        # ============================================================
         navires_terminer = Navire.objects.exclude(etat='termine').exclude(nom__in=noms_aujourdhui)
         for navire in navires_terminer:
+            # Sauvegarder l'état précédent AVANT modification
+            etat_precedent = navire.etat
+            quai_precedent = navire.quai_attribue
+            
             if navire.quai_attribue:
                 quai = navire.quai_attribue
                 quai.disponible = True
@@ -444,19 +451,39 @@ class Command(BaseCommand):
                 poste.disponible = True
                 poste.occupation_jusqua = 0.0
                 poste.save()
+                navire.poste_attribue = None
             navire.etat = 'termine'
             navire.save()
+            
+            # ✅ CRÉER LE MOUVEMENT DE SORTIE
+            MouvementNavire.objects.create(
+                navire=navire,
+                type_mouvement='sortie_port',
+                etat_avant=etat_precedent,
+                etat_apres='termine',
+                quai_avant=quai_precedent,
+                quai_apres=None,
+                source='scraping_auto',
+                details={'detection': 'navire_plus_sur_site'}
+            )
             self.stdout.write(f"  ⚠️ {navire.nom} marqué comme terminé (plus sur le site)")
+            self.stdout.write(f"  ✅ Mouvement 'sortie_port' créé pour {navire.nom}")
 
-        # Supprimer les occupants fictifs
         Navire.objects.filter(nom__startswith="OCCUPANT_").delete()
 
-        # --- Navires en rade ---
+        # ============================================================
+        # NAVIRES EN RADE
+        # ============================================================
         for data in navires_rade:
             type_nav = data['type']
             longueur = LONGUEUR_DEFAUT.get(type_nav, 120)
             tirant = TIRANT_DEFAUT.get(type_nav, 7)
             priorites = get_priorites(type_nav, data['marchandise'])
+            
+            # Vérifier si le navire existait déjà
+            navire_existant = Navire.objects.filter(nom=data['nom']).first()
+            etat_avant = navire_existant.etat if navire_existant else 'attente'
+            
             navire, created = Navire.objects.update_or_create(
                 nom=data['nom'],
                 defaults={
@@ -472,6 +499,19 @@ class Command(BaseCommand):
                     **priorites
                 }
             )
+            
+            # ✅ CRÉER LE MOUVEMENT D'ENTRÉE EN RADE
+            if created or etat_avant != 'rade':
+                MouvementNavire.objects.create(
+                    navire=navire,
+                    type_mouvement='entree_rade',
+                    etat_avant=etat_avant,
+                    etat_apres='rade',
+                    source='scraping_auto',
+                    details={'detection': 'navire_en_rade'}
+                )
+                self.stdout.write(f"  ✅ Mouvement 'entree_rade' créé pour {navire.nom}")
+            
             SnapshotNavire.objects.create(
                 date=date_today,
                 navire=navire,
@@ -483,9 +523,10 @@ class Command(BaseCommand):
             )
             self.stdout.write(f"  {'Créé' if created else 'Mis à jour'} {navire.nom} (rade)")
 
-        # --- Navires à quai ---
+        # ============================================================
+        # NAVIRES À QUAI
+        # ============================================================
         for data in navires_quai:
-            # Si le poste n'existe pas, ignorer ce navire
             if data['poste'] is None:
                 self.stdout.write(f"  ⚠️ {data['nom']} ignoré (poste {data['poste_original']} non trouvé)")
                 continue
@@ -497,6 +538,10 @@ class Command(BaseCommand):
             heure_fin = None
             if data['heure_debut'] is not None and data['ted'] is not None:
                 heure_fin = data['heure_debut'] + data['ted']
+
+            # Vérifier si le navire existait déjà
+            navire_existant = Navire.objects.filter(nom=data['nom']).first()
+            etat_avant = navire_existant.etat if navire_existant else 'attente'
 
             navire, created = Navire.objects.update_or_create(
                 nom=data['nom'],
@@ -518,6 +563,20 @@ class Command(BaseCommand):
                     **priorites
                 }
             )
+            
+            # ✅ CRÉER LE MOUVEMENT D'ENTRÉE À QUAI
+            if created or etat_avant != 'quai':
+                MouvementNavire.objects.create(
+                    navire=navire,
+                    type_mouvement='entree_quai',
+                    etat_avant=etat_avant,
+                    etat_apres='quai',
+                    quai_apres=data['quai'],
+                    source='scraping_auto',
+                    details={'detection': 'navire_a_quai'}
+                )
+                self.stdout.write(f"  ✅ Mouvement 'entree_quai' créé pour {navire.nom}")
+            
             # Mettre à jour le poste (occupé)
             if data['poste']:
                 poste = data['poste']
@@ -535,7 +594,9 @@ class Command(BaseCommand):
             )
             self.stdout.write(f"  {'Créé' if created else 'Mis à jour'} {navire.nom} (quai {data['poste_original']})")
 
-        # --- Navires en attente ---
+        # ============================================================
+        # NAVIRES EN ATTENTE
+        # ============================================================
         for data in navires_attente:
             type_nav = data['type']
             longueur = LONGUEUR_DEFAUT.get(type_nav, 120)
@@ -567,4 +628,5 @@ class Command(BaseCommand):
             )
             self.stdout.write(f"  {'Créé' if created else 'Mis à jour'} {navire.nom} (attente)")
 
+        close_old_connections()
         self.stdout.write(self.style.SUCCESS("\n✅ Importation terminée"))
