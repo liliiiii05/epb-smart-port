@@ -79,7 +79,13 @@
                     {% for m in mouvements %}
                     <tr>
                         <td>{{ m.date_detection|date:"d/m H:i" }}</td>
-                        <td><a href="{% url 'detail_navire' m.navire.id %}">{{ m.navire.nom }}</a></td>
+                        <td>
+                            {% if m.navire %}
+                                <a href="{% url 'detail_navire' m.navire.id %}">{{ m.navire.nom }}</a>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
                         <td>
                             {% if m.type_mouvement == 'entree_rade' %}
                                 <span class="badge bg-primary">🚢 Entrée rade</span>
@@ -89,11 +95,21 @@
                                 <span class="badge bg-warning">🚪 Sortie quai</span>
                             {% elif m.type_mouvement == 'sortie_port' %}
                                 <span class="badge bg-danger">🛳️ Sortie port</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ m.type_mouvement }}</span>
                             {% endif %}
                         </td>
-                        <td>{{ m.etat_avant }}</td>
-                        <td>{{ m.etat_apres }}</td>
-                        <td>{{ m.quai_apres.nom|default:m.quai_avant.nom|default:"—" }}</td>
+                        <td>{{ m.etat_avant|default:"—" }}</td>
+                        <td>{{ m.etat_apres|default:"—" }}</td>
+                        <td>
+                            {% if m.quai_apres %}
+                                {{ m.quai_apres.nom }}
+                            {% elif m.quai_avant %}
+                                {{ m.quai_avant.nom }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
