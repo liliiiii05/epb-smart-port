@@ -347,7 +347,7 @@
                 <tbody>
                     {% for quai_data in quais %}
                     <tr class="quai-row" data-quai-id="{{ quai_data.quai_id|default:0 }}">
-                        <td>{{ quai_data.quai_id|default:"-" }}</div>
+                        <td>{{ quai_data.quai_id|default:"-" }}</td>
                         <td>
                             <a href="{% url 'detail_quai' quai_data.quai_id %}" class="link-quai">
                                 <strong><i class="fas fa-dock"></i> {{ quai_data.quai.nom }}</strong>
@@ -355,10 +355,10 @@
                             <button class="toggle-poste-btn" data-quai="{{ quai_data.quai_id|default:0 }}">
                                 <i class="fas fa-chevron-down"></i> {{ quai_data.postes|length }} poste(s)
                             </button>
-                         </div>
-                        <td>{{ quai_data.quai.longueur|floatformat:0 }} m</div>
-                        <td>{{ quai_data.quai.profondeur|floatformat:1 }} m</div>
-                        <td><span class="speciality-tag">{{ quai_data.quai.specialite|default:"Général" }}</span></div>
+                        </td>
+                        <td>{{ quai_data.quai.longueur|floatformat:0 }} m</td>
+                        <td>{{ quai_data.quai.profondeur|floatformat:1 }} m</td>
+                        <td><span class="speciality-tag">{{ quai_data.quai.specialite|default:"Général" }}</span></td>
                         <td>
                             <div class="action-buttons" style="display: flex; gap: 0.3rem;">
                                 {% if user.groups.first.name == 'Directeur' %}
@@ -371,9 +371,9 @@
                                 </a>
                                 {% endif %}
                             </div>
-                         </div>
+                        </td>
                     </tr>
-                    <!-- Ligne des postes -->
+                    <!-- Ligne des postes (sans longueur/profondeur) -->
                     <tr class="postes-row-{{ quai_data.quai_id|default:0 }}" style="display: none;">
                         <td colspan="6" style="padding: 0;">
                             <div class="postes-container">
@@ -391,8 +391,6 @@
                                     <thead>
                                         <tr>
                                             <th>N° Poste</th>
-                                            <th>Longueur</th>
-                                            <th>Profondeur</th>
                                             <th>Spécialité</th>
                                             <th>Types autorisés</th>
                                             <th>Statut</th>
@@ -403,11 +401,9 @@
                                     <tbody>
                                         {% for poste in quai_data.postes %}
                                         <tr>
-                                            <td><strong>{{ poste.numero }}</strong></div>
-                                            <td>{{ poste.longueur|floatformat:0 }} m</div>
-                                            <td>{{ poste.profondeur|floatformat:1 }} m</div>
-                                            <td>{{ poste.specialite|default:"Général" }}</div>
-                                            <td>{{ poste.type_navire_autorise|default:"Tous" }}</div>
+                                            <td><strong>{{ poste.numero }}</strong></td>
+                                            <td>{{ poste.specialite|default:"Général" }}</td>
+                                            <td>{{ poste.type_navire_autorise|default:"Tous" }}</td>
                                             <td>
                                                 {% if not poste.disponible %}
                                                     <span class="badge-status badge-occupied">
@@ -418,22 +414,20 @@
                                                         <i class="fas fa-check-circle"></i> Libre
                                                     </span>
                                                 {% endif %}
-                                             </div>
+                                            </td>
                                             <td>
                                                 {% if poste.navire_occupant_nom %}
                                                     <span><i class="fas fa-ship"></i> {{ poste.navire_occupant_nom }}</span>
                                                 {% else %}
                                                     <span class="text-muted">—</span>
                                                 {% endif %}
-                                             </div>
+                                            </td>
                                             <td>
                                                 <div style="display: flex; gap: 0.3rem; flex-wrap: wrap;">
                                                     <button class="btn-icon edit btn-edit-poste" 
                                                             data-poste-id="{{ poste.id }}"
                                                             data-quai-id="{{ quai_data.quai_id }}"
                                                             data-numero="{{ poste.numero }}"
-                                                            data-longueur="{{ poste.longueur }}"
-                                                            data-profondeur="{{ poste.profondeur }}"
                                                             data-specialite="{{ poste.specialite|default:'' }}"
                                                             data-type-autorise="{{ poste.type_navire_autorise|default:'' }}"
                                                             title="Modifier poste">
@@ -446,28 +440,28 @@
                                                         </a>
                                                     {% endif %}
                                                 </div>
-                                             </div>
+                                            </td>
                                         </tr>
                                         {% empty %}
                                         <tr>
-                                            <td colspan="8" style="text-align: center; padding: 1rem;">
+                                            <td colspan="6" style="text-align: center; padding: 1rem;">
                                                 <i class="fas fa-info-circle"></i> Aucun poste défini pour ce quai.
                                                 {% if user.groups.first.name == 'Directeur' %}
                                                 <button class="btn-add-poste" onclick="openAddPosteModal({{ quai_data.quai_id }})" style="margin-left: 0.5rem;">
                                                     <i class="fas fa-plus-circle"></i> Ajouter un poste
                                                 </button>
                                                 {% endif %}
-                                             </div>
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
-                         </div>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="empty-state">Aucun quai disponible. </div>
+                        <td colspan="6" class="empty-state">Aucun quai disponible.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -480,7 +474,7 @@
     </div>
 </div>
 
-<!-- MODALE MODIFIER POSTE -->
+<!-- MODALE MODIFIER POSTE (sans longueur/profondeur) -->
 <div id="editPosteModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 9999; justify-content: center; align-items: center;">
     <div style="background: white; width: 500px; max-width: 90%; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
         <h3 style="margin-bottom: 1rem; color: var(--primary); border-left: 4px solid var(--primary); padding-left: 0.8rem;">
@@ -491,15 +485,7 @@
             <input type="hidden" name="poste_id" id="edit_poste_id">
             <div style="margin-bottom: 0.8rem;">
                 <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Numéro du poste</label>
-                <input type="text" name="numero" id="edit_numero" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.5rem;" required>
-            </div>
-            <div style="margin-bottom: 0.8rem;">
-                <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Longueur (m)</label>
-                <input type="number" step="0.01" name="longueur" id="edit_longueur" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.5rem;" required>
-            </div>
-            <div style="margin-bottom: 0.8rem;">
-                <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Profondeur (m)</label>
-                <input type="number" step="0.01" name="profondeur" id="edit_profondeur" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.5rem;" required>
+                <input type="text" name="numero" id="edit_numero" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.5rem;" required>
             </div>
             <div style="margin-bottom: 0.8rem;">
                 <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Spécialité</label>
@@ -517,7 +503,7 @@
     </div>
 </div>
 
-<!-- MODALE AJOUTER POSTE -->
+<!-- MODALE AJOUTER POSTE (sans longueur/profondeur) -->
 <div id="addPosteModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 9999; justify-content: center; align-items: center;">
     <div style="background: white; width: 500px; max-width: 90%; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
         <h3 style="margin-bottom: 1rem; color: var(--success); border-left: 4px solid var(--success); padding-left: 0.8rem;">
@@ -528,15 +514,7 @@
             <input type="hidden" name="quai_id" id="add_quai_id">
             <div style="margin-bottom: 0.8rem;">
                 <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Numéro du poste</label>
-                <input type="text" name="numero" id="add_numero" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.5rem;" required>
-            </div>
-            <div style="margin-bottom: 0.8rem;">
-                <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Longueur (m)</label>
-                <input type="number" step="0.01" name="longueur" id="add_longueur" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.5rem;" required>
-            </div>
-            <div style="margin-bottom: 0.8rem;">
-                <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Profondeur (m)</label>
-                <input type="number" step="0.01" name="profondeur" id="add_profondeur" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.5rem;" required>
+                <input type="text" name="numero" id="add_numero" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.5rem;" required>
             </div>
             <div style="margin-bottom: 0.8rem;">
                 <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Spécialité</label>
@@ -602,11 +580,9 @@
         const editModal = document.getElementById('editPosteModal');
         const closeEditModal = document.getElementById('closeModalBtn');
 
-        window.openEditPosteModal = function(posteId, numero, longueur, profondeur, specialite, typeAutorise) {
+        window.openEditPosteModal = function(posteId, numero, specialite, typeAutorise) {
             document.getElementById('edit_poste_id').value = posteId;
             document.getElementById('edit_numero').value = numero;
-            document.getElementById('edit_longueur').value = longueur;
-            document.getElementById('edit_profondeur').value = profondeur;
             document.getElementById('edit_specialite').value = specialite;
             document.getElementById('edit_type_autorise').value = typeAutorise;
             editModal.style.display = 'flex';
@@ -617,8 +593,6 @@
                 window.openEditPosteModal(
                     this.dataset.posteId,
                     this.dataset.numero,
-                    this.dataset.longueur,
-                    this.dataset.profondeur,
                     this.dataset.specialite,
                     this.dataset.typeAutorise
                 );
@@ -636,8 +610,6 @@
         window.openAddPosteModal = function(quaiId) {
             document.getElementById('add_quai_id').value = quaiId;
             document.getElementById('add_numero').value = '';
-            document.getElementById('add_longueur').value = '';
-            document.getElementById('add_profondeur').value = '';
             document.getElementById('add_specialite').value = '';
             document.getElementById('add_type_autorise').value = '';
             addModal.style.display = 'flex';
