@@ -1,5 +1,6 @@
 # port/management/commands/import_epb.py
 import re
+import urllib.parse
 import requests
 from datetime import datetime
 from django.core.management.base import BaseCommand
@@ -8,10 +9,9 @@ from bs4 import BeautifulSoup
 
 from port.models import Navire, Quai, SnapshotNavire, Poste, MouvementNavire
 
-# ✅ URL corrigée
-URL = "https://www.portdebejaia.dz/situation-des-navigations/"
+URL = "https://www.portdebejaia.dz/situation-des-navires/"
 
-# ✅ AJOUT : Headers réalistes pour éviter le blocage 403 (Render IP datacenter)
+# ✅ Headers réalistes pour éviter le blocage
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
@@ -25,6 +25,43 @@ HEADERS = {
     'Sec-Fetch-User': '?1',
     'Cache-Control': 'max-age=0',
 }
+
+# ✅ Proxies publics pour contourner le blocage IP de Render
+PROXY_LIST = [
+    "https://api.allorigins.win/raw?url=",
+    "https://corsproxy.io/?",
+    "https://api.codetabs.com/v1/proxy?quest=",
+]
+
+
+def fetch_url(url):
+    """Récupère une URL en essayant direct puis via proxys."""
+    # 1. Tentative directe
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=30)
+        if response.status_code == 200:
+            print("✅ Succès en direct")
+            return response.text
+        else:
+            print(f"⚠️ Direct → status {response.status_code}, essai proxy...")
+    except Exception as e:
+        print(f"⚠️ Direct → erreur {e}, essai proxy...")
+
+    # 2. Tentative via proxys
+    for proxy in PROXY_LIST:
+        try:
+            proxy_url = proxy + urllib.parse.quote(url, safe='')
+            response = requests.get(proxy_url, headers=HEADERS, timeout=40)
+            if response.status_code == 200 and len(response.text) > 1000:
+                print(f"✅ Succès via proxy : {proxy}")
+                return response.text
+            else:
+                print(f"⚠️ Proxy {proxy} → status {response.status_code}")
+        except Exception as e:
+            print(f"⚠️ Proxy {proxy} → erreur {e}")
+
+    raise Exception("Tous les proxys ont échoué. IP Render probablement bloquée.")
+
 
 TYPE_MAPPING = {
     "PORTE CONTENEURS": "conteneur",
@@ -385,33 +422,13 @@ class Command(BaseCommand):
         self.stdout.write("🌐 Téléchargement de la page...")
         
         # ============================================================
-        # ✅ CORRECTION : Utilisation des headers réalistes
+        # ✅ Utilisation de fetch_url avec fallback proxy
         # ============================================================
         try:
-            response = requests.get(URL, headers=HEADERS, timeout=30)
-            response.raise_for_status()
-            html = response.text
+            html = fetch_url(URL)
             self.stdout.write(self.style.SUCCESS(f"✅ Page téléchargée ({len(html)} octets)"))
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 403:
-                self.stdout.write(self.style.ERROR(
-                    "❌ Erreur 403 : Accès refusé par le site EPB. "
-                    "L'IP du serveur est peut-être bloquée (Render datacenter)."
-                ))
-                self.stdout.write(self.style.WARNING(
-                    "   💡 Solution : utilisez un proxy ou exécutez le scraping depuis un autre service."
-                ))
-            else:
-                self.stdout.write(self.style.ERROR(f"❌ Erreur HTTP : {e}"))
-            return
-        except requests.exceptions.Timeout:
-            self.stdout.write(self.style.ERROR("❌ Timeout : le site EPB ne répond pas (30s)"))
-            return
-        except requests.exceptions.ConnectionError as e:
-            self.stdout.write(self.style.ERROR(f"❌ Erreur de connexion : {e}"))
-            return
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"❌ Erreur inattendue : {e}"))
+            self.stdout.write(self.style.ERROR(f"❌ Erreur : {e}"))
             return
         # ============================================================
 
@@ -476,7 +493,6 @@ class Command(BaseCommand):
         # ============================================================
         navires_terminer = Navire.objects.exclude(etat='termine').exclude(nom__in=noms_aujourdhui)
         for navire in navires_terminer:
-            # Sauvegarder l'état précédent AVANT modification
             etat_precedent = navire.etat
             quai_precedent = navire.quai_attribue
             
@@ -495,7 +511,6 @@ class Command(BaseCommand):
             navire.etat = 'termine'
             navire.save()
             
-            # ✅ CRÉER LE MOUVEMENT DE SORTIE
             MouvementNavire.objects.create(
                 navire=navire,
                 type_mouvement='sortie_port',
@@ -520,7 +535,6 @@ class Command(BaseCommand):
             tirant = TIRANT_DEFAUT.get(type_nav, 7)
             priorites = get_priorites(type_nav, data['marchandise'])
             
-            # Vérifier si le navire existait déjà
             navire_existant = Navire.objects.filter(nom=data['nom']).first()
             etat_avant = navire_existant.etat if navire_existant else 'attente'
             
@@ -540,7 +554,6 @@ class Command(BaseCommand):
                 }
             )
             
-            # ✅ CRÉER LE MOUVEMENT D'ENTRÉE EN RADE
             if created or etat_avant != 'rade':
                 MouvementNavire.objects.create(
                     navire=navire,
@@ -579,7 +592,6 @@ class Command(BaseCommand):
             if data['heure_debut'] is not None and data['ted'] is not None:
                 heure_fin = data['heure_debut'] + data['ted']
 
-            # Vérifier si le navire existait déjà
             navire_existant = Navire.objects.filter(nom=data['nom']).first()
             etat_avant = navire_existant.etat if navire_existant else 'attente'
 
@@ -604,7 +616,6 @@ class Command(BaseCommand):
                 }
             )
             
-            # ✅ CRÉER LE MOUVEMENT D'ENTRÉE À QUAI
             if created or etat_avant != 'quai':
                 MouvementNavire.objects.create(
                     navire=navire,
@@ -617,7 +628,6 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(f"  ✅ Mouvement 'entree_quai' créé pour {navire.nom}")
             
-            # Mettre à jour le poste (occupé)
             if data['poste']:
                 poste = data['poste']
                 poste.disponible = False
