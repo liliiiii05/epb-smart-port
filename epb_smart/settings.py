@@ -202,3 +202,4 @@ LOGGING = {
 
 # ==================== DEFAULT AUTO FIELD ====================
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+SURVEILLANCE_AUTO_ENABLED = not os.environ.get('RENDER')

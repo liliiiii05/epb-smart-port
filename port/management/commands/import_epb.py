@@ -2,7 +2,7 @@
 import re
 import urllib.parse
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from bs4 import BeautifulSoup
@@ -32,6 +32,10 @@ PROXY_LIST = [
     "https://corsproxy.io/?",
     "https://api.codetabs.com/v1/proxy?quest=",
 ]
+
+# ✅ Configuration anti-doublon
+SEUIL_MINIMUM_NAVIRES = 5           # Abandon si moins de 5 navires récupérés
+FENETRE_ANTI_DOUBLON_MINUTES = 120  # Pas de mouvement identique dans les 2h
 
 
 def fetch_url(url):
@@ -78,6 +82,8 @@ TYPE_MAPPING = {
     "ESSENCE": "essence",
     "NAVIRE CARBURANT": "essence",
     "NAVIRE SUCRE": "cargo",
+    "TANKER": "petrolier",
+    "NAVIRE DE PECHE": "cargo",
 }
 
 LONGUEUR_DEFAUT = {
@@ -472,13 +478,79 @@ class Command(BaseCommand):
         self.stdout.write(f"📥 À quai   : {len(navires_quai)}")
         self.stdout.write(f"📥 En rade  : {len(navires_rade)}")
 
-        if navires_attente:
-            self.stdout.write("Exemples attendus :")
-            for nav in navires_attente[:3]:
-                self.stdout.write(f"  - {nav['nom']} : ETA {nav['eta_dt']}")
+        # ============================================================
+        # ✅ SÉCURITÉ 1 : Ne rien faire si le scraping est incomplet
+        # ============================================================
+        total_recupere = len(navires_attente) + len(navires_quai) + len(navires_rade)
+        
+        if total_recupere < SEUIL_MINIMUM_NAVIRES:
+            self.stdout.write(self.style.ERROR(
+                f"❌ SÉCURITÉ 1 : Seulement {total_recupere} navires récupérés "
+                f"(seuil minimum = {SEUIL_MINIMUM_NAVIRES})."
+            ))
+            self.stdout.write(self.style.ERROR(
+                "   ABANDON pour éviter les faux mouvements."
+            ))
+            close_old_connections()
+            return
+        
+        self.stdout.write(self.style.SUCCESS(
+            f"✅ SÉCURITÉ 1 validée : {total_recupere} navires récupérés (>= {SEUIL_MINIMUM_NAVIRES})"
+        ))
+        # ============================================================
+        
+        # ============================================================
+        # ✅ SÉCURITÉ 2 : Anti-doublon pour les mouvements
+        # ============================================================
+        def mouvement_recent(navire, type_mouvement):
+            """Retourne True si un mouvement du même type existe dans les X minutes."""
+            return MouvementNavire.objects.filter(
+                navire=navire,
+                type_mouvement=type_mouvement,
+                date_detection__gte=timezone.now() - timedelta(minutes=FENETRE_ANTI_DOUBLON_MINUTES)
+            ).exists()
+        
+        self.stdout.write(f"✅ SÉCURITÉ 2 active : anti-doublon {FENETRE_ANTI_DOUBLON_MINUTES} min")
+        # ============================================================
+        
+        # ============================================================
+        # ✅ DÉDUPLICATION : Éviter les doublons entre listes
+        # (un navire peut apparaître dans quai ET attente si changement d'état)
+        # Priorité : quai > rade > attente
+        # ============================================================
+        noms_vus = set()
+        navires_quai_filtres = []
+        navires_rade_filtres = []
+        navires_attente_filtres = []
+        
+        for nav in navires_quai:
+            if nav['nom'] not in noms_vus:
+                noms_vus.add(nav['nom'])
+                navires_quai_filtres.append(nav)
+        for nav in navires_rade:
+            if nav['nom'] not in noms_vus:
+                noms_vus.add(nav['nom'])
+                navires_rade_filtres.append(nav)
+        for nav in navires_attente:
+            if nav['nom'] not in noms_vus:
+                noms_vus.add(nav['nom'])
+                navires_attente_filtres.append(nav)
+        
+        # Log si déduplication
+        doublons_evites = (len(navires_quai) + len(navires_rade) + len(navires_attente)) - len(noms_vus)
+        if doublons_evites > 0:
+            self.stdout.write(
+                f"⚠️ Déduplication : {doublons_evites} doublon(s) évité(s)"
+            )
+        
+        navires_quai = navires_quai_filtres
+        navires_rade = navires_rade_filtres
+        navires_attente = navires_attente_filtres
+        # ============================================================
 
         date_today = timezone.now().date()
-        SnapshotNavire.objects.filter(date=date_today).delete()
+        # ✅ Plus besoin de supprimer : update_or_create gère les doublons
+        # SnapshotNavire.objects.filter(date=date_today).delete()
 
         noms_aujourdhui = set()
         for nav in navires_attente:
@@ -489,9 +561,42 @@ class Command(BaseCommand):
             noms_aujourdhui.add(nav['nom'])
 
         # ============================================================
-        # ✅ MARQUER COMME TERMINÉS LES NAVIRES NON PRÉSENTS
+        # ✅ SÉCURITÉ 3 : Ne marquer "terminé" QUE si absent depuis hier
+        # Un navire vu dans un snapshot d'aujourd'hui ne sera PAS terminé
+        # (scraping probablement partiel)
         # ============================================================
-        navires_terminer = Navire.objects.exclude(etat='termine').exclude(nom__in=noms_aujourdhui)
+        self.stdout.write("\n🔍 Recherche des navires à marquer 'terminés'...")
+        
+        tous_absents = Navire.objects.exclude(etat='termine').exclude(nom__in=noms_aujourdhui)
+        navires_terminer = []
+        aujourdhui = timezone.now().date()
+        
+        for navire in tous_absents:
+            # Vérifier si le navire a un snapshot d'aujourd'hui
+            snapshot_aujourdhui = SnapshotNavire.objects.filter(
+                navire=navire,
+                date=aujourdhui
+            ).exists()
+            
+            # Si le navire a un snapshot d'aujourd'hui → skip (scraping partiel)
+            if snapshot_aujourdhui:
+                self.stdout.write(
+                    f"  ⏸️ {navire.nom} : vu aujourd'hui, pas de marquage 'termine'"
+                )
+                continue
+            
+            # Vérifier anti-doublon sortie_port
+            if mouvement_recent(navire, 'sortie_port'):
+                self.stdout.write(
+                    f"  ⏸️ {navire.nom} : 'sortie_port' déjà créé récemment, on saute"
+                )
+                continue
+            
+            navires_terminer.append(navire)
+        
+        self.stdout.write(f"📤 {len(navires_terminer)} navire(s) à marquer 'terminé(s)'")
+        # ============================================================
+
         for navire in navires_terminer:
             etat_precedent = navire.etat
             quai_precedent = navire.quai_attribue
@@ -555,24 +660,32 @@ class Command(BaseCommand):
             )
             
             if created or etat_avant != 'rade':
-                MouvementNavire.objects.create(
-                    navire=navire,
-                    type_mouvement='entree_rade',
-                    etat_avant=etat_avant,
-                    etat_apres='rade',
-                    source='scraping_auto',
-                    details={'detection': 'navire_en_rade'}
-                )
-                self.stdout.write(f"  ✅ Mouvement 'entree_rade' créé pour {navire.nom}")
+                if mouvement_recent(navire, 'entree_rade'):
+                    self.stdout.write(
+                        f"  ⏸️ {navire.nom} : 'entree_rade' déjà créé récemment, on saute"
+                    )
+                else:
+                    MouvementNavire.objects.create(
+                        navire=navire,
+                        type_mouvement='entree_rade',
+                        etat_avant=etat_avant,
+                        etat_apres='rade',
+                        source='scraping_auto',
+                        details={'detection': 'navire_en_rade'}
+                    )
+                    self.stdout.write(f"  ✅ Mouvement 'entree_rade' créé pour {navire.nom}")
             
-            SnapshotNavire.objects.create(
+            # ✅ update_or_create au lieu de create
+            SnapshotNavire.objects.update_or_create(
                 date=date_today,
                 navire=navire,
-                etat='rade',
-                arrivee=data['arrivee'],
-                quai_attribue=None,
-                heure_debut=None,
-                heure_fin=None
+                defaults={
+                    'etat': 'rade',
+                    'arrivee': data['arrivee'],
+                    'quai_attribue': None,
+                    'heure_debut': None,
+                    'heure_fin': None,
+                }
             )
             self.stdout.write(f"  {'Créé' if created else 'Mis à jour'} {navire.nom} (rade)")
 
@@ -617,30 +730,39 @@ class Command(BaseCommand):
             )
             
             if created or etat_avant != 'quai':
-                MouvementNavire.objects.create(
-                    navire=navire,
-                    type_mouvement='entree_quai',
-                    etat_avant=etat_avant,
-                    etat_apres='quai',
-                    quai_apres=data['quai'],
-                    source='scraping_auto',
-                    details={'detection': 'navire_a_quai'}
-                )
-                self.stdout.write(f"  ✅ Mouvement 'entree_quai' créé pour {navire.nom}")
+                if mouvement_recent(navire, 'entree_quai'):
+                    self.stdout.write(
+                        f"  ⏸️ {navire.nom} : 'entree_quai' déjà créé récemment, on saute"
+                    )
+                else:
+                    MouvementNavire.objects.create(
+                        navire=navire,
+                        type_mouvement='entree_quai',
+                        etat_avant=etat_avant,
+                        etat_apres='quai',
+                        quai_apres=data['quai'],
+                        source='scraping_auto',
+                        details={'detection': 'navire_a_quai'}
+                    )
+                    self.stdout.write(f"  ✅ Mouvement 'entree_quai' créé pour {navire.nom}")
             
             if data['poste']:
                 poste = data['poste']
                 poste.disponible = False
                 poste.occupation_jusqua = heure_fin if heure_fin is not None else 0.0
                 poste.save()
-            SnapshotNavire.objects.create(
+            
+            # ✅ update_or_create au lieu de create
+            SnapshotNavire.objects.update_or_create(
                 date=date_today,
                 navire=navire,
-                etat='quai',
-                arrivee=0,
-                quai_attribue=data['quai'],
-                heure_debut=data['heure_debut'],
-                heure_fin=heure_fin
+                defaults={
+                    'etat': 'quai',
+                    'arrivee': 0,
+                    'quai_attribue': data['quai'],
+                    'heure_debut': data['heure_debut'],
+                    'heure_fin': heure_fin,
+                }
             )
             self.stdout.write(f"  {'Créé' if created else 'Mis à jour'} {navire.nom} (quai {data['poste_original']})")
 
@@ -667,14 +789,18 @@ class Command(BaseCommand):
                     **priorites
                 }
             )
-            SnapshotNavire.objects.create(
+            
+            # ✅ update_or_create au lieu de create
+            SnapshotNavire.objects.update_or_create(
                 date=date_today,
                 navire=navire,
-                etat='attente',
-                arrivee=data['eta'],
-                quai_attribue=None,
-                heure_debut=None,
-                heure_fin=None
+                defaults={
+                    'etat': 'attente',
+                    'arrivee': data['eta'],
+                    'quai_attribue': None,
+                    'heure_debut': None,
+                    'heure_fin': None,
+                }
             )
             self.stdout.write(f"  {'Créé' if created else 'Mis à jour'} {navire.nom} (attente)")
 
